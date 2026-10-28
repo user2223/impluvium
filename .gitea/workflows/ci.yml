@@ -38,6 +38,8 @@ jobs:
     services:
       buildkitd:
         image: moby/buildkit:v0.34.0-rootless@sha256:65eca3c01cd1180c8f64565c4e3c5983af5145818b0e6fa863385d099eb73855
+        # rootlesskit needs these (not privileged, no Docker socket); runner-level options do not reach services.
+        options: --security-opt seccomp=unconfined --security-opt apparmor=unconfined
         env:
           BUILDKITD_FLAGS: --addr tcp://0.0.0.0:1234 --oci-worker-no-process-sandbox
     steps:
