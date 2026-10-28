@@ -1,19 +1,26 @@
 # impluvium CI – builds and checks only. This workflow gets no secrets: publication, privacy checks and releases
 # happen outside of CI. Runs only on the dedicated runner (label impluvium-linux, no Docker socket in jobs).
+# Pull requests against impluvium/main run the same jobs; the publication check uses the push run on impluvium/main.
 name: impluvium-ci
 
 on:
   push:
     branches: ["impluvium/main", "sync/**"]
-    tags: ["v*-impluvium.*"]
+    # Release tags are plain SemVer: v0.1.0, v0.1.0-rc.1.
+    tags: ["v*"]
+  pull_request:
+    branches: ["impluvium/main"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
-  # Pinned build inputs (P0: the upstream Dockerfile stays unchanged; its floating base images are pinned here).
+  # Pinned build inputs: actions by commit SHA, job images by digest, tools by version and checksum.
   RUST_NIGHTLY: nightly-2026-10-18
+  RUSTUP_VERSION: 1.29.2
+  RUSTUP_SHA256: 5be191e8c70a5007074254cb74d78dbfdd25cd5a61c27de7b8e5410122ec24f4
+  COREPACK_VERSION: 0.36.0
   NODE_IMAGE: node@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c
   RUST_IMAGE: rustlang/rust@sha256:cdc3e8239bfe2e7229af4ff4be7c83efc1769e361a9297a0f6c4d89556a0198c
   BUILDKIT_VERSION: v0.34.0
@@ -22,8 +29,10 @@ env:
 jobs:
   server-check:
     runs-on: impluvium-linux
+    container:
+      image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:2992a8a0448aba1c093255787390b2a090fefbfd76cc25db107f527e9bd65d3a
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Enable pnpm (corepack, version from package.json)
         run: corepack enable && pnpm --version
       - name: Install dependencies
@@ -37,14 +46,16 @@ jobs:
 
   server-image:
     runs-on: impluvium-linux
+    container:
+      image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:2992a8a0448aba1c093255787390b2a090fefbfd76cc25db107f527e9bd65d3a
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Version
         id: version
         run: |
           case "$GITHUB_REF" in
-            refs/tags/v*-impluvium.*) version="${GITHUB_REF_NAME#v}" ;;
-            *) version="0.4.0-rc-6-impluvium.dev" ;;
+            refs/tags/v*) version="${GITHUB_REF_NAME#v}" ;;
+            *) version="0.0.0-dev" ;;
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Rootless BuildKit (unprivileged user, no Docker socket)
@@ -86,7 +97,7 @@ jobs:
             DROP_VERSION="$DROP_VERSION" GITHUB_SHA="$GITHUB_SHA" bash "$RUNNER_TEMP/build.sh"
           mv "$RUNNER_TEMP/out/server-image.tar" server-image.tar
           sha256sum server-image.tar
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: server-image
           path: server-image.tar
@@ -105,23 +116,28 @@ jobs:
             nodejs npm git curl file gcc gcc-c++ make pkgconf-pkg-config perl \
             webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel libxdo-devel
           node --version
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Rust toolchain (pinned nightly)
         run: |
-          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "$RUST_NIGHTLY"
+          curl -sSfo "$RUNNER_TEMP/rustup-init" \
+            "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init"
+          echo "${RUSTUP_SHA256}  $RUNNER_TEMP/rustup-init" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/rustup-init"
+          "$RUNNER_TEMP/rustup-init" -y --profile minimal --default-toolchain "$RUST_NIGHTLY"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           echo "RUSTUP_TOOLCHAIN=$RUST_NIGHTLY" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: |
-          npm install -g corepack && corepack enable && pnpm --version
+          npm install -g "corepack@${COREPACK_VERSION}" && corepack enable && pnpm --version
           # only the desktop client and its workspace dependencies (the server postinstall is not needed here)
           pnpm install --frozen-lockfile --filter "./desktop..."
       - name: Build RPM
         working-directory: desktop
         run: |
+          # Release tags: RPM Release "1" (the warden policy's release_build.rpm_release); other builds "0.dev".
           case "$GITHUB_REF" in
-            refs/tags/v*-impluvium.*) release="${GITHUB_REF_NAME##*-impluvium.}.impluvium" ;;
-            *) release="0.impluvium.dev" ;;
+            refs/tags/v*) release="1" ;;
+            *) release="0.dev" ;;
           esac
           printf '{"bundle":{"linux":{"rpm":{"epoch":1,"release":"%s"}}}}' "$release" > "$RUNNER_TEMP/rpm.json"
           pnpm tauri build --bundles rpm --config "$RUNNER_TEMP/rpm.json"
@@ -130,8 +146,16 @@ jobs:
           rpm=$(ls desktop/src-tauri/target/release/bundle/rpm/*.rpm)
           rpm -qp --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE} %{ARCH}\n' "$rpm"
           rpm -qpR "$rpm"
+          # A release tag must build exactly its own version: RPM Version = tag without "v", "-" -> "~".
+          case "$GITHUB_REF" in
+            refs/tags/v*)
+              want=$(printf '%s' "${GITHUB_REF_NAME#v}" | tr '-' '~')
+              have=$(rpm -qp --qf '%{VERSION}' "$rpm")
+              [ "$have" = "$want" ] || { echo "RPM version $have does not match tag ${GITHUB_REF_NAME} ($want)"; exit 1; }
+              ;;
+          esac
           sha256sum "$rpm"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: client-rpm
           path: desktop/src-tauri/target/release/bundle/rpm/*.rpm
