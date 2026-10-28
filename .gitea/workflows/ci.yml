@@ -1,0 +1,111 @@
+# impluvium CI – builds and checks only. This workflow gets no secrets: publication, privacy checks and releases
+# happen outside of CI. Runs only on the dedicated runner (label impluvium-linux, no Docker socket in jobs).
+name: impluvium-ci
+
+on:
+  push:
+    branches: ["impluvium/main", "sync/**"]
+    tags: ["v*-impluvium.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Pinned build inputs (P0: the upstream Dockerfile stays unchanged; its floating base images are pinned here).
+  RUST_NIGHTLY: nightly-2026-10-18
+  NODE_IMAGE: node@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c
+  RUST_IMAGE: rustlang/rust@sha256:cdc3e8239bfe2e7229af4ff4be7c83efc1769e361a9297a0f6c4d89556a0198c
+
+jobs:
+  server-check:
+    runs-on: impluvium-linux
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable pnpm (corepack, version from package.json)
+        run: corepack enable && pnpm --version
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        working-directory: server
+        run: pnpm run typecheck
+      - name: Lint
+        working-directory: server
+        run: pnpm run lint
+
+  server-image:
+    runs-on: impluvium-linux
+    services:
+      buildkitd:
+        image: moby/buildkit:v0.34.0-rootless@sha256:65eca3c01cd1180c8f64565c4e3c5983af5145818b0e6fa863385d099eb73855
+        env:
+          BUILDKITD_FLAGS: --addr tcp://0.0.0.0:1234 --oci-worker-no-process-sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        id: version
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/v*-impluvium.*) version="${GITHUB_REF_NAME#v}" ;;
+            *) version="0.4.0-rc-6-impluvium.dev" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build server image (rootless BuildKit, OCI archive)
+        run: |
+          docker buildx create --name impluvium --driver remote tcp://buildkitd:1234 --use
+          docker buildx build --builder impluvium \
+            --build-context node:lts-bookworm-slim=docker-image://"$NODE_IMAGE" \
+            --build-context rustlang/rust:nightly-bookworm-slim=docker-image://"$RUST_IMAGE" \
+            --build-arg BUILD_DROP_VERSION="${{ steps.version.outputs.version }}" \
+            --build-arg BUILD_GIT_REF="$GITHUB_SHA" \
+            --output type=oci,dest=server-image.tar .
+          sha256sum server-image.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-image
+          path: server-image.tar
+          retention-days: 30
+
+  client-rpm:
+    runs-on: impluvium-linux
+    container:
+      image: fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
+    env:
+      NO_STRIP: "true"
+    steps:
+      - name: Bootstrap (Node for actions, build dependencies)
+        run: |
+          dnf -y install --setopt=install_weak_deps=False \
+            nodejs npm git curl file gcc gcc-c++ make pkgconf-pkg-config perl \
+            webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel libxdo-devel
+          node --version
+      - uses: actions/checkout@v4
+      - name: Rust toolchain (pinned nightly)
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "$RUST_NIGHTLY"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          echo "RUSTUP_TOOLCHAIN=$RUST_NIGHTLY" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: |
+          npm install -g corepack && corepack enable && pnpm --version
+          pnpm install --frozen-lockfile
+      - name: Build RPM
+        working-directory: desktop
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/v*-impluvium.*) release="${GITHUB_REF_NAME##*-impluvium.}.impluvium" ;;
+            *) release="0.impluvium.dev" ;;
+          esac
+          printf '{"bundle":{"linux":{"rpm":{"epoch":1,"release":"%s"}}}}' "$release" > "$RUNNER_TEMP/rpm.json"
+          pnpm tauri build --bundles rpm --config "$RUNNER_TEMP/rpm.json"
+      - name: Check RPM
+        run: |
+          rpm=$(ls desktop/src-tauri/target/release/bundle/rpm/*.rpm)
+          rpm -qp --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE} %{ARCH}\n' "$rpm"
+          rpm -qpR "$rpm"
+          sha256sum "$rpm"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: client-rpm
+          path: desktop/src-tauri/target/release/bundle/rpm/*.rpm
+          retention-days: 30
