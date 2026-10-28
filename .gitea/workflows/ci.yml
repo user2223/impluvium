@@ -16,6 +16,8 @@ env:
   RUST_NIGHTLY: nightly-2026-10-18
   NODE_IMAGE: node@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c
   RUST_IMAGE: rustlang/rust@sha256:cdc3e8239bfe2e7229af4ff4be7c83efc1769e361a9297a0f6c4d89556a0198c
+  BUILDKIT_VERSION: v0.34.0
+  BUILDKIT_SHA256: 14813b1fb2a40082114e6d386c6fc5e7dd5298176ce7ee1a18bc33e73e109ac3
 
 jobs:
   server-check:
@@ -35,13 +37,6 @@ jobs:
 
   server-image:
     runs-on: impluvium-linux
-    services:
-      buildkitd:
-        image: moby/buildkit:v0.34.0-rootless@sha256:65eca3c01cd1180c8f64565c4e3c5983af5145818b0e6fa863385d099eb73855
-        # rootlesskit needs these (not privileged, no Docker socket); runner-level options do not reach services.
-        options: --security-opt seccomp=unconfined --security-opt apparmor=unconfined
-        env:
-          BUILDKITD_FLAGS: --addr tcp://0.0.0.0:1234 --oci-worker-no-process-sandbox
     steps:
       - uses: actions/checkout@v4
       - name: Version
@@ -52,15 +47,44 @@ jobs:
             *) version="0.4.0-rc-6-impluvium.dev" ;;
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Build server image (rootless BuildKit, OCI archive)
+      - name: Rootless BuildKit (unprivileged user, no Docker socket)
         run: |
-          docker buildx create --name impluvium --driver remote tcp://buildkitd:1234 --use
-          docker buildx build --builder impluvium \
-            --build-context node:lts-bookworm-slim=docker-image://"$NODE_IMAGE" \
-            --build-context rustlang/rust:nightly-bookworm-slim=docker-image://"$RUST_IMAGE" \
-            --build-arg BUILD_DROP_VERSION="${{ steps.version.outputs.version }}" \
-            --build-arg BUILD_GIT_REF="$GITHUB_SHA" \
-            --output type=oci,dest=server-image.tar .
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq && apt-get install -y -qq uidmap rootlesskit libcap2-bin
+          # newuidmap/newgidmap need file capabilities; the setuid variant fails in an unprivileged container.
+          chmod u-s /usr/bin/newuidmap /usr/bin/newgidmap
+          setcap cap_setuid+ep /usr/bin/newuidmap
+          setcap cap_setgid+ep /usr/bin/newgidmap
+          cd "$RUNNER_TEMP"
+          wget -q "https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz"
+          echo "${BUILDKIT_SHA256}  buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz" | sha256sum -c -
+          tar xzf "buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz"
+          install -m 0755 bin/* /usr/local/bin/
+          useradd -m builder
+          install -d -o builder "$RUNNER_TEMP/out"
+      - name: Build server image (OCI archive)
+        env:
+          DROP_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cat > "$RUNNER_TEMP/build.sh" <<'EOS'
+          set -eu
+          export XDG_RUNTIME_DIR=/tmp/run-builder
+          mkdir -p "$XDG_RUNTIME_DIR"
+          rootlesskit --net=host --disable-host-loopback --copy-up=/etc --copy-up=/run \
+            buildkitd --oci-worker-no-process-sandbox --addr "unix://$XDG_RUNTIME_DIR/bk.sock" > /tmp/buildkitd.log 2>&1 &
+          for i in $(seq 1 60); do buildctl --addr "unix://$XDG_RUNTIME_DIR/bk.sock" debug workers >/dev/null 2>&1 && break; sleep 1; done
+          buildctl --addr "unix://$XDG_RUNTIME_DIR/bk.sock" build \
+            --frontend dockerfile.v0 --local context=. --local dockerfile=. \
+            --opt context:node:lts-bookworm-slim=docker-image://"$NODE_IMAGE" \
+            --opt context:rustlang/rust:nightly-bookworm-slim=docker-image://"$RUST_IMAGE" \
+            --opt build-arg:BUILD_DROP_VERSION="$DROP_VERSION" \
+            --opt build-arg:BUILD_GIT_REF="$GITHUB_SHA" \
+            --output type=oci,dest="$OUT/server-image.tar"
+          EOS
+          chmod 0755 "$RUNNER_TEMP/build.sh"
+          runuser -u builder -- env OUT="$RUNNER_TEMP/out" NODE_IMAGE="$NODE_IMAGE" RUST_IMAGE="$RUST_IMAGE" \
+            DROP_VERSION="$DROP_VERSION" GITHUB_SHA="$GITHUB_SHA" bash "$RUNNER_TEMP/build.sh"
+          mv "$RUNNER_TEMP/out/server-image.tar" server-image.tar
           sha256sum server-image.tar
       - uses: actions/upload-artifact@v4
         with:
@@ -90,7 +114,8 @@ jobs:
       - name: Install dependencies
         run: |
           npm install -g corepack && corepack enable && pnpm --version
-          pnpm install --frozen-lockfile
+          # only the desktop client and its workspace dependencies (the server postinstall is not needed here)
+          pnpm install --frozen-lockfile --filter "./desktop..."
       - name: Build RPM
         working-directory: desktop
         run: |
