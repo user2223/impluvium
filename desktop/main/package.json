@@ -24,7 +24,7 @@
     "micromark": "^4.0.1",
     "nuxt": "^4.5.1",
     "scss": "^0.2.4",
-    "vue-router": "latest",
+    "vue-router": "^5.2.0",
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
