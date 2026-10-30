@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fixture, invoke, temporary } from './helpers.mjs';
 
 const original = () => readFileSync(fixture('clippy.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
-const args = input => ['--baseline', fixture('diagnostics.json'), '--metadata', fixture('metadata.json'), '--input', input];
+const args = input => ['--baseline', fixture('clippy-baseline.json'), '--metadata', fixture('metadata.json'), '--input', input];
 function changed(t, transform) {
   const file = path.join(temporary(t), 'cargo.jsonl');
   writeFileSync(file, transform(original()).map(item => JSON.stringify(item)).join('\n') + '\n');
@@ -16,7 +16,6 @@ test('clippy counts only Clippy diagnostics and requires cached zero artifacts',
   const result = invoke('clippy-ratchet', args(fixture('clippy.jsonl')), 0);
   assert.match(result.stdout, /core: 1 Clippy diagnostics/);
   assert.match(result.stdout, /bridge: 0 Clippy diagnostics/);
-  assert.match(result.stdout, /lower this baseline from 2 to 1/);
 });
 
 test('clippy rejects an increase per package rather than a combined total', t => {
@@ -62,5 +61,39 @@ test('clippy diagnoses missing baseline packages and invalid baselines', t => {
   invoke('clippy-ratchet', [...args(fixture('clippy.jsonl')), '--package', 'absent'], 1);
   const file = path.join(temporary(t), 'baseline.json');
   writeFileSync(file, '{"version":1,"packages":{"core":null}}');
-  invoke('clippy-ratchet', [...args(fixture('clippy.jsonl')), '--baseline', file], 2);
+  invoke('clippy-ratchet', ['--baseline', file, ...args(fixture('clippy.jsonl')).slice(2)], 2);
+});
+
+test('clippy: improvements require lowering the baseline in this change', t => {
+  const file = changed(t, items => items.filter(item => item.message?.code?.code !== 'clippy::needless_return'));
+  assert.match(invoke('clippy-ratchet', args(file), 1).stderr, /lower the baseline for core from 1 to 0 in this change/);
+});
+
+test('clippy: every observed workspace member needs a baseline or explicit exclusion', t => {
+  const baseline = path.join(temporary(t), 'baseline.json');
+  writeFileSync(baseline, '{"version":1,"packages":{"bridge":0}}');
+  const input = ['--baseline', baseline, ...args(fixture('clippy.jsonl')).slice(2)];
+  assert.match(invoke('clippy-ratchet', input, 1).stderr, /core: observed workspace package missing from baseline/);
+  invoke('clippy-ratchet', [...input, '--exclude', 'core'], 0);
+  const diagnosticsOnly = changed(t, items => items.filter(item => !(item.reason === 'compiler-artifact' && item.package_id.startsWith('path+'))));
+  assert.match(invoke('clippy-ratchet', ['--baseline', baseline, '--metadata', fixture('metadata.json'), '--input', diagnosticsOnly], 1).stderr,
+    /core: observed workspace package missing from baseline/);
+});
+
+test('clippy: package scoping reports observed members outside the selection', () => {
+  const input = [...args(fixture('clippy.jsonl')), '--package', 'core'];
+  assert.match(invoke('clippy-ratchet', input, 1).stderr, /bridge: observed workspace package outside --package selection/);
+  invoke('clippy-ratchet', [...input, '--exclude', 'bridge'], 0);
+});
+
+test('clippy: registry artifacts do not require workspace baseline entries', t => {
+  const metadata = JSON.parse(readFileSync(fixture('metadata.json'), 'utf8'));
+  metadata.packages.push({ id: 'registry-helper', name: 'helper' });
+  const file = path.join(temporary(t), 'metadata.json');
+  writeFileSync(file, JSON.stringify(metadata));
+  const input = changed(t, items => {
+    items.splice(-1, 0, { reason: 'compiler-artifact', package_id: 'registry-helper' });
+    return items;
+  });
+  invoke('clippy-ratchet', ['--baseline', fixture('clippy-baseline.json'), '--metadata', file, '--input', input], 0);
 });

@@ -1,7 +1,45 @@
 {
   "version": 1,
   "packages": [
-    { "name": "core", "id": "path+file:///work/impluvium/engine/core#0.1.0" },
-    { "name": "bridge", "id": "bridge 0.1.0 (path+file:///work/impluvium/desktop/bridge)" }
+    {
+      "name": "core",
+      "id": "path+file:///work/impluvium/engine/core#0.1.0",
+      "targets": [
+        {
+          "name": "core",
+          "kind": [
+            "lib"
+          ]
+        },
+        {
+          "name": "integration",
+          "kind": [
+            "test"
+          ]
+        },
+        {
+          "name": "more",
+          "kind": [
+            "test"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bridge",
+      "id": "bridge 0.1.0 (path+file:///work/impluvium/desktop/bridge)",
+      "targets": [
+        {
+          "name": "bridge_target",
+          "kind": [
+            "lib"
+          ]
+        }
+      ]
+    }
+  ],
+  "workspace_members": [
+    "path+file:///work/impluvium/engine/core#0.1.0",
+    "bridge 0.1.0 (path+file:///work/impluvium/desktop/bridge)"
   ]
 }

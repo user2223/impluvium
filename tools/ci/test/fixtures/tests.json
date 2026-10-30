@@ -1,4 +1,1 @@
-{
-  "version": 1,
-  "packages": { "core": { "tests": 2, "docTests": 1 } }
-}
+{"version":1,"packages":{"core":{"tests":{"min":2},"docTests":{"min":1}}}}

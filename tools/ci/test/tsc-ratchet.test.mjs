@@ -17,8 +17,8 @@ test('tsc accepts tsc and vue-tsc diagnostic formats with a matching summary', (
 });
 test('tsc reports how to lower a baseline and never rewrites it', t => {
   const before = readFileSync(fixture('diagnostics.json'), 'utf8');
-  const result = invoke('tsc-ratchet', args(log(t, 'error TS5058: The specified path does not exist.\n')), 0);
-  assert.match(result.stdout, /lower this baseline from 2 to 1/);
+  const result = invoke('tsc-ratchet', args(log(t, 'error TS2304: Missing name.\n')), 1);
+  assert.match(result.stderr, /lower the baseline for core from 2 to 1 in this change/);
   assert.equal(readFileSync(fixture('diagnostics.json'), 'utf8'), before);
 });
 test('tsc fails when the diagnostic count rises', t => {
@@ -27,7 +27,9 @@ test('tsc fails when the diagnostic count rises', t => {
 });
 test('tsc accepts ANSI colours and zero established by exit status', t => {
   invoke('tsc-ratchet', args(log(t, '\x1b[91m' + text() + '\x1b[0m')), 0);
-  invoke('tsc-ratchet', args(log(t, ''), '0'), 0);
+  const baseline = path.join(temporary(t), 'zero.json');
+  writeFileSync(baseline, '{"version":1,"packages":{"core":0}}');
+  invoke('tsc-ratchet', ['--baseline', baseline, ...args(log(t, ''), '0').slice(2)], 0);
 });
 test('tsc rejects failures without diagnostics', t => {
   assert.match(invoke('tsc-ratchet', args(log(t, 'Command not found: vue-tsc\n'), '127'), 1).stderr, /without TypeScript diagnostics/);
@@ -40,4 +42,19 @@ test('tsc rejects contradictory status, mismatched summaries and invalid status'
 test('tsc requires baseline membership and an explicit input status', () => {
   invoke('tsc-ratchet', [...args(fixture('tsc.txt')), '--package', 'missing'], 1);
   invoke('tsc-ratchet', args(fixture('tsc.txt')).slice(0, -2), 2);
+});
+
+for (const code of [5058, 5083, 6053, 6001, 18003]) test(`tsc: TS${code} config/input diagnostics fail even at an exact budget`, t => {
+  const baseline = path.join(temporary(t), 'one.json');
+  writeFileSync(baseline, '{"version":1,"packages":{"core":1}}');
+  const input = log(t, `error TS${code}: Invalid configuration or input.\n`);
+  assert.match(invoke('tsc-ratchet', ['--baseline', baseline, ...args(input).slice(2)], 1).stderr, /configuration\/input diagnostic/);
+});
+
+for (const status of ['3', '127', '137', '143']) test(`tsc: incomplete exit status ${status} fails despite matching diagnostics`, () => {
+  assert.match(invoke('tsc-ratchet', args(fixture('tsc.txt'), status), 1).stderr, /not a completed tsc\/vue-tsc run/);
+});
+
+test('tsc: completed exit statuses 1 and 2 are accepted with matching diagnostics', () => {
+  for (const status of ['1', '2']) invoke('tsc-ratchet', args(fixture('tsc.txt'), status), 0);
 });

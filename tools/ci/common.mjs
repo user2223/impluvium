@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -36,7 +36,7 @@ export const clean = source => source.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').re
 // Never descend into generated trees or the checkers' own fixture repositories.
 export function files(root, directory = '') {
   const result = [];
-  const ignored = new Set(['.git', '.agents', '.codex', '.aws', 'node_modules', 'target', '.nuxt', '.output']);
+  const ignored = new Set(['.git', 'node_modules', 'target', '.nuxt', '.output']);
   const visit = relative => {
     const absolute = path.join(root, relative);
     let entries;
@@ -82,11 +82,30 @@ export function compareCounts(file, limits, counts, names) {
     else if (counts.get(name) > limits[name]) {
       issues.push(problem(file, where, `${name}: ${counts.get(name)} diagnostics exceeds baseline ${limits[name]}`));
     } else if (counts.get(name) < limits[name]) {
-      console.log(problem(file, where, `${name}: improved to ${counts.get(name)}; lower this baseline from ${limits[name]} to ${counts.get(name)} in a reviewed edit`));
+      issues.push(problem(file, where, `lower the baseline for ${name} from ${limits[name]} to ${counts.get(name)} in this change`));
     }
   }
   return issues;
 }
+
+// Compare every baseline entry, even when this invocation selects one package.
+export function previousLimits(options, limits, validate = natural, relaxed = (value, old) => value > old) {
+  if (!options['previous-baseline']) return [];
+  const previous = baseline(options['previous-baseline'], 'packages', validate);
+  const source = read(options.baseline);
+  const issues = [];
+  for (const [name, value] of Object.entries(limits)) {
+    if (!Object.hasOwn(previous, name)) {
+      issues.push(problem(options.baseline, keyLine(source, name), `${name}: added package in baseline`));
+    } else if (relaxed(value, previous[name])) {
+      issues.push(problem(options.baseline, keyLine(source, name), `${name}: baseline was relaxed relative to --previous-baseline`));
+    }
+  }
+  return issues;
+}
+
+export const previousDiagnostics = (options, limits) =>
+  previousLimits(options, limits, natural, (value, old) => value > old);
 
 export function required(options, ...names) {
   for (const name of names) {
@@ -94,18 +113,8 @@ export function required(options, ...names) {
   }
 }
 
-export function assignments(values) {
-  const result = new Map();
-  for (const value of values ?? []) {
-    const match = /^([^=]+)=(.+)$/.exec(value);
-    if (!match || result.has(match[1])) throw new InputError(problem('<arguments>', 1, 'expected unique PACKAGE=FILE inputs'));
-    result.set(match[1], match[2]);
-  }
-  return result;
-}
-
 export async function cli(url, usage, options, main) {
-  if (!process.argv[1] || path.resolve(process.argv[1]) !== fileURLToPath(url)) return;
+  if (!process.argv[1] || realpathSync(process.argv[1]) !== realpathSync(fileURLToPath(url))) return;
   try {
     const { values } = parseArgs({ options: { help: { type: 'boolean' }, ...options }, strict: true });
     if (values.help) {

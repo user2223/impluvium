@@ -1,5 +1,24 @@
 import { InputError, lineAt, problem } from './common.mjs';
 
+// Find a substitution's closing parenthesis without treating quoted ')' as syntax.
+function substitution(source, start, file, firstLine) {
+  let quote = '', depth = 1;
+  for (let i = start + 2; i < source.length; i++) {
+    const char = source[i];
+    if (char === '\\' && quote !== "'") { i++; continue; }
+    if (quote === "'") { if (char === quote) quote = ''; continue; }
+    if (char === '$' && source[i + 1] === '(') {
+      i = substitution(source, i, file, firstLine).end;
+      continue;
+    }
+    if (quote) { if (char === quote) quote = ''; continue; }
+    if (char === "'" || char === '"') quote = char;
+    else if (char === '(') depth++;
+    else if (char === ')' && --depth === 0) return { end: i, script: source.slice(start + 2, i) };
+  }
+  throw new InputError(problem(file, firstLine + lineAt(source, start) - 1, 'unterminated shell command substitution'));
+}
+
 // Tokenize commands without running a shell. Quotes keep arguments together;
 // comments, separators and escaped newlines retain their shell meaning.
 export function commands(source, file, firstLine = 1) {
@@ -18,7 +37,14 @@ export function commands(source, file, firstLine = 1) {
       flush();
     } else if (/\s/.test(char)) {
       if (char === '\n') flush(); else flushWord();
-    } else if (/[;|&()]/.test(char)) {
+    } else if (char === '$' && source[i + 1] === '(') {
+      const nested = substitution(source, i, file, firstLine);
+      result.push(...commands(nested.script, file, firstLine + lineAt(source, i) - 1));
+      if (!active) line = firstLine + lineAt(source, i) - 1;
+      active = true;
+      word += '${command-substitution}';
+      i = nested.end;
+    } else if (/[;|&()]/.test(char) || (!active && /[{}]/.test(char) && /[\s;|&}]|^$/.test(source[i + 1] ?? ''))) {
       flush();
     } else if (char === "'" || char === '"') {
       if (!active) line = firstLine + lineAt(source, i) - 1;
@@ -29,6 +55,11 @@ export function commands(source, file, firstLine = 1) {
         if (source[i] === quote) { closed = true; break; }
         if (quote === '"' && source[i] === '\\' && /["\\$`\n]/.test(source[i + 1] ?? '')) {
           i++; if (source[i] !== '\n') word += source[i];
+        } else if (quote === '"' && source[i] === '$' && source[i + 1] === '(') {
+          const nested = substitution(source, i, file, firstLine);
+          result.push(...commands(nested.script, file, firstLine + lineAt(source, i) - 1));
+          word += '${command-substitution}';
+          i = nested.end;
         } else word += source[i];
       }
       if (!closed) throw new InputError(problem(file, line, 'unterminated shell quote'));
@@ -59,7 +90,7 @@ export function executable(tokens) {
   let index = 0;
   while (index < tokens.length) {
     const word = tokens[index].value;
-    if (/^(?:if|then|elif|do|while|until|!|--)$/.test(word) || /^[A-Za-z_][A-Za-z_0-9]*=/.test(word)) { index++; continue; }
+    if (/^(?:if|then|elif|else|do|while|until|!|--)$/.test(word) || /^[A-Za-z_][A-Za-z_0-9]*=/.test(word)) { index++; continue; }
     const wrapper = word.split('/').at(-1);
     if (!['command', 'exec', 'sudo', 'env'].includes(wrapper)) break;
     index++;

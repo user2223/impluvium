@@ -49,7 +49,7 @@ export function yaml(file) {
     if (/^[&*!]|^<<\s*:/.test(text)) fail(line, 'YAML aliases, tags and merge keys are not supported');
     if (text.startsWith('[') || text.startsWith('{')) {
       const map = text[0] === '{';
-      if (!text.endsWith(map ? '}' : ']')) fail(line);
+      if (!text.endsWith(map ? '}' : ']')) fail(line, 'flow collections must be on one line');
       const items = split(text.slice(1, -1), ',').filter(item => item.trim());
       node.value = map ? Object.create(null) : items.map(item => scalar(item, line));
       if (map) for (const item of items) add(node.value, item, line);
@@ -64,6 +64,7 @@ export function yaml(file) {
   const add = (map, text, line, nested) => {
     const parts = split(text, ':');
     if (parts.length !== 2) fail(line);
+    if (/^-($|\s)/.test(parts[0].trim())) fail(line, 'indentless block sequences are not supported; indent sequence items beneath their key');
     const key = scalar(parts[0], line).value;
     if (typeof key !== 'string' || key === '<<' || Object.hasOwn(map, key)) fail(line, `invalid or duplicate YAML key ${key}`);
     map[key] = nested ? nested(parts[1].trim(), line) : scalar(parts[1], line);
@@ -73,10 +74,14 @@ export function yaml(file) {
     if (index < lines.length && /^\s*\t/.test(lines[index])) fail(index + 1, 'tabs in YAML indentation');
   };
   const indent = text => text.length - text.trimStart().length;
-  const block = level => {
-    significant();
-    const sequence = /^-($|\s)/.test(lines[index]?.trimStart() ?? '');
-    const node = { line: index + 1, value: sequence ? [] : Object.create(null) };
+  const block = (level, firstEntry) => {
+    if (!firstEntry) significant();
+    if (!firstEntry && /^[\[{]/.test(lines[index]?.trimStart() ?? '')) {
+      const line = index++;
+      return scalar(strip(lines[line]), line + 1);
+    }
+    const sequence = !firstEntry && /^-($|\s)/.test(lines[index]?.trimStart() ?? '');
+    const node = { line: firstEntry?.line ?? index + 1, value: sequence ? [] : Object.create(null) };
     const nested = (text, line) => {
       if (/^[|>][+-]?$/.test(text)) {
         const start = index;
@@ -96,6 +101,9 @@ export function yaml(file) {
       if (/^[|>]/.test(text)) fail(line, 'unsupported YAML block scalar indicator');
       if (!text) {
         significant();
+        if (index < lines.length && indent(lines[index]) === level && /^-($|\s)/.test(lines[index].trimStart())) {
+          fail(index + 1, 'indentless block sequences are not supported; indent sequence items beneath their key');
+        }
         if (index < lines.length && indent(lines[index]) > level) return block(indent(lines[index]));
         return { line, value: Object.create(null) };
       }
@@ -106,6 +114,7 @@ export function yaml(file) {
       }
       return scalar(strip(text), line);
     };
+    if (firstEntry) add(node.value, firstEntry.text, firstEntry.line, nested);
     while (index < lines.length) {
       significant();
       if (index >= lines.length || indent(lines[index]) < level) break;
@@ -120,31 +129,13 @@ export function yaml(file) {
           const item = { line, value: Object.create(null) };
           // The first key in a sequence mapping shares its indentation with
           // subsequent keys, not with the dash.
-          const tail = blockMappingEntry(text, line, level + 2);
+          const tail = block(level + 2, { text, line }).value;
           Object.assign(item.value, tail);
-          significant();
-          if (index < lines.length && indent(lines[index]) > level) {
-            const rest = block(level + 2);
-            if (Array.isArray(rest.value)) fail(rest.line);
-            for (const [key, value] of Object.entries(rest.value)) {
-              if (Object.hasOwn(item.value, key)) fail(value.line, `duplicate YAML key ${key}`);
-              item.value[key] = value;
-            }
-          }
           node.value.push(item);
         } else node.value.push(scalar(text, line));
       } else add(node.value, text, line, nested);
     }
     return node;
-  };
-  const blockMappingEntry = (text, line, level) => {
-    // Parse a sequence's first mapping key using the ordinary block parser.
-    const original = lines[line - 1];
-    lines[line - 1] = ' '.repeat(level) + text;
-    index = line - 1;
-    const result = block(level).value;
-    lines[line - 1] = original;
-    return result;
   };
   significant();
   const result = block(index < lines.length ? indent(lines[index]) : 0);
