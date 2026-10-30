@@ -1,40 +1,37 @@
-<div align="center">
-<img src="https://raw.githubusercontent.com/Drop-OSS/media-sources/refs/heads/main/drop.svg" width="200rem"/>
-</div>
-<br/>
+# impluvium
 
-# Drop
+impluvium is a self-hosted platform for DRM-free games: a server that hosts your game library and a desktop client for
+Linux and Windows that installs and launches the games.
 
-[![Website](https://img.shields.io/badge/website-000000?style=for-the-badge&logo=About.me&logoColor=white)](https://droposs.org)
-[![Docs](https://img.shields.io/badge/DOCS-black?style=for-the-badge&logo=docusaurus)](https://droposs.org/docs)
-[![Static Badge](https://img.shields.io/badge/FORUM-blue?style=for-the-badge)](https://forum.droposs.org)
-[![GitHub License](https://img.shields.io/badge/AGPL--3.0-red?style=for-the-badge)](LICENSE)
-[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/ACq4qZp4a9)
-[![Open Collective](https://img.shields.io/badge/OpenCollective-1F87FF?style=for-the-badge&logo=OpenCollective&logoColor=white)](https://opencollective.com/drop-oss)
-[![Weblate project translated](https://img.shields.io/weblate/progress/drop?server=https%3A%2F%2Ftranslate.droposs.org&style=for-the-badge&logo=weblate)
-](https://translate.droposs.org/engage/drop/)
+> [!WARNING]
+> **Pre-0.1, under reconstruction.** impluvium is not usable yet. There are no releases, and contributions are not
+> accepted before 0.1 (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
-Drop is an open-source game distribution platform, similar to GameVault or Steam. It's designed to distribute and share DRM-free games quickly, all while being incredibly flexible, beautiful, and fast.
+## Status
 
-> [!NOTE]
-> Drop is in maintenance mode. Maintainers will not contribute new large features, but bugs will continue to be fixed and external contributions will continue to be merged.
+The code inherited from Drop is being cleaned up and restructured. Version 0.1 will be the first release: a clean,
+working foundation that others can build on. Until then, anything in this repository may change or disappear without
+notice, and nothing here is meant to be deployed.
 
-<div align="center">
-<img src="https://droposs.org/_ipx/f_webp&q_80/images/carousel/store.png" alt="Drop Screenshot" width="900rem"/>
-</div>
+## Origin
 
-## Philosophy
+impluvium is derived from [Drop](https://github.com/Drop-OSS/drop), an open-source game distribution platform. Many
+thanks to the Drop maintainers and contributors for the work this project builds on.
 
-1. Drop is flexible. While abstractions and interfaces can complicate the codebase, the flexibility is worth it.
-2. Drop is secure. The nature of Drop means an instance can never be accessible without authentication. In line with #1, Drop also supports a huge variety of authentication mechanisms, from username/password to SSO.
-3. Drop is user-friendly. The interface is designed to be clean and simple to use, with advanced features available to users who want them.
+impluvium is an independent project. It is not affiliated with or endorsed by the Drop project. For anything about Drop
+itself, please use the [Drop project's own channels](https://droposs.org).
 
-## Deployment
+impluvium is developed with AI assistance. Drop has a no-AI contributions policy
+([contributing guide](https://developer.droposs.org/contributing#policy)), so changes made here are not submitted
+upstream.
 
-See our documentation on how to [deploy Drop](https://droposs.org/docs/admin/quickstart) for more information.
+## License
 
-## Contributing
+impluvium is licensed under the GNU Affero General Public License, version 3 (see [LICENSE](LICENSE)). Code inherited
+from Drop keeps the terms its authors gave it: some parts are marked AGPL-3.0-or-later, others AGPL-3.0-only. A few
+inherited components carry other licenses; see the license file in their directory. New code is AGPL-3.0-or-later,
+except in the planned `engine/` directory, which will be 0BSD.
 
-Please see the [in-depth contributing guide](https://developer.droposs.org/contributing). The guide includes information on how to set up the project, how to contribute code, how to report issues, and even how to effectively translate Drop.
+## Security
 
-[![Drop Translation Progress](https://translate.droposs.org/widget/drop/horizontal-auto.svg)](https://translate.droposs.org/engage/drop/)
+Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
