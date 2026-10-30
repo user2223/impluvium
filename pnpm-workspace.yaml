@@ -1,7 +1,6 @@
 packages:
   - "server/"
   - "libraries/base/"
-  - "sites/*"
   - "desktop/"
 
 onlyBuiltDependencies:
@@ -15,8 +14,6 @@ onlyBuiltDependencies:
   - prisma
   - sharp
   - unrs-resolver
-  - contentlayer
-  - contentlayer2
   - protobufjs
 
 overrides:

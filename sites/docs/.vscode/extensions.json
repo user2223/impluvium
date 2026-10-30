@@ -1,8 +1,0 @@
-{
-  "recommendations": [
-    "astro-build.astro-vscode",
-    "hideoo.starlight-links",
-    "unifiedjs.vscode-mdx"
-  ],
-  "unwantedRecommendations": []
-}
