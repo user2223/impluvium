@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bitcode = "*"
-database = { version = "*", path = "../database" }
-log = "*"
-serde = { version = "*", features = ["derive"] }
+bitcode = "^0.6.9"
+database = { version = "^0.1.0", path = "../database" }
+log = "^0.4.28"
+serde = { version = "^1.0.228", features = ["derive"] }
 tauri = "~2.9.5"
 tauri-plugin-autostart = "~2.5.1"
