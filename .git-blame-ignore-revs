@@ -1,0 +1,6 @@
+# Commits that only reformat code. Use them with
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub and Gitea read this file automatically.)
+
+# Format the Rust code with rustfmt
+d75f197eeffb28b9780beda03cce68c6609206fc
