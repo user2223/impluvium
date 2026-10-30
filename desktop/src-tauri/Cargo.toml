@@ -9,7 +9,6 @@ edition = "2024"
 resolver = "3"
 members = [
   "client",
-  "cloud_saves",
   "database",
   "download_manager",
   "games",
@@ -53,9 +52,6 @@ humansize = "2.1.3"
 known-folders = "1.2.0"
 log = "0.4.22"
 md5 = "0.7.0"
-native_model = { path = "../../libraries/native_model", features = [
-  "rmp_serde_1_3",
-] }
 page_size = "0.6.0"
 parking_lot = "0.12.3"
 process = { path = "./process" } # process
