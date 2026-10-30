@@ -8,5 +8,5 @@ bitcode = "*"
 database = { version = "*", path = "../database" }
 log = "*"
 serde = { version = "*", features = ["derive"] }
-tauri = "*"
-tauri-plugin-autostart = "*"
+tauri = "~2.9.5"
+tauri-plugin-autostart = "~2.5.1"

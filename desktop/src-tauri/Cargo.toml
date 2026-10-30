@@ -79,12 +79,12 @@ shared_child = "1.0.1"
 slice-deque = "0.3.0"
 sysinfo = "0.36.1"
 tar = "0.4.46"
-tauri-plugin-autostart = "*"
-tauri-plugin-deep-link = "*"
-tauri-plugin-dialog = "*"
-tauri-plugin-opener = "*"
-tauri-plugin-os = "*"
-tauri-plugin-shell = "*"
+tauri-plugin-autostart = "~2.5.1"
+tauri-plugin-deep-link = "~2.4.6"
+tauri-plugin-dialog = "~2.5.0"
+tauri-plugin-opener = "~2.5.3"
+tauri-plugin-os = "~2.3.2"
+tauri-plugin-shell = "~2.3.4"
 tempfile = "3.19.1"
 throttle_my_fn = "0.2.6"
 tokio-util = { version = "0.7.16", features = ["io"] }
@@ -95,7 +95,7 @@ utils = { path = "./utils" } # utils
 walkdir = "2.5.0"
 webbrowser = "1.0.2"
 whoami = "1.6.0"
-wry = { version = "*", features = [] }
+wry = { version = "~0.53.5", features = [] }
 zstd = "0.13.3"
 
 [dependencies.log4rs]
@@ -115,7 +115,7 @@ version = "1"
 features = ["derive", "rc"]
 
 [dependencies.tauri]
-version = "2.9.5"
+version = "~2.9.5"
 features = ["protocol-asset", "tray-icon", "unstable"]
 
 [dependencies.tokio]
@@ -127,10 +127,10 @@ version = "1.10.0"
 features = ["fast-rng", "macro-diagnostics", "v4"]
 
 [build-dependencies]
-tauri-build = { version = "*", features = [] }
+tauri-build = { version = "~2.5.3", features = [] }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
-tauri-plugin-single-instance = { version = "2.0.0", features = ["deep-link"] }
+tauri-plugin-single-instance = { version = "~2.3.7", features = ["deep-link"] }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 libloading = "0.7"
