@@ -16,8 +16,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter"],
-        display: ["Motiva Sans"],
+        sans: ["Inter", "sans-serif"],
+        display: ["Inter", "sans-serif"],
       },
     },
   },
