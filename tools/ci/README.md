@@ -50,6 +50,8 @@ Actions may reuse an identical commit pin. `COPY --from=SOURCE`
 and `RUN --mount=...,from=SOURCE,...` accept an earlier stage name/index, a
 pinned image ARG, or a literal image with a SHA256 digest. Shell-form RUN accepts
 leading `--mount=`, `--network=` and `--security=` options; unknown options fail.
+Mount field names are case insensitive, including `from`; unknown or duplicate
+field names, missing `=` on value fields and empty image sources fail with exit 2.
 Backslash-newline pairs and intervening blank/comment lines are removed before
 instruction options are parsed. A character-to-line map retains physical line
 numbers for image and shell diagnostics, including options on later lines.
@@ -91,6 +93,11 @@ command substitutions (also inside double quotes), `env`/`sudo`/`command`/`exec`
 prefixes with recognised options, `runuser -u USER -- COMMAND`, `rustup run`
 and explicit shell `-c` scripts (including absolute shell paths). Wrapper
 options that cannot be parsed exactly are not unwrapped.
+
+Workflow step `shell` and job/workflow `defaults.run.shell` accept only `bash`,
+`sh`, `bash -e {0}`, `bash --noprofile --norc -eo pipefail {0}` and `sh -e {0}`.
+Other values fail with exit 2 (`unsupported shell`). Shell settings themselves
+are scanned for tool words, including mentions in comments or arguments.
 
 Every occurrence of a shell word `cargo`, `pnpm`, `npm`, `npx`, `corepack` or
 `yarn` in a run script, RUN instruction or package script must be attributable

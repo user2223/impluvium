@@ -9,6 +9,9 @@ import { walkYaml, yaml } from './yaml.mjs';
 const requiredJobs = ['checks', 'rust', 'server', 'desktop-ui', 'server-image', 'client-linux'];
 const nonResolvingCargo = new Set(['fmt', '--version', '-V', 'help', 'version']);
 const toolPin = /^(?:[A-Z][A-Z_0-9]*_(?:VERSION|SHA256)|RUST_NIGHTLY|RUSTUP_TOOLCHAIN)$/;
+const workflowShells = new Set(['bash', 'sh', 'bash -e {0}', 'bash --noprofile --norc -eo pipefail {0}', 'sh -e {0}']);
+const mountKeys = new Set(['type', 'from', 'source', 'src', 'target', 'dst', 'destination',
+  'readonly', 'ro', 'readwrite', 'rw', 'id', 'sharing', 'required', 'mode', 'uid', 'gid', 'size', 'env']);
 const packageActions = {
   pnpm: { install: ['install', 'i'], allowed: ['run', 'exec', 'help', 'list', 'ls', 'why', '--version', '-v', '--help', '-h'], download: ['dlx', 'create'] },
   npm: { install: ['install', 'i', 'ci'], allowed: ['run', 'run-script', 'help', 'list', 'ls', 'why', '--version', '-v', '--help', '-h'], download: ['exec', 'x', 'create', 'init'] },
@@ -269,6 +272,16 @@ function checkWorkflow(state, workflowFile) {
   const centralEnv = workflow.value.env?.value ?? {};
   walkYaml(workflow, (node, keys) => {
     const last = keys.at(-1);
+    const shellSetting = last === 'shell' && (
+      (keys.length === 3 && keys[0] === 'defaults' && keys[1] === 'run') ||
+      (keys.length === 5 && keys[0] === 'jobs' && (
+        (keys[2] === 'defaults' && keys[3] === 'run') ||
+        (keys[2] === 'steps' && /^\d+$/.test(keys[3])))));
+    if (shellSetting) {
+      if (typeof node.value !== 'string') throw new InputError(problem(workflowFile, node.line, 'unsupported shell: expected bash or sh'));
+      if (hasToolWord(node.value)) throw new InputError(problem(workflowFile, node.line, 'unsupported shell: value mentions a tool word'));
+      if (!workflowShells.has(node.value)) throw new InputError(problem(workflowFile, node.line, 'unsupported shell: use bash, sh or a standard script template'));
+    }
     if (keys.includes('strategy') && keys.includes('matrix') && typeof node.value === 'string' && hasToolWord(node.value)) {
       throw new InputError(problem(workflowFile, node.line, 'unsupported construct: strategy.matrix value mentions a tool word'));
     }
@@ -308,6 +321,14 @@ function checkWorkflow(state, workflowFile) {
   }
   walkYaml(workflow, (node, keys) => {
     if (keys.at(-1) === 'run') {
+      const defaultsRun = (keys.length === 2 && keys[0] === 'defaults') ||
+        (keys.length === 4 && keys[0] === 'jobs' && keys[2] === 'defaults');
+      if (defaultsRun) {
+        if (!node.value || typeof node.value !== 'object' || Array.isArray(node.value)) {
+          throw new InputError(problem(workflowFile, node.line, 'defaults.run must contain a mapping'));
+        }
+        return;
+      }
       if (typeof node.value !== 'string') throw new InputError(problem(workflowFile, node.line, 'run must contain a shell script'));
       const expression = /\$\{\{\s*(?:matrix|inputs)\b/.exec(node.value);
       if (expression) throw new InputError(problem(workflowFile, node.line + lineAt(node.value, expression.index) - 1,
@@ -432,8 +453,22 @@ function checkDockerfile(state) {
           throw new InputError(problem(dockerFile, item.line, 'unsupported RUN option; use --mount=, --network= or --security='));
         }
         if (option.name === 'mount') {
+          const seen = new Set();
           for (const field of option.value.split(',')) {
-            if (field.startsWith('from=')) imageSource(field.slice(5).replace(/^(['"])(.*)\1$/, '$2'), location(option.offset));
+            const [name, ...parts] = field.split('=');
+            const key = name.toLowerCase();
+            if (!mountKeys.has(key) || seen.has(key)) {
+              throw new InputError(problem(dockerFile, location(option.offset), 'unsupported mount key: unknown or duplicate key'));
+            }
+            seen.add(key);
+            const value = parts.join('=').replace(/^(['"])(.*)\1$/, '$2');
+            if (!parts.length && !['readonly', 'ro', 'readwrite', 'rw', 'required'].includes(key)) {
+              throw new InputError(problem(dockerFile, location(option.offset), 'unsupported mount key: expected key=value'));
+            }
+            if (key === 'from') {
+              if (!value) throw new InputError(problem(dockerFile, location(option.offset), 'unsupported mount source: expected from=SOURCE'));
+              imageSource(value, location(option.offset));
+            }
           }
         }
       }

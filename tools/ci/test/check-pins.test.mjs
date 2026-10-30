@@ -717,3 +717,121 @@ test('pins: continued Docker options accept digest images and keep command line 
   replace(root, 'Dockerfile', 'cargo build --locked', 'cargo build');
   assert.match(invoke('check-pins', ['--root', root], 1).stderr, /Dockerfile:16: cargo build requires --locked/);
 });
+
+function setWorkflowShell(root, scope, shell) {
+  if (scope === 'step') {
+    replace(root, workflow, '  server-image:\n    steps:\n',
+      `  server-image:\n    steps:\n      - shell: ${shell}\n        run: console.log("ready")\n`);
+  } else if (scope === 'job defaults') {
+    replace(root, workflow, '  rust:\n', `  rust:\n    defaults:\n      run:\n        shell: ${shell}\n`);
+  } else {
+    replace(root, workflow, 'jobs:\n', `defaults:\n  run:\n    shell: ${shell}\njobs:\n`);
+  }
+}
+
+test('pins: step shell npx tsx {0} fails closed', t => {
+  const root = repository(t);
+  setWorkflowShell(root, 'step', 'npx tsx {0}');
+  assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported shell: value mentions a tool word/);
+});
+
+test('pins: inherited workflow shells reject custom launchers', t => {
+  for (const scope of ['job defaults', 'workflow defaults']) {
+    const root = repository(t);
+    setWorkflowShell(root, scope, 'npx tsx {0}');
+    replace(root, workflow, '      - run: |\n          cargo fmt', '      - shell: bash\n        run: |\n          cargo fmt');
+    assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported shell: value mentions a tool word/);
+  }
+});
+
+test('pins: plain workflow shells and standard templates pass at every level', t => {
+  for (const scope of ['step', 'job defaults', 'workflow defaults']) {
+    for (const shell of ['bash', 'sh', 'bash -e {0}', 'bash --noprofile --norc -eo pipefail {0}', 'sh -e {0}']) {
+      const root = repository(t);
+      setWorkflowShell(root, scope, shell);
+      invoke('check-pins', ['--root', root], 0);
+    }
+  }
+});
+
+test('pins: unsupported workflow shells fail at every level', t => {
+  for (const scope of ['step', 'job defaults', 'workflow defaults']) {
+    for (const shell of ['pwsh', 'zsh', '/bin/bash', 'bash {0}', 'bash -c {0}', 'bash -e {0}; true', '${{ inputs.shell }}', '[]', '{}', '']) {
+      const root = repository(t);
+      setWorkflowShell(root, scope, shell);
+      assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported shell/);
+    }
+  }
+});
+
+test('pins: workflow shell values scan tool words before comments or arguments', t => {
+  for (const scope of ['step', 'job defaults', 'workflow defaults']) {
+    for (const tool of ['cargo', 'pnpm', 'npm', 'npx', 'corepack', 'yarn']) {
+      for (const shell of [`bash -e {0} # /usr/bin/${tool}`, `bash -e {0} "/usr/bin/${tool}"`]) {
+        const root = repository(t);
+        setWorkflowShell(root, scope, JSON.stringify(shell));
+        assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported shell: value mentions a tool word/);
+      }
+    }
+  }
+});
+
+test('pins: inherited standard shells retain run command checks', t => {
+  for (const scope of ['job defaults', 'workflow defaults']) {
+    const root = repository(t);
+    setWorkflowShell(root, scope, 'bash');
+    replace(root, workflow, 'cargo test --locked -p core', 'cargo test -p core');
+    assert.match(invoke('check-pins', ['--root', root], 1).stderr, /cargo test requires --locked/);
+  }
+});
+
+test('pins: mount FROM=busybox:latest requires an image digest', t => {
+  const root = repository(t);
+  const file = path.join(root, 'Dockerfile');
+  writeFileSync(file, readFileSync(file, 'utf8') + '\nRUN --mount=type=bind,FROM=busybox:latest,target=/mnt true\n');
+  assert.match(invoke('check-pins', ['--root', root], 1).stderr, /pinned by sha256 digest/);
+});
+
+test('pins: mount keys are case insensitive for external images stages and ARGs', t => {
+  for (const key of ['from', 'FROM', 'From', 'fRoM']) {
+    const root = repository(t);
+    replace(root, 'Dockerfile', 'RUN cargo build --release --locked -p core', `RUN --mount=TYPE=bind,${key}=busybox:latest,TARGET=/mnt true`);
+    assert.match(invoke('check-pins', ['--root', root], 1).stderr, /pinned by sha256 digest/);
+    replace(root, 'Dockerfile', 'busybox:latest', 'busybox:1.37@sha256:' + 'e'.repeat(64));
+    invoke('check-pins', ['--root', root], 0);
+    replace(root, 'Dockerfile', 'busybox:1.37@sha256:' + 'e'.repeat(64), 'base');
+    invoke('check-pins', ['--root', root], 0);
+    replace(root, 'Dockerfile', `${key}=base`, `${key}=0`);
+    invoke('check-pins', ['--root', root], 0);
+    replace(root, 'Dockerfile', `${key}=0`, key + '=${NODE_BASE}');
+    invoke('check-pins', ['--root', root], 0);
+  }
+});
+
+test('pins: unknown duplicate and malformed mount keys fail closed', t => {
+  for (const fields of [
+    'type=bind,Fromm=busybox:latest,target=/mnt',
+    'type=bind,from=base,FROM=busybox:latest,target=/mnt',
+    'type=bind,FROM=busybox:latest,from=base,target=/mnt',
+    'type=bind,from=base,From=base,target=/mnt',
+    'type=bind,TYPE=cache,from=base,target=/mnt',
+    'type=bind,from=base,target=/mnt,TARGET=/other',
+    'type=bind,from,target=/mnt',
+    'type=bind,FROM=,target=/mnt',
+    'type=bind,FROM="",target=/mnt',
+    'type=bind,,target=/mnt',
+  ]) {
+    const root = repository(t);
+    replace(root, 'Dockerfile', 'RUN cargo build --release --locked -p core', `RUN --mount=${fields} true`);
+    assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported mount (?:key|source)/);
+  }
+});
+
+test('pins: supported mount fields and mixed case quoted sources pass', t => {
+  const root = repository(t);
+  replace(root, 'Dockerfile', 'RUN cargo build --release --locked -p core', `RUN --mount=TYPE=cache,ID=cargo,TARGET=/cache,SHARING=locked,UID=1000,GID=1000,MODE=0755,rw true
+RUN --mount='TYPE=bind,From="base",TARGET=/mnt,ro' true
+RUN --mount=type=secret,id=token,target=/run/token,required,env=TOKEN true
+RUN --mount=type=tmpfs,target=/tmp,size=1024 true`);
+  invoke('check-pins', ['--root', root], 0);
+});
