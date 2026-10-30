@@ -2,100 +2,100 @@ extern crate libarchive_drop;
 
 pub mod util;
 
-use libarchive_drop::archive::{self, ReadFilter, ReadFormat};
+use libarchive_drop::archive::{self, Entry, ReadFilter, ReadFormat};
+use libarchive_drop::error::ArchiveError;
 use libarchive_drop::reader::{self, Reader};
 use libarchive_drop::writer;
-use std::fs::File;
+use std::fs::{self, File};
+use util::path::TempDir;
+
+/// The single file stored in `sample.tar.gz`.
+const SAMPLE_FILE: &str = "hello.txt";
+const SAMPLE_FILE_SIZE: usize = 14;
+
+fn sample_builder() -> reader::Builder {
+    let mut builder = reader::Builder::new();
+    builder.support_format(ReadFormat::All).ok();
+    builder.support_filter(ReadFilter::All).ok();
+    builder
+}
 
 #[test]
 fn reading_from_file() {
     let tar = util::path::fixture("sample.tar.gz");
-    let mut builder = reader::Builder::new();
-    builder.support_format(ReadFormat::All).ok();
-    builder.support_filter(ReadFilter::All).ok();
-    let mut reader = builder.open_file(tar).ok().unwrap();
-    reader.next_header();
-    // let entry: &archive::Entry = &reader.entry;
-    // println!("{:?}", entry.pathname());
-    // println!("{:?}", entry.size());
-    // for entry in reader.entries() {
-    //     let file = entry as &archive::Entry;
-    //     println!("{:?}", file.pathname());
-    //     println!("{:?}", file.size());
-    // }
-    assert_eq!(4, 4);
+    let mut reader = sample_builder().open_file(tar).ok().unwrap();
+    let entry = reader.next_header().expect("archive has an entry");
+    assert_eq!(entry.pathname(), SAMPLE_FILE);
+    assert_eq!(entry.size(), SAMPLE_FILE_SIZE as i64);
+    assert!(reader.next_header().is_none());
 }
 
 #[test]
 fn read_archive_from_stream() {
     let tar = util::path::fixture("sample.tar.gz");
     let f = File::open(tar).ok().unwrap();
-    let mut builder = reader::Builder::new();
-    builder.support_format(ReadFormat::All).ok();
-    builder.support_filter(ReadFilter::All).ok();
-    match builder.open_stream(f) {
-        Ok(mut reader) => {
-            assert_eq!(reader.header_position(), 0);
-            let writer = writer::Disk::new();
-            let count = writer
-                .write(&mut reader, Some("/opt/bldr/fucks"))
-                .ok()
-                .unwrap();
-            assert_eq!(count, 14);
-            assert_eq!(reader.header_position(), 1024);
-            assert_eq!(4, 4);
-        }
-        Err(e) => {
-            println!("{:?}", e);
-        }
-    }
+    let mut reader = sample_builder().open_stream(f).ok().unwrap();
+    assert_eq!(reader.header_position(), 0);
+    let out = TempDir::new("read_archive_from_stream");
+    let count = reader_write(&mut reader, Some(out.as_str()));
+    assert_eq!(count, SAMPLE_FILE_SIZE);
+    assert_eq!(reader.header_position(), 1024);
+    assert_extracted(&out);
 }
 
 #[test]
 fn extracting_from_file() {
     let tar = util::path::fixture("sample.tar.gz");
-    let mut builder = reader::Builder::new();
-    builder.support_format(ReadFormat::All).ok();
-    builder.support_filter(ReadFilter::All).ok();
-    let mut reader = builder.open_file(tar).ok().unwrap();
-    println!("{:?}", reader.header_position());
-    let writer = writer::Disk::new();
-    writer.write(&mut reader, None).ok();
-    println!("{:?}", reader.header_position());
-    assert_eq!(4, 4)
+    let mut reader = sample_builder().open_file(tar).ok().unwrap();
+    let out = TempDir::new("extracting_from_file");
+    let count = reader_write(&mut reader, Some(out.as_str()));
+    assert_eq!(count, SAMPLE_FILE_SIZE);
+    assert_extracted(&out);
 }
 
 #[test]
 fn extracting_an_archive_with_options() {
     let tar = util::path::fixture("sample.tar.gz");
-    let mut builder = reader::Builder::new();
-    builder.support_format(ReadFormat::All).ok();
-    builder.support_filter(ReadFilter::All).ok();
-    let mut reader = builder.open_file(tar).ok().unwrap();
-    println!("{:?}", reader.header_position());
+    let mut reader = sample_builder().open_file(tar).ok().unwrap();
     let mut opts = archive::ExtractOptions::new();
     opts.add(archive::ExtractOption::Time);
     let writer = writer::Disk::new();
-    writer.set_options(&opts).ok();
-    writer.write(&mut reader, None).ok();
-    println!("{:?}", reader.header_position());
-    assert_eq!(4, 4)
+    writer.set_options(&opts).ok().unwrap();
+    let out = TempDir::new("extracting_an_archive_with_options");
+    let count = writer
+        .write(&mut reader, Some(out.as_str()))
+        .ok()
+        .expect("extraction succeeds");
+    assert_eq!(count, SAMPLE_FILE_SIZE);
+    assert_extracted(&out);
 }
 
 #[test]
 fn extracting_a_reader_twice() {
     let tar = util::path::fixture("sample.tar.gz");
-    let mut builder = reader::Builder::new();
-    builder.support_format(ReadFormat::All).ok();
-    builder.support_filter(ReadFilter::All).ok();
-    let mut reader = builder.open_file(tar).ok().unwrap();
-    println!("{:?}", reader.header_position());
+    let mut reader = sample_builder().open_file(tar).ok().unwrap();
+    let out = TempDir::new("extracting_a_reader_twice");
     let writer = writer::Disk::new();
-    writer.write(&mut reader, None).ok();
-    println!("{:?}", reader.header_position());
-    match writer.write(&mut reader, None) {
-        Ok(_) => println!("oops"),
-        Err(_) => println!("nice"),
+    writer
+        .write(&mut reader, Some(out.as_str()))
+        .ok()
+        .expect("first extraction succeeds");
+    // The reader has been consumed, so a second extraction must be refused.
+    match writer.write(&mut reader, Some(out.as_str())) {
+        Err(ArchiveError::HeaderPosition) => {}
+        other => panic!("expected a header position error, got {:?}", other.map(|_| ())),
     }
-    assert_eq!(4, 4)
+}
+
+fn reader_write<T: Reader>(reader: &mut T, prefix: Option<&str>) -> usize {
+    writer::Disk::new()
+        .write(reader, prefix)
+        .ok()
+        .expect("extraction succeeds")
+}
+
+fn assert_extracted(out: &TempDir) {
+    let file = out.path().join(SAMPLE_FILE);
+    let content = fs::read(&file).expect("extracted file exists");
+    assert_eq!(content.len(), SAMPLE_FILE_SIZE);
 }
