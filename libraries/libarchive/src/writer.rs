@@ -156,6 +156,8 @@ impl Disk {
         let mut buff = ptr::null();
         let mut size = 0;
         let mut offset = 0;
+        // libarchive reports a size of 0 together with ARCHIVE_EOF, so count the blocks.
+        let mut written = 0;
 
         unsafe {
             loop {
@@ -165,13 +167,14 @@ impl Disk {
                     &mut size,
                     &mut offset,
                 ) {
-                    ffi::ARCHIVE_EOF => return Ok(size),
+                    ffi::ARCHIVE_EOF => return Ok(written),
                     ffi::ARCHIVE_OK => {
                         if ffi::archive_write_data_block(self.handle, buff, size, offset)
                             != ffi::ARCHIVE_OK as isize
                         {
                             return Err(ArchiveError::from(self as &dyn Handle));
                         }
+                        written += size;
                     }
                     _ => return Err(ArchiveError::from(reader as &dyn Handle)),
                 }
