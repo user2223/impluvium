@@ -63,6 +63,14 @@ function baselineFile(t, packages) {
 }
 const suite = (target, count) => `\n     Running unittests src/lib.rs (target/debug/deps/${target}-0123456789abcdef)\nrunning ${count} tests\ntest result: ok. ${count} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n`;
 
+test('count-tests: ordinary results cannot lend their header to another block', t => {
+  const baseline = baselineFile(t, { core: { tests: { exact: 2 }, docTests: { exact: 0 } } });
+  const extra = 'running 1 test\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n';
+  const input = log(t, suite('core', 1) + extra);
+  assert.match(invoke('count-tests', ['--baseline', baseline, '--metadata', fixture('metadata.json'), '--input', input], 2).stderr,
+    /capture Cargo Running\/Doc-tests headers/);
+});
+
 test('count-tests: a workspace log attributes each suite by metadata target names', t => {
   const baseline = baselineFile(t, {
     core: { tests: { exact: 2 }, docTests: { exact: 1 } },

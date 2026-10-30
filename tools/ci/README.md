@@ -7,6 +7,11 @@ and 2 for invalid arguments, unreadable files or malformed/unsupported input.
 Diagnostics use `file:line: message`. Entry points also work through symlinked
 directory paths.
 
+The tools catch honest mistakes in workflows and Dockerfiles reviewed by
+humans; each version of `ci.yml` is approved separately. They are not a sandbox
+against deliberate evasion. The design rule is **FAIL CLOSED**: input the
+parsers cannot analyse must produce an input error, never pass silently.
+
 Run the self-tests **inside a disposable Node 24 container**, from the root of
 an exported source tree without `.git`:
 
@@ -26,9 +31,10 @@ cargo metadata --locked --all-features --format-version=1 > /tmp/metadata.json
 node tools/ci/check-licence-boundary.mjs --root . --metadata /tmp/metadata.json
 ```
 
-`check-pins` checks the six required job IDs, without job names, matrices or
-job-level conditions. Step conditions are allowed. It checks workflow actions
-and containers, Dockerfile images, workflow tool versions/checksums, Cargo
+`check-pins` applies generic checks to every file under `.gitea/workflows/` and
+`.github/workflows/`. Only `ci.yml` must have the six required job IDs, without
+job names, matrices or job-level conditions. Step conditions are allowed. It
+checks workflow actions and containers, Dockerfile images, workflow tool versions/checksums, Cargo
 commands and pnpm installs in workflow `run`, Dockerfile `RUN`, and
 `package.json` scripts. Deployment templates are excluded. It compares Node 24
 across `.node-version`, tagged Node images, Fedora `nodejs24`/`nodejs24-npm`
@@ -39,17 +45,23 @@ may omit engines; any declared Node range must stay within that major. Root
 Docker image defaults belong in global `ARG`s used by `FROM`, or directly in
 `FROM`. Identical image literals can recur across workflow containers,
 Dockerfile ARGs, FROM, COPY and mounts. Each repository plus tag has one digest;
-different tags are independent. Untagged images are identified by repository
-plus digest. Actions may reuse an identical commit pin. `COPY --from=SOURCE`
+different tags are independent. Untagged images share one digest per repository.
+Actions may reuse an identical commit pin. `COPY --from=SOURCE`
 and `RUN --mount=...,from=SOURCE,...` accept an earlier stage name/index, a
 pinned image ARG, or a literal image with a SHA256 digest. Shell-form RUN accepts
 leading `--mount=`, `--network=` and `--security=` options; unknown options fail.
+Blank and comment lines inside continuations are dropped while retaining the
+instruction and physical line numbers. Other nonempty lines must begin with a
+known Dockerfile instruction; `ONBUILD` and `SHELL` are unsupported and fail
+explicitly.
 
 Only workflow **top-level** `env` names ending in `_VERSION` or `_SHA256`
 establish central tool pins. Step/job variables such as
 `DROP_VERSION: ${{ steps.version.outputs.version }}` are ordinary runtime data.
 Reusing a central tool name at those levels or assigning it in a shell script
-(including `export`, `env` or `declare`) fails. Non-Corepack versions need a
+(including `export`, `env` or `declare`) fails. An unchanged pass-through such as
+`env BUILDKIT_VERSION="$BUILDKIT_VERSION"` or `env BUILDKIT_VERSION="${BUILDKIT_VERSION}"`
+is allowed. Non-Corepack versions need a
 matching `_SHA256`; scripts reference these variables instead of repeating
 literal values. Canonical Node/pnpm/image/toolchain override names remain
 reserved. Image context overrides fail. The one npm exception is
@@ -73,10 +85,30 @@ literal `|` for shell scripts containing blank or indented lines.
 
 Shell scanning handles quotes, continuations, separators, `else`, brace groups,
 command substitutions (also inside double quotes), `env`/`sudo`/`command`/`exec`
-prefixes, `rustup run` and explicit `sh -c` scripts. `time`, `timeout`, `nice`
-and `xargs` wrappers produce input errors; keep checked commands explicit.
-This is a static check, not a general shell interpreter: do not construct
-executable names or flags dynamically.
+prefixes with recognised options, `runuser -u USER -- COMMAND`, `rustup run`
+and explicit shell `-c` scripts (including absolute shell paths). Wrapper
+options that cannot be parsed exactly are not unwrapped.
+
+Every occurrence of a shell word `cargo`, `pnpm`, `npm`, `npx`, `corepack` or
+`yarn` in a run script, RUN instruction or package script must be attributable
+to a recognised and checked command. This includes occurrences inside quotes,
+backticks, substitutions and wrapper arguments. Otherwise exit 2 reports
+`cannot verify TOOL invocation at FILE:LINE; write it as a plain command`.
+Backticks, leading redirections and unknown wrappers cannot hide tool words.
+A plain mention in `echo 'cargo build'` also fails with exit 2; this deliberate
+false positive keeps the rule simple. Shell comments are ignored. This is a
+static check, not a general shell interpreter: write commands and flags plainly.
+
+Only `cargo fmt`, `cargo --version`, `cargo -V`, `cargo help` and `cargo version`
+are exempt from locking. Every other Cargo invocation, including built-in and
+configured aliases, needs `--locked` or `--frozen` before any `--` separator.
+`corepack <package-manager>` and `pnpm exec` are unwrapped and checked recursively,
+including inner Cargo and Tauri commands. `npm exec`, `npx` and `pnpm dlx` are
+also unwrapped, but package downloads absent from the root pnpm/npm lockfile
+fail with exit 1. Merely finding a package in a lock does not verify the binary
+selected by those launchers: that ambiguity or unsupported launcher options
+produce exit 2. Use a plain command or `pnpm exec` for local binaries instead.
+Bare `yarn` is an install and fails the frozen-pnpm policy.
 
 `check-features` associates each Rust file with its nearest package manifest,
 ignores strings/comments, and checks gate **names**, including nested
@@ -90,19 +122,27 @@ crates permit none. Its format is:
 An empty `crates` object is valid. Remove unused gates in reviewed edits.
 `--previous-baseline` rejects growth of this allow-list.
 
-`check-licence-boundary` requires resolved Cargo metadata, including dependencies
-and `resolve.nodes`; there is no manifest-only fallback. Generate it with
+`check-licence-boundary` requires `--root` naming the repository root and resolved
+Cargo metadata, including dependencies and `resolve.nodes`; there is no
+manifest-only fallback. Generate it with
 `--all-features` and without `--no-deps` or a target filter so optional and
 platform dependency edges are available. Walks from every `engine/` package
-reject any reachable package in `server/crates/`, any licence expression
-mentioning MPL, and any explicit `license_file` whose name or content indicates
-MPL. Conventional crate licence files and shared engine ancestor notices are
+reject any reachable package inside the repository but outside `engine/`, any
+licence expression mentioning MPL, GPL, LGPL or AGPL, and any explicit
+`license_file` whose name or content indicates MPL. Conventional crate licence
+files and shared engine ancestor notices are
 also inspected. Registry crates, renamed workspace dependencies and `[patch]`
 redirects use resolved package IDs. Inherited licence fields are already
 resolved by Cargo. Capture metadata and check it in the same filesystem, with
 explicit licence files (including registry files) readable; missing files or
-an incomplete graph are input errors. If workspaces remain separate, capture
-and check metadata for each workspace containing engine packages.
+an incomplete graph are input errors. Empty metadata, empty workspace members,
+workspace manifests outside `--root`, and any on-disk `engine/**/Cargo.toml`
+missing from `metadata.packages` are input errors. Metadata must cover every
+engine workspace in one document (merge the packages, workspace members and
+resolved nodes of separate captures if necessary). The capture's workspace
+root may be `engine/`; `--root` must still name the repository root, at the
+same filesystem location used during capture. The engine boundary is intended
+to remain 0BSD with permissively licensed dependencies all the way down.
 
 Both diagnostic ratchets use a nonempty package-name-to-count baseline:
 
@@ -119,10 +159,11 @@ baselines; supplied diagnostic baselines are fixtures.
 
 CI must pass `--previous-baseline FILE` from the **base revision** to
 `check-features`, `clippy-ratchet`, `tsc-ratchet` and `count-tests`. Diagnostic
-limits may only fall; test minimums/exact counts may only rise. Added packages
-fail this comparison, including entries outside the invocation's `--package`
-selection. Initial baseline creation and deliberate additions require an
-explicit wiring/policy change; silently replacing the base file with the PR's
+limits may only fall; test minimums/exact counts may only rise. New diagnostic
+entries are allowed only with budget 0; new test-count entries are always
+allowed. The comparison includes entries outside the invocation's `--package`
+selection. Initial baseline creation requires an explicit wiring/policy
+change; silently replacing the base file with the PR's
 file defeats the ratchet. Omitting the option only checks the current baseline.
 For example, CI can read files at its verified PR base SHA before exporting the
 source tree, then provide the captured files to the disposable container:
@@ -172,11 +213,13 @@ set -e
 node tools/ci/tsc-ratchet.mjs --baseline tools/ci/tsc-baseline.json --previous-baseline /tmp/base-tsc.json --package view --input /tmp/typecheck.txt --status "$typecheck_status"
 ```
 
-Only completed exit statuses 0, 1 and 2 are accepted. TS5xxx, TS6xxx and TS18003
+Only completed exit statuses 0, 1 and 2 are accepted. TS5xxx, TS6053, TS6054,
+TS6059, TS6231, TS6304–TS6310, TS18002 and TS18003
 configuration/input diagnostics always fail. A nonzero status without TypeScript
 diagnostics fails. Empty output with status 0 establishes zero, which requires
 a zero baseline. The named package's current count is checked per call; the
-previous-baseline comparison checks the whole file.
+previous-baseline comparison checks the whole file. Ordinary unused-source
+diagnostics such as TS6133 remain countable.
 
 Test baselines specify **exact counts or minimums** for successful ordinary
 tests and doc-tests separately. Ignored, measured and filtered tests never
@@ -191,7 +234,7 @@ For droplet, choose `{"exact":25}` for the generated-test implementation or
 `{"exact":1}` for the runtime-test implementation when wiring the test job. The runtime
 test must itself assert the exact set of 25 files. These are baseline choices;
 the parser does not need an alternative-values syntax. Compared with the base
-revision, counts/minimums cannot fall, packages cannot be added, and exact
+revision, counts/minimums cannot fall, new packages are allowed, and exact
 constraints cannot be weakened to minimums.
 
 Capture one workspace-wide log, with Cargo headers and both output streams:

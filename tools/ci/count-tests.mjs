@@ -76,6 +76,7 @@ export function testCounts(source, file, owners, suites = new Set()) {
     entry.seen.add(suite.kind);
     pending = undefined;
     announced = false;
+    if (suite.kind === 'tests') suite = undefined;
   }
   if (announced) throw new InputError(problem(file, 1, 'truncated libtest output'));
   return { packages, issues };
@@ -88,7 +89,7 @@ export function check(options) {
   const owners = targetOwners(metadata);
   const names = selected(limits, options.package);
   const issues = previousLimits(options, limits, validEntry, (value, old) => kinds.some(kind =>
-    floor(value[kind]) < floor(old[kind]) || (old[kind].exact !== undefined && value[kind].min !== undefined)));
+    floor(value[kind]) < floor(old[kind]) || (old[kind].exact !== undefined && value[kind].min !== undefined)), () => false);
   const packages = new Map();
   const suites = new Set();
   for (const file of options.input) {

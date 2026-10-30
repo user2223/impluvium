@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { cli, files, InputError, json, keyLine, lineAt, problem, read, stringOption } from './common.mjs';
 import { dependencies, manifests } from './cargo.mjs';
 import { commands, executable } from './shell.mjs';
@@ -6,8 +7,7 @@ import { toml } from './toml.mjs';
 import { walkYaml, yaml } from './yaml.mjs';
 
 const requiredJobs = ['checks', 'rust', 'server', 'desktop-ui', 'server-image', 'client-linux'];
-const resolving = new Set(['build', 'check', 'test', 'clippy', 'run', 'metadata', 'tree', 'install', 'deny',
-  'bench', 'doc', 'rustc', 'rustdoc', 'fix', 'fetch', 'generate-lockfile', 'update', 'package', 'publish']);
+const nonResolvingCargo = new Set(['fmt', '--version', '-V', 'help', 'version']);
 const toolPin = /^(?:[A-Z][A-Z_0-9]*_(?:VERSION|SHA256)|RUST_NIGHTLY|RUSTUP_TOOLCHAIN)$/;
 
 function imageParts(image) {
@@ -18,30 +18,120 @@ function imageParts(image) {
     tag: colon > slash ? withoutDigest.slice(colon + 1) : '' };
 }
 
-function shellChecks(source, file, firstLine, issues, fedora, toolVersions, toolChecksums, channels) {
-  for (const raw of commands(source, file, firstLine)) {
-    let tokens = executable(raw);
-    while (path.posix.basename(tokens[0]?.value ?? '') === 'rustup' && tokens[1]?.value === 'run') {
-      const channel = tokens[2]?.value;
-      if (!channel || channel.startsWith('-') || !tokens[3]) {
-        throw new InputError(problem(file, tokens[0].line, 'use rustup run CHANNEL COMMAND without options'));
+function packageAction(tokens) {
+  let index = 1;
+  if (['--version', '-v', '--help', '-h'].includes(tokens[index]?.value)) {
+    return { index, action: tokens[index].value };
+  }
+  while (tokens[index]?.value.startsWith('-')) {
+    const option = tokens[index++].value;
+    if (['--filter', '-F', '--dir', '-C', '--prefix'].includes(option)) {
+      if (!tokens[index]) return undefined;
+      index++;
+    } else if (!/^(?:--(?:filter|dir|prefix)=.+|-r|--recursive|-w|--workspace-root|--silent)$/.test(option)) return undefined;
+  }
+  return { index, action: tokens[index]?.value };
+}
+
+// A package name in a lock does not prove which binary an exec launcher will
+// select. Reject absent packages; leave that remaining ambiguity as exit 2.
+function downloadIsLocked(root, spec) {
+  const match = /^(@[^/@\s]+\/[^/@\s]+|[^/@\s]+)(?:@[^\s]+)?$/.exec(spec ?? '');
+  if (!match) return undefined;
+  const name = match[1];
+  try {
+    for (const lock of ['pnpm-lock.yaml', 'package-lock.json', 'npm-shrinkwrap.json']) {
+      const file = path.join(root, lock);
+      if (!existsSync(file)) continue;
+      if (lock === 'pnpm-lock.yaml') {
+        const packages = yaml(file).value?.packages?.value;
+        if (!packages || typeof packages !== 'object' || Array.isArray(packages)) return undefined;
+        return Object.keys(packages).some(key => key.startsWith(name + '@'));
       }
-      if (![...channels.values()].includes(channel)) issues.push(problem(file, tokens[0].line, `rustup run ${channel} must match a rust-toolchain.toml channel`));
-      tokens = executable(tokens.slice(3));
+      const data = json(file);
+      if (!data.packages || typeof data.packages !== 'object' || Array.isArray(data.packages)) return undefined;
+      return Object.keys(data.packages).some(key => key === `node_modules/${name}` || key.endsWith(`/node_modules/${name}`));
     }
-    if (['time', 'timeout', 'nice', 'xargs'].includes(path.posix.basename(tokens[0]?.value ?? ''))) {
-      throw new InputError(problem(file, tokens[0].line, `unsupported shell wrapper ${tokens[0].value}; use an explicit command`));
+  } catch (error) {
+    if (error instanceof InputError) return undefined;
+    throw error;
+  }
+  if (existsSync(path.join(root, 'yarn.lock'))) return undefined;
+  return false;
+}
+
+function shellChecks(source, file, firstLine, issues, fedora, toolVersions, toolChecksums, channels, root) {
+  const parsed = commands(source, file, firstLine);
+  const verified = new Set();
+  const ambiguous = [];
+  const cannotVerify = (tool, line) => {
+    throw new InputError(problem(file, line, `cannot verify ${tool} invocation at ${file}:${line}; write it as a plain command`));
+  };
+  const verify = token => {
+    if (token.value.includes('$') || token.value.includes('`')) cannotVerify(path.posix.basename(token.value), token.line);
+    for (const occurrence of parsed.occurrences) {
+      if (token.positions.includes(occurrence.offset)) verified.add(occurrence.offset);
+    }
+  };
+  for (const raw of parsed) {
+    let tokens = executable(raw);
+    while (tokens.length) {
+      const command = path.posix.basename(tokens[0].value);
+      if (command === 'rustup' && tokens[1]?.value === 'run') {
+        const channel = tokens[2]?.value;
+        if (!channel || channel.startsWith('-') || !tokens[3]) {
+          throw new InputError(problem(file, tokens[0].line, 'use rustup run CHANNEL COMMAND without options'));
+        }
+        if (![...channels.values()].includes(channel)) issues.push(problem(file, tokens[0].line, `rustup run ${channel} must match a rust-toolchain.toml channel`));
+        tokens = executable(tokens.slice(3));
+        continue;
+      }
+      if (command === 'corepack') {
+        verify(tokens[0]);
+        if (['pnpm', 'npm', 'npx', 'yarn'].includes(tokens[1]?.value)) { tokens = tokens.slice(1); continue; }
+        if (!['enable', 'disable', 'pack', '--version', '-v', '--help', '-h'].includes(tokens[1]?.value)) cannotVerify(command, tokens[0].line);
+      }
+      const manager = ['pnpm', 'npm', 'yarn'].includes(command);
+      const action = manager ? packageAction(tokens) : undefined;
+      if (manager && !action) cannotVerify(command, tokens[0].line);
+      if (command === 'npx' || (command === 'pnpm' && action?.action === 'dlx') ||
+          (command === 'npm' && ['exec', 'x'].includes(action?.action))) {
+        verify(tokens[0]);
+        let index = command === 'npx' ? 1 : action.index + 1;
+        if (['--', '--no-install'].includes(tokens[index]?.value)) index++;
+        if (!tokens[index] || tokens[index].value.startsWith('-')) cannotVerify(command, tokens[0].line);
+        const locked = downloadIsLocked(root, tokens[index].value);
+        if (locked !== false) ambiguous.push({ tool: command, line: tokens[0].line });
+        else issues.push(problem(file, tokens[0].line, `${command} package ${tokens[index].value} is not in a supported lockfile; use a locked local command`));
+        tokens = executable(tokens.slice(index));
+        continue;
+      }
+      if (command === 'pnpm' && action?.action === 'exec') {
+        verify(tokens[0]);
+        let index = action.index + 1;
+        if (tokens[index]?.value === '--') index++;
+        if (!tokens[index] || tokens[index].value.startsWith('-')) cannotVerify(command, tokens[0].line);
+        tokens = executable(tokens.slice(index));
+        continue;
+      }
+      break;
     }
     const words = tokens.map(token => token.value);
     const command = path.posix.basename(words[0] ?? '');
+    if (['cargo', 'pnpm', 'npm', 'npx', 'corepack', 'yarn'].includes(command)) verify(tokens[0]);
     if (command === 'cargo') {
       const channel = words[1]?.startsWith('+') ? words[1].slice(1) : undefined;
       if (channel !== undefined && ![...channels.values()].includes(channel)) {
         issues.push(problem(file, tokens[0].line, `cargo +${channel} must match a rust-toolchain.toml channel`));
       }
       const cargoWords = words.slice(0, words.includes('--') ? words.indexOf('--') : undefined);
-      const subcommand = cargoWords.find(word => resolving.has(word));
-      if (subcommand && !cargoWords.includes('--locked')) issues.push(problem(file, tokens[0].line, `cargo ${subcommand} requires --locked before any -- separator`));
+      const actionIndex = channel === undefined ? 1 : 2;
+      const subcommand = cargoWords[actionIndex];
+      // A leading option may take a value; do not guess which later word is a
+      // subcommand. Only an immediately visible allowlisted action is exempt.
+      if (!nonResolvingCargo.has(subcommand) && !cargoWords.some(word => ['--locked', '--frozen'].includes(word))) {
+        issues.push(problem(file, tokens[0].line, `cargo ${subcommand ?? '(default)'} requires --locked or --frozen before any -- separator`));
+      }
     }
     if (command === 'pnpm') {
       const action = words.find(word => ['install', 'i', 'add', 'update', 'up'].includes(word));
@@ -58,7 +148,7 @@ function shellChecks(source, file, firstLine, issues, fedora, toolVersions, tool
         issues.push(problem(file, tokens[0].line, 'Tauri build requires --locked forwarded to Cargo after --'));
       }
     }
-    if (['npm', 'yarn'].includes(command) && words.some(word => ['install', 'i', 'ci', 'add'].includes(word))) {
+    if (['npm', 'yarn'].includes(command) && ((command === 'yarn' && words.length === 1) || words.some(word => ['install', 'i', 'ci', 'add'].includes(word)))) {
       const bootstrap = command === 'npm' && words.includes('install') &&
         words.some(word => ['-g', '--global'].includes(word)) &&
         words.filter(word => word.startsWith('corepack@')).length === 1 &&
@@ -81,14 +171,20 @@ function shellChecks(source, file, firstLine, issues, fedora, toolVersions, tool
     }
     for (const token of raw) {
       const assigned = /^([A-Za-z_][A-Za-z_0-9]*)=/.exec(token.value)?.[1];
-      if (toolVersions.has(assigned) || toolChecksums.has(assigned)) {
+      const value = assigned ? token.value.slice(assigned.length + 1) : undefined;
+      const identity = assigned && !token.literalDollar && ['$' + assigned, '${' + assigned + '}'].includes(value);
+      if (!identity && (toolVersions.has(assigned) || toolChecksums.has(assigned))) {
         issues.push(problem(file, token.line, `${assigned} is pinned again in a run script; use its env reference`));
       }
-      if (/^(?:RUSTUP_TOOLCHAIN|RUST_NIGHTLY|NODE_IMAGE|RUST_IMAGE)=/.test(token.value)) {
+      if (!identity && /^(?:RUSTUP_TOOLCHAIN|RUST_NIGHTLY|NODE_IMAGE|RUST_IMAGE)=/.test(token.value)) {
         issues.push(problem(file, token.line, 'toolchain/image override duplicates its canonical file'));
       }
     }
   }
+  for (const occurrence of parsed.occurrences) {
+    if (!verified.has(occurrence.offset)) cannotVerify(occurrence.tool, occurrence.line);
+  }
+  if (ambiguous.length) cannotVerify(ambiguous[0].tool, ambiguous[0].line);
 }
 
 function pinRegistry({ issues, nodeMajors, rustImages }) {
@@ -103,7 +199,7 @@ function pinRegistry({ issues, nodeMajors, rustImages }) {
       issues.push(problem(file, line, 'image must be literal and pinned by sha256 digest')); return;
     }
     const { name, tag } = imageParts(image);
-    register('image', tag ? `${name}:${tag}` : image, image, file, line, true);
+    register('image', `${name}:${tag}`, image, file, line, true);
     if (/(?:^|\/)node$/.test(name)) {
       const match = /^(\d+)(?:[.-]|$)/.exec(tag);
       if (!match) issues.push(problem(file, line, 'Node image tag must name a numeric major'));
@@ -114,13 +210,15 @@ function pinRegistry({ issues, nodeMajors, rustImages }) {
   return { register, validateImage };
 }
 
-function checkWorkflow(state) {
-  const { root, workflowFile, issues, register, validateImage, fedora, toolVersions, toolChecksums, channels } = state;
+function checkWorkflow(state, workflowFile) {
+  const { root, issues, register, validateImage, fedora, channels } = state;
+  const toolVersions = new Map(), toolChecksums = new Map();
   const workflow = yaml(path.join(root, workflowFile));
   const jobs = workflow.value?.jobs?.value;
   if (!jobs || Array.isArray(jobs) || typeof jobs !== 'object') throw new InputError(problem(workflowFile, 1, 'expected jobs mapping'));
-  if (workflow.value.name?.value !== 'impluvium-ci') issues.push(problem(workflowFile, 1, 'workflow name must be impluvium-ci'));
-  for (const name of requiredJobs) {
+  const required = path.posix.basename(workflowFile) === 'ci.yml';
+  if (required && workflow.value.name?.value !== 'impluvium-ci') issues.push(problem(workflowFile, 1, 'workflow name must be impluvium-ci'));
+  for (const name of required ? requiredJobs : []) {
     const job = jobs[name];
     if (!job) { issues.push(problem(workflowFile, 1, `required job ${name} is missing`)); continue; }
     if (typeof job.value !== 'object' || Array.isArray(job.value)) throw new InputError(problem(workflowFile, job.line, 'expected job mapping'));
@@ -169,7 +267,7 @@ function checkWorkflow(state) {
   walkYaml(workflow, (node, keys) => {
     if (keys.at(-1) === 'run') {
       if (typeof node.value !== 'string') throw new InputError(problem(workflowFile, node.line, 'run must contain a shell script'));
-      shellChecks(node.value, workflowFile, node.line, issues, fedora, toolVersions, toolChecksums, channels);
+      shellChecks(node.value, workflowFile, node.line, issues, fedora, toolVersions, toolChecksums, channels, root);
     }
   });
 
@@ -183,6 +281,8 @@ function checkWorkflow(state) {
       if (match) issues.push(problem(workflowFile, node.line + lineAt(node.value, match.index) - 1, `${name} is pinned again in a run script; use its env reference`));
     }
   });
+  for (const [name, value] of toolVersions) state.toolVersions.set(name, value);
+  for (const [name, value] of toolChecksums) state.toolChecksums.set(name, value);
 }
 
 // Docker option values may be quoted; retain the remaining shell/JSON body.
@@ -222,15 +322,20 @@ function checkDockerfile(state) {
   let instruction = '', instructionLine = 1;
   const instructions = [];
   for (const [index, line] of docker.split('\n').entries()) {
+    if (!line.trim() || /^\s*#/.test(line)) {
+      if (instruction) instruction += '\\\n';
+      continue;
+    }
     if (!instruction) instructionLine = index + 1;
-    if (/\\\s*$/.test(line)) instruction += line.replace(/\\\s*$/, ' ');
+    if (/\\\s*$/.test(line)) instruction += line.replace(/\\\s*$/, '\\\n');
     else { instructions.push({ text: instruction + line, line: instructionLine }); instruction = ''; }
   }
   if (instruction) throw new InputError(problem(dockerFile, instructionLine, 'unfinished Dockerfile continuation'));
   for (const item of instructions) {
-    const match = /^\s*(ARG|FROM|RUN|ENV|COPY)\s+([\s\S]*)$/i.exec(item.text);
-    if (!match) continue;
+    const match = /^\s*(ARG|FROM|RUN|ENV|COPY|ADD|CMD|ENTRYPOINT|EXPOSE|HEALTHCHECK|LABEL|MAINTAINER|ONBUILD|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR)\s+([\s\S]*)$/i.exec(item.text);
+    if (!match) throw new InputError(problem(dockerFile, item.line, 'expected a known Dockerfile instruction'));
     const op = match[1].toUpperCase(), body = match[2];
+    if (['ONBUILD', 'SHELL'].includes(op)) throw new InputError(problem(dockerFile, item.line, `${op} instructions are not supported; use ordinary shell-form RUN`));
     if (op === 'ARG') {
       const arg = /^([A-Za-z_][A-Za-z_0-9]*)(?:=(.*))?$/.exec(body);
       if (!arg) throw new InputError(problem(dockerFile, item.line, 'malformed ARG'));
@@ -283,7 +388,7 @@ function checkDockerfile(state) {
       }
       const script = parsed.rest;
       if (script.startsWith('[') || /<<[-~]?\s*['"]?\w/.test(script)) throw new InputError(problem(dockerFile, item.line, 'use ordinary shell-form RUN without a Dockerfile here-document'));
-      shellChecks(script, dockerFile, item.line, issues, fedora, toolVersions, toolChecksums, channels);
+      shellChecks(script, dockerFile, item.line, issues, fedora, toolVersions, toolChecksums, channels, root);
     }
     if (op === 'ENV') {
       for (const name of [...toolVersions.keys(), ...toolChecksums.keys()]) {
@@ -340,7 +445,7 @@ function checkPackages(state) {
     }
     for (const [name, script] of Object.entries(data.scripts ?? {})) {
       if (typeof script !== 'string') throw new InputError(problem(file, keyLine(source, name), 'package script must be a string'));
-      shellChecks(script, file, keyLine(source, name), issues, fedora, toolVersions, toolChecksums, channels);
+      shellChecks(script, file, keyLine(source, name), issues, fedora, toolVersions, toolChecksums, channels, root);
     }
   }
   if (json(path.join(root, 'package.json')).engines?.node === undefined) issues.push(problem('package.json', 1, 'root engines.node must specify the Node major'));
@@ -380,7 +485,9 @@ export function check(options) {
   };
   Object.assign(state, pinRegistry(state));
   checkToolchains(state);
-  checkWorkflow(state);
+  const workflows = state.allFiles.filter(file => /^(?:\.gitea|\.github)\/workflows\//.test(file));
+  if (!workflows.includes(state.workflowFile)) throw new InputError(problem(state.workflowFile, 1, 'required workflow file is missing'));
+  for (const file of workflows) checkWorkflow(state, file);
   checkDockerfile(state);
   checkPackages(state);
   const { issues, rustImages, channels, dockerFile } = state;
@@ -393,7 +500,7 @@ export function check(options) {
 }
 
 await cli(import.meta.url, `Usage: node tools/ci/check-pins.mjs [--root DIR]
-Check .gitea/workflows/ci.yml, Dockerfile, toolchains and package/Cargo manifests.
+Check every file under .gitea/workflows/ and .github/workflows/, Dockerfile, toolchains and package/Cargo manifests.
 Require digest images, commit actions, centralized tool pins, locked Cargo commands, frozen pnpm installs,
 stable required job IDs, matching Rust image/toolchain and Node 24 across image/package/engines inputs.
 Deployment templates and generated trees are excluded. See tools/ci/README.md for supported input syntax.

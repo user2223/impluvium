@@ -97,3 +97,32 @@ test('clippy: registry artifacts do not require workspace baseline entries', t =
   });
   invoke('clippy-ratchet', ['--baseline', fixture('clippy-baseline.json'), '--metadata', file, '--input', input], 0);
 });
+
+test('clippy: a registry namesake cannot supply a missing workspace artifact', t => {
+  const root = temporary(t);
+  const metadata = JSON.parse(readFileSync(fixture('metadata.json'), 'utf8'));
+  metadata.packages.push({ id: 'registry-core', name: 'core' });
+  const file = path.join(root, 'metadata.json');
+  const baseline = path.join(root, 'baseline.json');
+  writeFileSync(file, JSON.stringify(metadata));
+  writeFileSync(baseline, '{"version":1,"packages":{"core":0}}');
+  const input = changed(t, () => [
+    { reason: 'compiler-artifact', package_id: 'registry-core' },
+    { reason: 'build-finished', success: true },
+  ]);
+  assert.match(invoke('clippy-ratchet', ['--baseline', baseline, '--metadata', file, '--input', input], 1).stderr,
+    /core: count missing from input/);
+});
+
+test('clippy: registry namesake diagnostics cannot change a workspace count', t => {
+  const metadata = JSON.parse(readFileSync(fixture('metadata.json'), 'utf8'));
+  metadata.packages.push({ id: 'registry-core', name: 'core' });
+  const file = path.join(temporary(t), 'metadata.json');
+  writeFileSync(file, JSON.stringify(metadata));
+  const input = changed(t, items => {
+    items.splice(-1, 0, { reason: 'compiler-artifact', package_id: 'registry-core' },
+      { reason: 'compiler-message', package_id: 'registry-core', message: { level: 'warning', code: { code: 'clippy::other' } } });
+    return items;
+  });
+  invoke('clippy-ratchet', ['--baseline', fixture('clippy-baseline.json'), '--metadata', file, '--input', input], 0);
+});

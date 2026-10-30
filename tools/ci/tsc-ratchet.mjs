@@ -1,5 +1,7 @@
 import { baseline, cli, clean, compareCounts, InputError, natural, previousDiagnostics, problem, read, required, stringOption } from './common.mjs';
 
+const configurationCodes = new Set([6053, 6054, 6059, 6231, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 18002, 18003]);
+
 export function check(options) {
   required(options, 'baseline', 'package', 'input', 'status');
   if (!/^\d+$/.test(options.status) || Number(options.status) > 255) throw new InputError(problem('<arguments>', 1, '--status must be an exit status from 0 to 255'));
@@ -13,7 +15,7 @@ export function check(options) {
     const diagnostic = /^\s*(?:.*?\(\d+,\d+\):\s*|.*?:\d+:\d+\s*-\s*|)error TS(\d+):/.exec(line);
     if (diagnostic) {
       count++;
-      if (/^[56]\d{3}$|^18003$/.test(diagnostic[1])) {
+      if (/^5\d{3}$/.test(diagnostic[1]) || configurationCodes.has(Number(diagnostic[1]))) {
         issues.push(problem(options.input, index + 1, `configuration/input diagnostic TS${diagnostic[1]} cannot be budgeted`));
       }
     }

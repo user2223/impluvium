@@ -11,7 +11,7 @@ jobs:
       - uses: 'actions/checkout@1111111111111111111111111111111111111111' # pinned action
       - run: |
           # cargo build without a lock in a comment is harmless.
-          echo 'cargo test without a lock is just text'
+          echo 'building with the checked toolchain'
           cargo deny --locked check licenses bans sources
           curl 'https://build.example.invalid/'"${BUILDKIT_VERSION}"
   rust:

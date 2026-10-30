@@ -1,16 +1,18 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { cli, InputError, problem, read, required, stringOption } from './common.mjs';
+import { cli, files, InputError, problem, read, required, stringOption } from './common.mjs';
 import { cargoMetadata } from './metadata.mjs';
 
 const mpl = /Mozilla[ _-]+Public[ _-]+License|\bMPL(?:-\d+(?:\.\d+)?)?\b/i;
+const copyleft = /\b(?:MPL|GPL|LGPL|AGPL)(?:-\d+(?:\.\d+)?)?\b/i;
 const licenceNames = ['LICENSE', 'LICENSE.md', 'LICENSE.txt', 'LICENCE', 'LICENCE.md', 'LICENCE.txt'];
 
 function licenceIssues(pkg, root) {
   const file = path.relative(root, pkg.manifest_path);
   const issues = [];
-  if (typeof pkg.license === 'string' && mpl.test(pkg.license)) {
-    issues.push(problem(file, 1, `${pkg.name}: MPL-licensed crate is reachable from engine/`));
+  if (typeof pkg.license === 'string' && copyleft.test(pkg.license)) {
+    const family = copyleft.exec(pkg.license)[0];
+    issues.push(problem(file, 1, `${pkg.name}: ${family.replace(/-.*/, '')}-licensed crate is reachable from engine/`));
   }
   const directory = path.dirname(pkg.manifest_path);
   const candidates = new Set(licenceNames.map(name => path.join(directory, name)));
@@ -39,12 +41,31 @@ function licenceIssues(pkg, root) {
 }
 
 export function check(options) {
-  required(options, 'metadata');
+  required(options, 'root', 'metadata');
   const metadata = cargoMetadata(options.metadata, { resolved: true });
-  const root = path.resolve(options.root ?? metadata.workspace_root ?? '.');
+  const root = path.resolve(options.root);
   const packages = new Map(metadata.packages.map(pkg => [pkg.id, pkg]));
   const graph = new Map(metadata.resolve.nodes.map(node => [node.id, node.dependencies]));
   const relative = pkg => path.relative(root, pkg.manifest_path).split(path.sep).join('/');
+  const insideRoot = pkg => !/^\.\.(?:\/|$)/.test(relative(pkg)) && !path.isAbsolute(relative(pkg));
+  if (!metadata.packages.length || !metadata.workspace_members.length) {
+    throw new InputError(problem(options.metadata, 1, 'metadata must contain workspace members'));
+  }
+  if (metadata.packages.some(pkg => !path.isAbsolute(pkg.manifest_path))) {
+    throw new InputError(problem(options.metadata, 1, 'metadata manifest paths must be absolute'));
+  }
+  for (const id of metadata.workspace_members) {
+    const pkg = packages.get(id);
+    if (!path.isAbsolute(pkg.manifest_path) || !insideRoot(pkg)) {
+      throw new InputError(problem(options.metadata, 1, `${pkg.name}: workspace member manifest is outside --root`));
+    }
+  }
+  const manifests = new Set(metadata.packages.map(pkg => path.resolve(pkg.manifest_path)));
+  for (const file of files(root).filter(file => file.startsWith('engine/') && path.basename(file) === 'Cargo.toml')) {
+    if (!manifests.has(path.join(root, file))) {
+      throw new InputError(problem(file, 1, 'engine manifest missing from metadata.packages; capture all engine workspaces at this --root'));
+    }
+  }
   const issues = [];
   const checked = new Set();
   for (const start of metadata.packages.filter(pkg => relative(pkg).startsWith('engine/'))) {
@@ -56,8 +77,8 @@ export function check(options) {
       if (visited.has(id)) continue;
       visited.add(id);
       const pkg = packages.get(id);
-      if (relative(pkg).startsWith('server/crates/')) {
-        issues.push(problem(relative(start), 1, `engine dependency crosses into server/crates/: ${trail.join(' -> ')}`));
+      if (insideRoot(pkg) && !relative(pkg).startsWith('engine/')) {
+        issues.push(problem(relative(start), 1, `engine dependency crosses outside engine/: ${trail.join(' -> ')}`));
       }
       if (!checked.has(id)) {
         checked.add(id);
@@ -71,8 +92,9 @@ export function check(options) {
   return issues;
 }
 
-await cli(import.meta.url, `Usage: node tools/ci/check-licence-boundary.mjs --metadata FILE [--root DIR]
+await cli(import.meta.url, `Usage: node tools/ci/check-licence-boundary.mjs --root DIR --metadata FILE
 Read cargo metadata --locked --all-features --format-version=1 JSON, with dependencies and resolve.nodes.
-Reject any engine/ dependency path into server/crates/ or any reachable MPL licence expression/file.
+Reject dependencies inside the repository outside engine/, and reachable MPL/GPL/LGPL/AGPL expressions.
+MPL licence files are also rejected. Metadata must cover all engine manifests on disk.
 Metadata and licence files must be available in the same filesystem; no Cargo commands are executed.
 Exit: 0 passed, 1 boundary violation, 2 usage or input error.`, { root: stringOption, metadata: stringOption }, check);

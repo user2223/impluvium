@@ -31,13 +31,14 @@ export function check(options) {
     const name = ids.get(item.package_id);
     if (!name) throw new InputError(problem(options.input, index + 1, `package id not found in metadata: ${item.package_id}`));
     if (members.has(item.package_id)) observed.add(name);
-    if (item.reason === 'compiler-artifact') counts.set(name, 0);
-    else {
+    if (item.reason === 'compiler-artifact') {
+      if (members.has(item.package_id)) counts.set(item.package_id, 0);
+    } else {
       const message = item.message;
       if (!message || typeof message.level !== 'string') throw new InputError(problem(options.input, index + 1, 'invalid compiler diagnostic'));
       if (message.level === 'error' || message.level === 'failure-note') issues.push(problem(options.input, index + 1, `${name}: compiler error`));
-      if (typeof message.code?.code === 'string' && message.code.code.startsWith('clippy::')) {
-        diagnostics.set(name, (diagnostics.get(name) ?? 0) + 1);
+      if (members.has(item.package_id) && typeof message.code?.code === 'string' && message.code.code.startsWith('clippy::')) {
+        diagnostics.set(item.package_id, (diagnostics.get(item.package_id) ?? 0) + 1);
       }
     }
   }
@@ -47,9 +48,9 @@ export function check(options) {
     if (!Object.hasOwn(limits, name)) issues.push(problem(options.baseline, 1, `${name}: observed workspace package missing from baseline`));
     if (!names.includes(name)) issues.push(problem(options.input, 1, `${name}: observed workspace package outside --package selection; include it or use --exclude explicitly`));
   }
-  for (const name of counts.keys()) counts.set(name, diagnostics.get(name) ?? 0);
-  for (const name of names) if (counts.has(name)) console.log(problem(options.input, 1, `${name}: ${counts.get(name)} Clippy diagnostics`));
-  return [...issues, ...compareCounts(options.baseline, limits, counts, names)];
+  const namedCounts = new Map([...counts.keys()].map(id => [ids.get(id), diagnostics.get(id) ?? 0]));
+  for (const name of names) if (namedCounts.has(name)) console.log(problem(options.input, 1, `${name}: ${namedCounts.get(name)} Clippy diagnostics`));
+  return [...issues, ...compareCounts(options.baseline, limits, namedCounts, names)];
 }
 
 await cli(import.meta.url, `Usage: node tools/ci/clippy-ratchet.mjs --baseline FILE --metadata FILE --input FILE [--package NAME ...] [--exclude NAME ...] [--previous-baseline FILE]

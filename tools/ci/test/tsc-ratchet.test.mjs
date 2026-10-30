@@ -44,11 +44,18 @@ test('tsc requires baseline membership and an explicit input status', () => {
   invoke('tsc-ratchet', args(fixture('tsc.txt')).slice(0, -2), 2);
 });
 
-for (const code of [5058, 5083, 6053, 6001, 18003]) test(`tsc: TS${code} config/input diagnostics fail even at an exact budget`, t => {
+for (const code of [5058, 5083, 6053, 6054, 6059, 6231, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 18002, 18003]) test(`tsc: TS${code} config/input diagnostics fail even at an exact budget`, t => {
   const baseline = path.join(temporary(t), 'one.json');
   writeFileSync(baseline, '{"version":1,"packages":{"core":1}}');
   const input = log(t, `error TS${code}: Invalid configuration or input.\n`);
   assert.match(invoke('tsc-ratchet', ['--baseline', baseline, ...args(input).slice(2)], 1).stderr, /configuration\/input diagnostic/);
+});
+
+for (const code of [6133, 6138, 6192, 6196, 6198, 6205]) test(`tsc: TS${code} unused source diagnostics remain countable`, t => {
+  const baseline = path.join(temporary(t), 'one.json');
+  writeFileSync(baseline, '{"version":1,"packages":{"core":1}}');
+  const input = log(t, `source.ts(1,1): error TS${code}: Declared but never used.\n`);
+  invoke('tsc-ratchet', ['--baseline', baseline, ...args(input).slice(2)], 0);
 });
 
 for (const status of ['3', '127', '137', '143']) test(`tsc: incomplete exit status ${status} fails despite matching diagnostics`, () => {

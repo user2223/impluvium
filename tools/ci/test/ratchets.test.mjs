@@ -24,11 +24,12 @@ for (const [tool, packages, input] of configurations) {
   test(`${tool}: unchanged base-revision baseline passes`, t => {
     invoke(tool, [...baselines(t, packages, packages), ...input], 0);
   });
-  test(`${tool}: previous-baseline rejects added packages`, t => {
+  test(`${tool}: previous-baseline permits new test entries or rejects nonzero diagnostic budgets`, t => {
     const previous = { ...packages };
     delete previous.core;
     if (!Object.keys(previous).length) previous.existing = packages.core;
-    assert.match(invoke(tool, [...baselines(t, packages, previous), ...input], 1).stderr, /core: added package in baseline/);
+    const result = invoke(tool, [...baselines(t, packages, previous), ...input], tool === 'count-tests' ? 0 : 1);
+    if (tool !== 'count-tests') assert.match(result.stderr, /core: added package in baseline/);
   });
   test(`${tool}: previous-baseline rejects relaxed limits`, t => {
     const previous = structuredClone(packages);
@@ -75,8 +76,32 @@ for (const tool of ['clippy-ratchet', 'tsc-ratchet', 'count-tests']) {
       if (added) delete previous.other;
       else if (tool === 'count-tests') previous.other.tests.min = 1;
       else previous.other = 0;
-      const result = invoke(tool, [...baselines(t, current, previous), ...input], 1);
-      assert.match(result.stderr, added ? /other: added package/ : /other: baseline was relaxed/);
+      const allowed = added && tool === 'count-tests';
+      const result = invoke(tool, [...baselines(t, current, previous), ...input], allowed ? 0 : 1);
+      if (!allowed) assert.match(result.stderr, added ? /other: added package/ : /other: baseline was relaxed/);
     }
   });
 }
+
+for (const [tool, packages, input] of configurations.filter(([tool]) => tool !== 'count-tests')) {
+  test(`${tool}: previous-baseline allows added zero diagnostic budgets`, t => {
+    const previous = { ...packages };
+    delete previous.bridge;
+    invoke(tool, [...baselines(t, packages, previous), ...input], 0);
+  });
+  test(`${tool}: an empty previous baseline permits only zero diagnostic additions`, t => {
+    const zeroInput = tool === 'clippy-ratchet'
+      ? ['--metadata', fixture('metadata.json'), '--input', fixture('clippy.jsonl'), '--package', 'bridge', '--exclude', 'core']
+      : ['--package', 'bridge', '--input', path.join(temporary(t), 'empty.txt'), '--status', '0'];
+    if (tool === 'tsc-ratchet') writeFileSync(zeroInput[3], '');
+    invoke(tool, [...baselines(t, { bridge: 0 }, {}), ...zeroInput], 0);
+  });
+}
+
+test('count-tests: previous-baseline allows added exact and minimum test entries', t => {
+  for (const constraint of ['exact', 'min']) {
+    const current = { core: { tests: { [constraint]: 2 }, docTests: { [constraint]: 1 } } };
+    const previous = { existing: { tests: { min: 0 }, docTests: { min: 0 } } };
+    invoke('count-tests', [...baselines(t, current, previous), '--metadata', fixture('metadata.json'), '--input', fixture('libtest.txt')], 0);
+  }
+});

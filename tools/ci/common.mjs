@@ -89,14 +89,15 @@ export function compareCounts(file, limits, counts, names) {
 }
 
 // Compare every baseline entry, even when this invocation selects one package.
-export function previousLimits(options, limits, validate = natural, relaxed = (value, old) => value > old) {
+export function previousLimits(options, limits, validate = natural, relaxed = (value, old) => value > old,
+  added = value => value !== 0) {
   if (!options['previous-baseline']) return [];
-  const previous = baseline(options['previous-baseline'], 'packages', validate);
+  const previous = baseline(options['previous-baseline'], 'packages', validate, true);
   const source = read(options.baseline);
   const issues = [];
   for (const [name, value] of Object.entries(limits)) {
     if (!Object.hasOwn(previous, name)) {
-      issues.push(problem(options.baseline, keyLine(source, name), `${name}: added package in baseline`));
+      if (added(value)) issues.push(problem(options.baseline, keyLine(source, name), `${name}: added package in baseline with a nonzero budget`));
     } else if (relaxed(value, previous[name])) {
       issues.push(problem(options.baseline, keyLine(source, name), `${name}: baseline was relaxed relative to --previous-baseline`));
     }
