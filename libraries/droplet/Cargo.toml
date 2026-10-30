@@ -41,7 +41,3 @@ features = ["crypto", "pem", "x509-parser"]
 
 [dev-dependencies]
 test-generator = "0.3.1"
-
-[profile.release]
-lto = true
-strip = "symbols"

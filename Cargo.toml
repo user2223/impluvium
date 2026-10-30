@@ -1,0 +1,45 @@
+[workspace]
+resolver = "3"
+members = [
+  "desktop/src-tauri",
+  "desktop/src-tauri/client",
+  "desktop/src-tauri/database",
+  "desktop/src-tauri/download_manager",
+  "desktop/src-tauri/games",
+  "desktop/src-tauri/process",
+  "desktop/src-tauri/remote",
+  "desktop/src-tauri/utils",
+  "torrential",
+  "libraries/droplet",
+  "libraries/droplet_types",
+  "libraries/libarchive",
+]
+# Plain `cargo` commands from the repository root use the stable toolchain of
+# rust-toolchain.toml and cover the server side and the libraries.
+#
+# The desktop crates need the nightly toolchain pinned in
+# desktop/src-tauri/rust-toolchain.toml, so build, check and lint them from
+# desktop/src-tauri (with -p to select them), never from the root. For
+# rust-analyzer, set RUSTUP_TOOLCHAIN to the desktop toolchain (desktop/README.md).
+default-members = [
+  "torrential",
+  "libraries/droplet",
+  "libraries/droplet_types",
+  "libraries/libarchive",
+]
+# No member declares a rust-version, so the resolver picks dependency versions
+# that the running toolchain supports. Write Cargo.lock (cargo update, adding
+# dependencies) only from the repository root, with the stable toolchain;
+# otherwise the nightly toolchain could select versions stable cannot build.
+
+# Profiles apply to every member. The release profile stays neutral: the server
+# image builds torrential with it.
+[profile.release]
+
+# Release profile of the desktop client:
+#   pnpm exec tauri build -- --profile release-desktop
+[profile.release-desktop]
+inherits = "release"
+lto = true
+panic = "abort"
+codegen-units = 1

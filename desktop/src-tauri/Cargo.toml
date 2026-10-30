@@ -5,18 +5,6 @@ description = "The client application for the open-source, self-hosted game dist
 authors = ["Drop OSS"]
 edition = "2024"
 
-[workspace]
-resolver = "3"
-members = [
-  "client",
-  "database",
-  "download_manager",
-  "games",
-  "process",
-  "remote",
-  "utils",
-]
-
 [lib]
 crate-type = ["cdylib", "rlib", "staticlib"]
 # The `_lib` suffix may seem redundant but it is necessary
@@ -114,16 +102,3 @@ tauri-plugin-single-instance = { version = "~2.3.7", features = ["deep-link"] }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 libloading = "0.7"
-
-[profile.release]
-lto = true
-panic = "abort"
-codegen-units = 1
-
-[profile.dev.package."*"]
-# Set the default for dependencies in Development mode.
-opt-level = 3
-
-[profile.dev]
-# Turn on a small amount of optimisation in Development mode.
-opt-level = 1
