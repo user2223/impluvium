@@ -5,12 +5,18 @@ name: impluvium-ci
 
 on:
   push:
-    branches: ["impluvium/main", "sync/**"]
+    branches: ["impluvium/main"]
     # Release tags are plain SemVer: v0.1.0, v0.1.0-rc.1.
     tags: ["v*"]
   pull_request:
     branches: ["impluvium/main"]
   workflow_dispatch:
+
+# Cancel superseded runs of the same pull request. Every push run gets its own group (keyed by the commit), so a
+# run on the main branch is never cancelled or replaced; publication needs each of them to finish.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -27,7 +33,7 @@ env:
   BUILDKIT_SHA256: 14813b1fb2a40082114e6d386c6fc5e7dd5298176ce7ee1a18bc33e73e109ac3
 
 jobs:
-  server-check:
+  server:
     runs-on: impluvium-linux
     container:
       image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:2992a8a0448aba1c093255787390b2a090fefbfd76cc25db107f527e9bd65d3a
@@ -103,7 +109,7 @@ jobs:
           path: server-image.tar
           retention-days: 30
 
-  client-rpm:
+  client-linux:
     runs-on: impluvium-linux
     container:
       image: fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
