@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "packages": {
+    "torrential": 470,
+    "droplet-rs": 0,
+    "droplet_types": 0,
+    "libarchive-drop": 34,
+    "drop-app": 0,
+    "client": 2,
+    "database": 0,
+    "download_manager": 10,
+    "games": 2,
+    "process": 10,
+    "remote": 0,
+    "utils": 0
+  }
+}

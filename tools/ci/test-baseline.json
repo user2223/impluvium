@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "packages": {
+    "torrential": { "tests": { "exact": 0 }, "docTests": { "exact": 0 } },
+    "droplet-rs": { "tests": { "exact": 25 }, "docTests": { "exact": 0 } },
+    "droplet_types": { "tests": { "exact": 0 }, "docTests": { "exact": 0 } },
+    "libarchive-drop": { "tests": { "exact": 5 }, "docTests": { "exact": 0 } }
+  }
+}

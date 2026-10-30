@@ -23,12 +23,11 @@ permissions:
 
 env:
   # Pinned build inputs: actions by commit SHA, job images by digest, tools by version and checksum.
-  RUST_NIGHTLY: nightly-2026-10-18
+  # Rust toolchains come from the rust-toolchain.toml files (root: stable, desktop/src-tauri: nightly).
   RUSTUP_VERSION: 1.29.2
   RUSTUP_SHA256: 5be191e8c70a5007074254cb74d78dbfdd25cd5a61c27de7b8e5410122ec24f4
   COREPACK_VERSION: 0.36.0
   NODE_IMAGE: node@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c
-  RUST_IMAGE: rustlang/rust@sha256:cdc3e8239bfe2e7229af4ff4be7c83efc1769e361a9297a0f6c4d89556a0198c
   BUILDKIT_VERSION: v0.34.0
   BUILDKIT_SHA256: 14813b1fb2a40082114e6d386c6fc5e7dd5298176ce7ee1a18bc33e73e109ac3
 
@@ -49,6 +48,119 @@ jobs:
       - name: Lint
         working-directory: server
         run: pnpm run lint
+
+  rust:
+    runs-on: impluvium-linux
+    container:
+      image: fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
+    steps:
+      - name: Bootstrap (Node 24 for actions and the checks in tools/ci, build dependencies)
+        run: |
+          dnf -y install --setopt=install_weak_deps=False \
+            nodejs24 nodejs24-bin git curl file gcc gcc-c++ make pkgconf-pkg-config perl \
+            webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel libxdo-devel \
+            libarchive-devel
+          node --version
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Rust toolchains (rust-toolchain.toml files)
+        run: |
+          curl -sSfo "$RUNNER_TEMP/rustup-init" \
+            "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init"
+          echo "${RUSTUP_SHA256}  $RUNNER_TEMP/rustup-init" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/rustup-init"
+          "$RUNNER_TEMP/rustup-init" -y --profile minimal --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustup toolchain install && rustup show active-toolchain
+          cd desktop/src-tauri && rustup toolchain install && rustup show active-toolchain
+      - name: Lock file (consistent with the manifests, Tauri crates at their locked versions)
+        run: |
+          cargo metadata --locked --all-features --format-version=1 > "$RUNNER_TEMP/metadata.json"
+          node tools/ci/check-lock-versions.mjs --lock Cargo.lock --expect tools/ci/locked-versions.json
+      - name: Baselines of the base revision
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          # The ratchets compare the baselines with those of the revision this run builds on: the target
+          # branch of a pull request, the previous head for a push. Counts may only fall, test counts only rise.
+          case "$EVENT_NAME" in
+            pull_request) base="$PR_BASE_SHA" ;;
+            push) base="$PUSH_BEFORE" ;;
+            *) base="" ;;
+          esac
+          mkdir -p "$RUNNER_TEMP/base"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "No base revision for this run ($EVENT_NAME $GITHUB_REF): only the current baselines are checked."
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$base"
+          git show "$base:.gitea/workflows/ci.yml" > "$RUNNER_TEMP/base/ci.yml"
+          for name in clippy-baseline test-baseline; do
+            if git cat-file -e "$base:tools/ci/$name.json" 2>/dev/null; then
+              git show "$base:tools/ci/$name.json" > "$RUNNER_TEMP/base/$name.json"
+              echo "tools/ci/$name.json: compared with $base"
+            elif grep -q "tools/ci/$name.json" "$RUNNER_TEMP/base/ci.yml"; then
+              echo "tools/ci/$name.json is used by $base but missing there"
+              exit 1
+            else
+              echo "tools/ci/$name.json: new, $base does not use it yet"
+            fi
+          done
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy (stable, default members)
+        run: |
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/clippy-baseline.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/clippy-baseline.json")
+          fi
+          set +e
+          cargo clippy --locked --all-targets --message-format=json -- --cap-lints warn > "$RUNNER_TEMP/clippy-stable.jsonl"
+          clippy_status=$?
+          set -e
+          node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json "${previous[@]}" \
+            --metadata "$RUNNER_TEMP/metadata.json" --input "$RUNNER_TEMP/clippy-stable.jsonl" \
+            --package torrential --package droplet-rs --package droplet_types --package libarchive-drop
+          test "$clippy_status" -eq 0
+      - name: Tests (stable, default members)
+        run: |
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/test-baseline.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/test-baseline.json")
+          fi
+          set +e
+          cargo test --locked --no-fail-fast > "$RUNNER_TEMP/tests.txt" 2>&1
+          test_status=$?
+          set -e
+          cat "$RUNNER_TEMP/tests.txt"
+          node tools/ci/count-tests.mjs --baseline tools/ci/test-baseline.json "${previous[@]}" \
+            --metadata "$RUNNER_TEMP/metadata.json" --input "$RUNNER_TEMP/tests.txt"
+          test "$test_status" -eq 0
+      - name: Clippy (nightly, desktop crates)
+        # The desktop crates build only with the nightly toolchain of desktop/src-tauri/rust-toolchain.toml,
+        # which applies in this directory. A separate target directory keeps the stable build intact.
+        working-directory: desktop/src-tauri
+        run: |
+          rustup show active-toolchain
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/clippy-baseline.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/clippy-baseline.json")
+          fi
+          set +e
+          cargo clippy --locked --all-targets --target-dir "$GITHUB_WORKSPACE/target/nightly" --message-format=json \
+            -p drop-app -p client -p database -p download_manager -p games -p process -p remote -p utils \
+            -- --cap-lints warn > "$RUNNER_TEMP/clippy-nightly.jsonl"
+          clippy_status=$?
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          # games depends on droplet_types, which the stable run already counts.
+          node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json "${previous[@]}" \
+            --metadata "$RUNNER_TEMP/metadata.json" --input "$RUNNER_TEMP/clippy-nightly.jsonl" \
+            --package drop-app --package client --package database --package download_manager \
+            --package games --package process --package remote --package utils --exclude droplet_types
+          test "$clippy_status" -eq 0
 
   server-image:
     runs-on: impluvium-linux
@@ -93,13 +205,12 @@ jobs:
           buildctl --addr "unix://$XDG_RUNTIME_DIR/bk.sock" build \
             --frontend dockerfile.v0 --local context=. --local dockerfile=. \
             --opt context:node:lts-bookworm-slim=docker-image://"$NODE_IMAGE" \
-            --opt context:rustlang/rust:nightly-bookworm-slim=docker-image://"$RUST_IMAGE" \
             --opt build-arg:BUILD_DROP_VERSION="$DROP_VERSION" \
             --opt build-arg:BUILD_GIT_REF="$GITHUB_SHA" \
             --output type=oci,dest="$OUT/server-image.tar"
           EOS
           chmod 0755 "$RUNNER_TEMP/build.sh"
-          runuser -u builder -- env OUT="$RUNNER_TEMP/out" NODE_IMAGE="$NODE_IMAGE" RUST_IMAGE="$RUST_IMAGE" \
+          runuser -u builder -- env OUT="$RUNNER_TEMP/out" NODE_IMAGE="$NODE_IMAGE" \
             DROP_VERSION="$DROP_VERSION" GITHUB_SHA="$GITHUB_SHA" bash "$RUNNER_TEMP/build.sh"
           mv "$RUNNER_TEMP/out/server-image.tar" server-image.tar
           sha256sum server-image.tar
@@ -123,15 +234,17 @@ jobs:
             webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel libxdo-devel
           node --version
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - name: Rust toolchain (pinned nightly)
+      - name: Rust toolchain (desktop/src-tauri/rust-toolchain.toml)
         run: |
           curl -sSfo "$RUNNER_TEMP/rustup-init" \
             "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init"
           echo "${RUSTUP_SHA256}  $RUNNER_TEMP/rustup-init" | sha256sum -c -
           chmod 0755 "$RUNNER_TEMP/rustup-init"
-          "$RUNNER_TEMP/rustup-init" -y --profile minimal --default-toolchain "$RUST_NIGHTLY"
+          "$RUNNER_TEMP/rustup-init" -y --profile minimal --default-toolchain none
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          echo "RUSTUP_TOOLCHAIN=$RUST_NIGHTLY" >> "$GITHUB_ENV"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          # tauri runs cargo in desktop/src-tauri, where the nightly toolchain file applies.
+          cd desktop/src-tauri && rustup toolchain install && rustup show active-toolchain
       - name: Install dependencies
         run: |
           npm install -g "corepack@${COREPACK_VERSION}" && corepack enable && pnpm --version
@@ -146,10 +259,11 @@ jobs:
             *) release="0.dev" ;;
           esac
           printf '{"bundle":{"linux":{"rpm":{"epoch":1,"release":"%s"}}}}' "$release" > "$RUNNER_TEMP/rpm.json"
-          pnpm tauri build --bundles rpm --config "$RUNNER_TEMP/rpm.json"
+          # The workspace profile release-desktop (LTO, panic = abort) builds the client; output under target/release-desktop.
+          pnpm exec tauri build --bundles rpm --config "$RUNNER_TEMP/rpm.json" -- --locked --profile release-desktop
       - name: Check RPM
         run: |
-          rpm=$(ls desktop/src-tauri/target/release/bundle/rpm/*.rpm)
+          rpm=$(ls target/release-desktop/bundle/rpm/*.rpm)
           rpm -qp --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE} %{ARCH}\n' "$rpm"
           rpm -qpR "$rpm"
           # A release tag must build exactly its own version: RPM Version = tag without "v", "-" -> "~".
@@ -164,5 +278,5 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: client-rpm
-          path: desktop/src-tauri/target/release/bundle/rpm/*.rpm
+          path: target/release-desktop/bundle/rpm/*.rpm
           retention-days: 30

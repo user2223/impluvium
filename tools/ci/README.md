@@ -174,16 +174,13 @@ packages). Merely finding a package in a lock does not verify the binary selecte
 that ambiguity or unsupported launcher options produce exit 2. Use a plain
 command or `pnpm exec` for local binaries instead.
 
-Static inspection of the current repository identifies two invocation outcomes
-changed by this subset: `.gitea/workflows/ci.yml:143` (`pnpm tauri build ...`)
-changes from exit 1 for missing forwarded Cargo locking to exit 2 for an
-unallowlisted action; `Dockerfile:90` (`pnpm prisma init`) changes from an
-unchecked action to exit 2. Use explicit `run`/`exec` when updating those files.
-The synthetic passing workflow uses `pnpm exec tauri`. No current package script
-needs an action rewrite. These are per-invocation expectations; the full current
-repository check still exits 2 first because root `rust-toolchain.toml` is absent
-(root `.node-version` is also absent). The real workflow's tool-free heredoc
-retains its existing image-context override failures.
+Static inspection of the current repository finds these invocations outside the
+subset, which later changes must rewrite: the word `npm` in the package list of
+the `client-linux` bootstrap (exit 2, unverifiable tool word) and `pnpm prisma
+init` in the `Dockerfile` (exit 2, unallowlisted action; use `pnpm exec`). The
+desktop build already uses `pnpm exec tauri build ... -- --locked`. No current
+package script needs an action rewrite. Behind those, the full repository check
+fails on the missing root `.node-version`.
 
 `check-features` associates each Rust file with its nearest package manifest,
 ignores strings/comments, and checks gate **names**, including nested
@@ -258,9 +255,17 @@ git show "${BASE_SHA}:tools/ci/test-baseline.json" > "$baseline_dir/tests.json"
 
 Copy those captures into the build container as `/tmp/base-feature-gates.json`,
 `/tmp/base-clippy.json`, `/tmp/base-tsc.json` and `/tmp/base-tests.json` for the
-commands shown here. Use the actual checked-in baseline paths when wiring
-the tools into CI; these production count files are not created by this tools-only change. Do not fall
-back to the current file if a base file is absent or unreadable.
+commands shown here. Do not fall back to the current file if a base file is
+absent or unreadable.
+
+The `rust` job of `ci.yml` uses `tools/ci/clippy-baseline.json` (stable and
+nightly Clippy, selected with `--package`) and `tools/ci/test-baseline.json`
+(exact counts). It reads their copies from the target branch of a pull request
+or from the previous head of a push. Only a base revision whose `ci.yml` does
+not mention a baseline file yet may lack it (the change that introduces the
+file); otherwise the job fails. To measure counts, run the job's steps in its
+container image: the tools print the observed count of every selected package,
+also when the check fails.
 
 For Clippy, capture **stdout only**, preserving JSON lines. Metadata must include
 `workspace_members` and dependencies; exact package IDs are joined against it,
