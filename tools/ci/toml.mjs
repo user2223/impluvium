@@ -2,6 +2,14 @@ import { InputError, lineAt, problem, read } from './common.mjs';
 
 // A small data-only TOML reader: strings, scalars, arrays, inline tables and
 // dotted keys. It retains source lines and never invokes Cargo to read manifests.
+const bareValue = new RegExp('^(?:' + [
+  '[+-]?(?:0|[1-9](?:_?\\d)*)(?:[eE][+-]?\\d(?:_?\\d)*)?',
+  '0x[0-9A-Fa-f](?:_?[0-9A-Fa-f])*', '0o[0-7](?:_?[0-7])*', '0b[01](?:_?[01])*',
+  '[+-]?(?:inf|nan)',
+  '\\d{4}-\\d{2}-\\d{2}(?:[Tt]\\d{2}:\\d{2}:\\d{2}(?:[Zz]|[+-]\\d{2}:\\d{2})?)?',
+  '\\d{2}:\\d{2}:\\d{2}',
+].join('|') + ')$');
+
 export function toml(file) {
   const source = read(file);
   const tokens = [];
@@ -29,11 +37,20 @@ export function toml(file) {
     }
     if (text.startsWith("'")) return text.slice(1, -1);
     if (text === 'true' || text === 'false') return text === 'true';
+    // Other bare values must be TOML integers, exponent floats, inf/nan or dates and times; they stay
+    // text. Anything else, such as an unquoted word, is malformed. Floats with a dot are unsupported.
+    if (bareValue.test(text)) return text;
+    fail();
+  };
+  const keyPart = () => {
+    const text = take().text;
+    if (text.startsWith('"') || text.startsWith("'")) return String(scalar(text));
+    if (!/^[A-Za-z0-9_-]+$/.test(text)) fail();
     return text;
   };
   const key = () => {
-    const parts = [String(scalar(take().text))];
-    while (peek() === '.') { take('.'); parts.push(String(scalar(take().text))); }
+    const parts = [keyPart()];
+    while (peek() === '.') { take('.'); parts.push(keyPart()); }
     return parts;
   };
   const put = (object, parts, value) => {

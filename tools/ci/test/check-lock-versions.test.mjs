@@ -43,6 +43,10 @@ test('check-lock-versions rejects malformed expectations and lock files', t => {
   invoke('check-lock-versions', args(write(t, 'Cargo.lock', 'version = 4\n')), 2);
   invoke('check-lock-versions', args(write(t, 'Cargo.lock', '[[package]]\nname = "framework"\n')), 2);
   invoke('check-lock-versions', args(write(t, 'Cargo.lock', '[[package]\nname = "x"\n')), 2);
+  // Unquoted words are not TOML values, so a lock edited this way is malformed, not a passing lock.
+  invoke('check-lock-versions', args(lock(t, 'name = "framework"\n', 'name = framework\n')), 2);
+  invoke('check-lock-versions', args(lock(t, 'version = "2.9.5"', 'version = 2.9.5')), 2);
+  invoke('check-lock-versions', args(lock(t, 'name = "framework"\n', 'na$me = "framework"\n')), 2);
   invoke('check-lock-versions', ['--lock', fixture('Cargo.lock')], 2);
   invoke('check-lock-versions', args(path.join(temporary(t), 'absent.lock')), 2);
 });
