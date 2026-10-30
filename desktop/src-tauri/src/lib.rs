@@ -49,8 +49,8 @@ use log4rs::{
     encode::pattern::PatternEncoder,
 };
 use tauri::{
-    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, RunEvent, WebviewBuilder, WebviewUrl,
-    WindowBuilder, WindowEvent,
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, RunEvent, WebviewBuilder,
+    WebviewUrl, WindowBuilder, WindowEvent,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
 };
@@ -469,12 +469,7 @@ pub fn run() {
         .expect("error while running tauri application");
 
     app.run(|_app_handle, event| {
-        if let RunEvent::ExitRequested {
-            code,
-            api,
-            ..
-        } = event
-        {
+        if let RunEvent::ExitRequested { code, api, .. } = event {
             run_on_tray(|| {
                 if code.is_none() {
                     api.prevent_exit();

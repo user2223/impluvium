@@ -83,7 +83,10 @@ fn extracting_a_reader_twice() {
     // The reader has been consumed, so a second extraction must be refused.
     match writer.write(&mut reader, Some(out.as_str())) {
         Err(ArchiveError::HeaderPosition) => {}
-        other => panic!("expected a header position error, got {:?}", other.map(|_| ())),
+        other => panic!(
+            "expected a header position error, got {:?}",
+            other.map(|_| ())
+        ),
     }
 }
 

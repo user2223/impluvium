@@ -6,8 +6,8 @@ pub mod util;
 #[rustfmt::skip]
 pub mod proto;
 pub mod conversions;
-pub mod server;
 pub mod droplet;
+pub mod server;
 
 pub use downloads::download::DownloadContext;
 

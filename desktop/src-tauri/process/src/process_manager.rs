@@ -16,7 +16,10 @@ use database::{
 };
 use dynfmt::Format;
 use dynfmt::SimpleCurlyFormat;
-use games::{library::{push_game_update, report_playtime}, state::GameStatusManager};
+use games::{
+    library::{push_game_update, report_playtime},
+    state::GameStatusManager,
+};
 use log::{debug, info, warn};
 use serde::Serialize;
 use shared_child::SharedChild;
