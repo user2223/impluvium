@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1
 
+# Rust build image, pinned by digest. Its Rust version must match rust-toolchain.toml.
+ARG RUST_BUILD_IMAGE=rust:1.99.1-slim-bookworm@sha256:24707e70a4f1e23d9a7b25202ec43126d28a52294b96aad5c670df1fd1f1d400
+
 # Pinned to bookworm so the glibc here matches the torrential build stage
 # and the libarchive runtime package is named `libarchive13` (trixie renames it to libarchive13t64).
 FROM node:lts-bookworm-slim AS base
@@ -23,7 +26,10 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 
 ### BUILD TORRENTIAL
 # Bookworm-pinned to match the runtime image's glibc (a trixie build would not run on bookworm).
-FROM rustlang/rust:nightly-bookworm-slim AS torrential-build
+FROM ${RUST_BUILD_IMAGE} AS torrential-build
+## Use the image's toolchain instead of rust-toolchain.toml (which is not in the
+## build context and would also install rustfmt and clippy).
+ENV RUSTUP_TOOLCHAIN=1.99.1
 ## libarchive-dev + pkg-config let libarchive3-sys link libarchive dynamically (glibc).
 ## protobuf-compiler is kept for parity (torrential's build.rs uses a vendored protoc).
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -32,8 +38,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-COPY . .
-RUN cargo build --release --manifest-path ./torrential/Cargo.toml
+## Only the Rust workspace. Cargo loads every member, so the desktop crates come
+## along (the build context holds only their manifests and sources), but only
+## torrential and its dependencies are built.
+COPY Cargo.toml Cargo.lock ./
+COPY torrential ./torrential
+COPY libraries/droplet ./libraries/droplet
+COPY libraries/droplet_types ./libraries/droplet_types
+COPY libraries/libarchive ./libraries/libarchive
+COPY desktop/src-tauri ./desktop/src-tauri
+RUN cargo build --release --locked -p torrential
 
 ### BUILD APP
 FROM base AS build-system
@@ -41,17 +55,15 @@ FROM base AS build-system
 ENV NODE_ENV=production
 ENV NUXT_TELEMETRY_DISABLED=1
 
-## add git so drop can determine its git ref at build
-RUN apt-get update && apt-get install -y --no-install-recommends git \
-    && rm -rf /var/lib/apt/lists/*
-
 ## copy deps and rest of project files
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
 
 
 ARG BUILD_DROP_VERSION
-ARG BUILD_GIT_REF
+## The build context has no .git directory, so the git ref must be passed in
+## (CI passes the commit); without it the build reports "unknown".
+ARG BUILD_GIT_REF=unknown
 
 ## build
 RUN pnpm run --filter=drop postinstall && pnpm run --filter=drop build
@@ -94,7 +106,7 @@ COPY --from=build-system /app/server/.output ./app
 COPY --from=build-system /app/server/prisma ./prisma
 COPY --from=build-system /app/server/build ./startup
 COPY --from=build-system /app/server/build/nginx.conf /nginx.conf
-COPY --from=torrential-build /build/torrential/target/release/torrential /usr/bin/
+COPY --from=torrential-build /build/target/release/torrential /usr/bin/
 
 ENV LIBRARY="/library"
 ENV DATA="/data"

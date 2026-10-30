@@ -1,3 +1,33 @@
-/desktop
+# The build context is an allow-list: everything is excluded, and only the
+# build inputs are added back below.
+*
 
-node_modules
+# Node workspace: the server and its Nuxt layer.
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!server/
+!libraries/base/
+
+# Rust workspace. Only torrential is built, but Cargo loads every member, so
+# the desktop crates are needed with their manifests and sources (and nothing
+# else from desktop/). torrential/proto is also an input of the server build.
+!Cargo.toml
+!Cargo.lock
+!torrential/Cargo.toml
+!torrential/build.rs
+!torrential/benches/
+!torrential/proto/
+!torrential/src/
+!libraries/droplet/
+!libraries/droplet_types/
+!libraries/libarchive/
+!desktop/src-tauri/Cargo.toml
+!desktop/src-tauri/*/Cargo.toml
+!desktop/src-tauri/src/
+!desktop/src-tauri/*/src/
+
+# Never part of the context, wherever they are.
+**/target
+**/node_modules
+**/.env*
