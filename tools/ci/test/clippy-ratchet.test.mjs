@@ -126,3 +126,34 @@ test('clippy: registry namesake diagnostics cannot change a workspace count', t 
   });
   invoke('clippy-ratchet', ['--baseline', fixture('clippy-baseline.json'), '--metadata', file, '--input', input], 0);
 });
+
+for (const record of [
+  { reason: 'compiler-artifact', package_id: 'core' },
+  { reason: 'compiler-message', package_id: 'core', message: { level: 'warning', code: { code: 'clippy::example' } } },
+  { reason: 'build-script-executed', package_id: 'core' },
+  { reason: 'build-finished', success: true },
+  { reason: 'future-record' },
+]) test(`clippy: every record after build-finished is an input error: ${record.reason}`, t => {
+  const file = changed(t, items => [...items, record]);
+  assert.match(invoke('clippy-ratchet', args(file), 2).stderr, /record after terminal build-finished/);
+});
+
+test('clippy: an earlier completion cannot validate a truncated appended build', t => {
+  const root = temporary(t);
+  const metadata = path.join(root, 'metadata.json');
+  const baseline = path.join(root, 'baseline.json');
+  writeFileSync(metadata, JSON.stringify({ packages: [{ id: 'core', name: 'core' }], workspace_members: ['core'] }));
+  writeFileSync(baseline, '{"version":1,"packages":{"core":0}}');
+  for (const prefix of [[], [{ reason: 'compiler-artifact', package_id: 'core' }]]) {
+    const file = changed(t, () => [...prefix, { reason: 'build-finished', success: true }, { reason: 'compiler-artifact', package_id: 'core' }]);
+    assert.match(invoke('clippy-ratchet', ['--baseline', baseline, '--metadata', metadata, '--input', file], 2).stderr, /record after terminal build-finished/);
+  }
+});
+
+test('clippy: exactly one completion is required and trailing blank lines are allowed', t => {
+  const missing = changed(t, items => items.filter(item => item.reason !== 'build-finished'));
+  invoke('clippy-ratchet', args(missing), 2);
+  const complete = changed(t, items => items);
+  writeFileSync(complete, readFileSync(complete, 'utf8') + '\n\n');
+  invoke('clippy-ratchet', args(complete), 0);
+});

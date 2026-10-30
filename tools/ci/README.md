@@ -28,7 +28,7 @@ for the self-tests. Repository walks skip `.git`, `node_modules`, `target`,
 node tools/ci/check-pins.mjs --root .
 node tools/ci/check-features.mjs --root . --previous-baseline /tmp/base-feature-gates.json
 cargo metadata --locked --all-features --format-version=1 > /tmp/metadata.json
-node tools/ci/check-licence-boundary.mjs --root . --metadata /tmp/metadata.json
+node tools/ci/check-licence-boundary.mjs --root . --metadata /tmp/metadata.json --allow-no-engine
 ```
 
 `check-pins` applies generic checks to every file under `.gitea/workflows/` and
@@ -50,8 +50,10 @@ Actions may reuse an identical commit pin. `COPY --from=SOURCE`
 and `RUN --mount=...,from=SOURCE,...` accept an earlier stage name/index, a
 pinned image ARG, or a literal image with a SHA256 digest. Shell-form RUN accepts
 leading `--mount=`, `--network=` and `--security=` options; unknown options fail.
-Blank and comment lines inside continuations are dropped while retaining the
-instruction and physical line numbers. Other nonempty lines must begin with a
+Backslash-newline pairs and intervening blank/comment lines are removed before
+instruction options are parsed. A character-to-line map retains physical line
+numbers for image and shell diagnostics, including options on later lines.
+Other nonempty lines must begin with a
 known Dockerfile instruction; `ONBUILD` and `SHELL` are unsupported and fail
 explicitly.
 
@@ -83,7 +85,8 @@ collections on one line. YAML tags, aliases, merge keys, complex folded blocks,
 Dockerfile here-documents and exec-form RUN also produce input errors. Use
 literal `|` for shell scripts containing blank or indented lines.
 
-Shell scanning handles quotes, continuations, separators, `else`, brace groups,
+The **supported shell subset** is explicit. Shell scanning handles quotes,
+continuations, separators, `else`, brace groups,
 command substitutions (also inside double quotes), `env`/`sudo`/`command`/`exec`
 prefixes with recognised options, `runuser -u USER -- COMMAND`, `rustup run`
 and explicit shell `-c` scripts (including absolute shell paths). Wrapper
@@ -94,21 +97,86 @@ Every occurrence of a shell word `cargo`, `pnpm`, `npm`, `npx`, `corepack` or
 to a recognised and checked command. This includes occurrences inside quotes,
 backticks, substitutions and wrapper arguments. Otherwise exit 2 reports
 `cannot verify TOOL invocation at FILE:LINE; write it as a plain command`.
-Backticks, leading redirections and unknown wrappers cannot hide tool words.
+Backticks and unknown wrappers cannot hide tool words.
 A plain mention in `echo 'cargo build'` also fails with exit 2; this deliberate
-false positive keeps the rule simple. Shell comments are ignored. This is a
-static check, not a general shell interpreter: write commands and flags plainly.
+false positive keeps the rule simple. Shell comments are ignored outside
+heredoc bodies. This is a static check: write commands and flags plainly.
+
+In any script containing a tool word, a word in command position or tool-action
+position containing `$` or backticks is an exit-2 **unsupported construct**, even
+when quoted or escaped. For example, `pnpm "$ACTION"`, `pnpm exec "$COMMAND"`
+and `cargo fmt; "$COMMAND"` are unsupported. Variable references in ordinary
+arguments, including the pinned Corepack bootstrap, remain supported.
+Workflow `run` scripts reject `${{ matrix.* }}` and `${{ inputs.* }}` expressions
+anywhere, even without a literal tool word. Tool words in any `strategy.matrix`
+value also produce exit 2, including nested include/exclude entries and values
+unused by a run script. Expressions are never resolved or executed by the checker.
+
+Heredocs with literal delimiters (unquoted, quoted, escaped or mixed quoting,
+including `<<-`) are recognized before shell comments are discarded. Any body
+mentioning a tool word is exit 2, including `# $(cargo build)` and a quoted
+body containing an otherwise locked command. Write those commands directly in
+`run`, RUN or a package script instead. Tool-free shell-shaped heredoc bodies
+retain pin/override checks; delimiter syntax and bodies the scanner cannot parse
+are input errors. Dockerfile heredocs remain unsupported entirely.
+
+Redirections `<`, `>`, `>>`, `<>`, `>|`, `<&` and `>&`, with optional adjacent
+numeric descriptors, may appear before or after a command. Operators and their
+operands are removed before checking arguments: `cargo build > --locked` and
+`pnpm install > --frozen-lockfile` both fail with exit 1. Descriptor duplication
+accepts literal numbers or `-`; filename operands may contain quoted expansions.
+Here-strings, process substitutions, `&>`/`&>>`, missing operands and unsupported
+descriptor operands are exit-2 unsupported constructs. Quoted operators remain
+ordinary arguments.
 
 Only `cargo fmt`, `cargo --version`, `cargo -V`, `cargo help` and `cargo version`
 are exempt from locking. Every other Cargo invocation, including built-in and
 configured aliases, needs `--locked` or `--frozen` before any `--` separator.
-`corepack <package-manager>` and `pnpm exec` are unwrapped and checked recursively,
-including inner Cargo and Tauri commands. `npm exec`, `npx` and `pnpm dlx` are
-also unwrapped, but package downloads absent from the root pnpm/npm lockfile
-fail with exit 1. Merely finding a package in a lock does not verify the binary
-selected by those launchers: that ambiguity or unsupported launcher options
-produce exit 2. Use a plain command or `pnpm exec` for local binaries instead.
-Bare `yarn` is an install and fails the frozen-pnpm policy.
+The subcommand must follow `cargo`, an optional `+CHANNEL` and optional
+`--locked`/`--frozen` flags. Other leading global options are exit 2 because
+their operands could hide a dynamic action; place those options after the action.
+
+Package-manager dispatch uses these action allowlists. Unknown actions produce
+exit 2; there is no implicit script-name fallback. Actions are classified before
+an invocation is marked checked.
+
+| Manager | Install-like (exit 1 unless policy satisfied) | Allowed actions | Download launchers |
+| --- | --- | --- | --- |
+| pnpm | `install`, `i`: require `--frozen-lockfile` without an override | `run`, `exec`, `help`, `list`, `ls`, `why`, `--version`, `-v`, `--help`, `-h` | `dlx`, `create` |
+| npm | `install`, `i`, `ci`: use frozen pnpm instead; only the centrally pinned Corepack bootstrap is exempt | `run`, `run-script`, `help`, `list`, `ls`, `why`, `--version`, `-v`, `--help`, `-h` | `exec`, `x`, `create`, `init` |
+| yarn | bare `yarn`, `install`: use frozen pnpm instead (also with `--silent`) | `run`, `exec`, `help`, `list`, `why`, `--version`, `-v`, `--help`, `-h` | `dlx`, `create` |
+
+All three managers reject these lock-changing actions with exit 1, even with a
+frozen flag: `update`, `upgrade`, `add`, `remove`, `up`, `dedupe`, `import`,
+`uninstall`, `un`, `unlink`, `link`, `rm`, `upgrade-interactive`, `rebuild`,
+`patch`, `patch-commit`, `set`, `config`. This list is conservative: configuration
+and lifecycle changes belong outside CI too. Other actions are unsupported.
+Before the action, the supported options are `--filter`/`-F`, `--dir`/`-C`,
+`--prefix` (with an operand), `--filter=`, `--dir=`, `--prefix=`, `-r`,
+`--recursive`, `-w`, `--workspace-root` and `--silent`. Unknown prefix options
+are input errors. Prefer explicit `pnpm run NAME` or `pnpm exec COMMAND`.
+
+`corepack <package-manager>`, `pnpm exec` and `yarn exec` are unwrapped and
+checked recursively, including inner Cargo and Tauri commands. Other supported
+Corepack actions are `enable`, `disable`, `pack`, `--version`, `-v`, `--help`,
+`-h`. `npx` supports those four version/help flags; otherwise it is a
+download launcher. Download launchers (including `npm exec`/`x`) unwrap the inner
+command and apply its checks. Packages absent from the root pnpm/npm lockfile
+fail with exit 1. `create NAME`/`init NAME` look up `create-NAME` (also for scoped
+packages). Merely finding a package in a lock does not verify the binary selected:
+that ambiguity or unsupported launcher options produce exit 2. Use a plain
+command or `pnpm exec` for local binaries instead.
+
+Static inspection of the current repository identifies two invocation outcomes
+changed by this subset: `.gitea/workflows/ci.yml:143` (`pnpm tauri build ...`)
+changes from exit 1 for missing forwarded Cargo locking to exit 2 for an
+unallowlisted action; `Dockerfile:90` (`pnpm prisma init`) changes from an
+unchecked action to exit 2. Use explicit `run`/`exec` when updating those files.
+The synthetic passing workflow uses `pnpm exec tauri`. No current package script
+needs an action rewrite. These are per-invocation expectations; the full current
+repository check still exits 2 first because root `rust-toolchain.toml` is absent
+(root `.node-version` is also absent). The real workflow's tool-free heredoc
+retains its existing image-context override failures.
 
 `check-features` associates each Rust file with its nearest package manifest,
 ignores strings/comments, and checks gate **names**, including nested
@@ -136,9 +204,14 @@ redirects use resolved package IDs. Inherited licence fields are already
 resolved by Cargo. Capture metadata and check it in the same filesystem, with
 explicit licence files (including registry files) readable; missing files or
 an incomplete graph are input errors. Empty metadata, empty workspace members,
-workspace manifests outside `--root`, and any on-disk `engine/**/Cargo.toml`
-missing from `metadata.packages` are input errors. Metadata must cover every
-engine workspace in one document (merge the packages, workspace members and
+workspace manifests outside `--root`, and any on-disk engine package manifest
+missing from `metadata.packages` are input errors. A virtual `Cargo.toml` with
+`[workspace]` and no `[package]` needs no metadata package; a manifest with both
+tables does. Selecting no `engine/` packages is exit 2 unless `--allow-no-engine`
+is explicit. Until `engine/` exists in this repository, CI uses that flag as in
+the invocation above; remove it when adding the first engine package. It only
+permits an empty selection and never skips manifest coverage or licence checks.
+Metadata must cover every engine workspace in one document (merge the packages, workspace members and
 resolved nodes of separate captures if necessary). The capture's workspace
 root may be `engine/`; `--root` must still name the repository root, at the
 same filesystem location used during capture. The engine boundary is intended
@@ -194,8 +267,10 @@ node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json --prev
 
 Only `clippy::` diagnostics count, including cached diagnostics; compiler errors
 and unsuccessful builds fail independently. Each selected package needs an
-artifact, even at zero, and the stream needs `build-finished`. Every workspace
-member producing diagnostics/artifacts needs a baseline entry. `--package NAME`
+artifact, even at zero, and the stream needs exactly one successful terminal
+`build-finished`. Any following nonblank record, including another completion,
+is exit 2; missing completion is also exit 2. Trailing blank lines are allowed.
+Every workspace member producing diagnostics/artifacts needs a baseline entry. `--package NAME`
 scopes the stable/nightly runs; observed workspace members outside that
 selection fail unless explicitly excluded with `--exclude NAME`. Registry
 dependencies do not need workspace baselines. One diagnostic emitted for two
@@ -213,10 +288,17 @@ set -e
 node tools/ci/tsc-ratchet.mjs --baseline tools/ci/tsc-baseline.json --previous-baseline /tmp/base-tsc.json --package view --input /tmp/typecheck.txt --status "$typecheck_status"
 ```
 
-Only completed exit statuses 0, 1 and 2 are accepted. TS5xxx, TS6053, TS6054,
-TS6059, TS6231, TS6304–TS6310, TS18002 and TS18003
-configuration/input diagnostics always fail. A nonzero status without TypeScript
-diagnostics fails. Empty output with status 0 establishes zero, which requires
+Only completed exit statuses 0, 1 and 2 are accepted. Configuration/input
+diagnostics always fail with exit 1 even at an unchanged exact budget. The
+classification follows the compiler's
+[diagnostic definitions](https://raw.githubusercontent.com/microsoft/TypeScript/v5.9.3/src/compiler/diagnosticMessages.json):
+TS5xxx (compiler/project options), TS6044–TS6046 (option arguments and response
+files), TS6048/TS6050/TS6051 (locale/file inputs), TS6053/TS6054/TS6059/TS6231
+(missing, unsupported or out-of-root inputs), TS6064 (configuration-only option),
+TS6304–TS6310 (project-reference/output settings) and TS18000–TS18003
+(configuration resolution/empty inputs; the reserved TS18001 is rejected too).
+Each explicitly classified code has an exact-budget rejection test. A nonzero
+status without TypeScript diagnostics fails. Empty output with status 0 establishes zero, which requires
 a zero baseline. The named package's current count is checked per call; the
 previous-baseline comparison checks the whole file. Ordinary unused-source
 diagnostics such as TS6133 remain countable.

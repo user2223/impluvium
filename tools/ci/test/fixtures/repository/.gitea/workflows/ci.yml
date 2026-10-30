@@ -41,4 +41,4 @@ jobs:
           dnf -y install nodejs24 nodejs24-npm
           npm install -g "corepack@${COREPACK_VERSION}"
           pnpm install --frozen-lockfile --filter view
-          pnpm tauri build --bundles rpm -- --locked --profile release-desktop
+          pnpm exec tauri build --bundles rpm -- --locked --profile release-desktop

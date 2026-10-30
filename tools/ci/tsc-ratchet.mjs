@@ -1,6 +1,10 @@
 import { baseline, cli, clean, compareCounts, InputError, natural, previousDiagnostics, problem, read, required, stringOption } from './common.mjs';
 
-const configurationCodes = new Set([6053, 6054, 6059, 6231, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 18002, 18003]);
+// Compiler-option arguments, missing/unsupported/out-of-root inputs, project
+// reference/output settings, and malformed or empty project configurations.
+// Keep source diagnostics (including the TS6133 unused family) budgetable.
+const configurationCodes = new Set([6044, 6045, 6046, 6048, 6050, 6051, 6053, 6054, 6059, 6064, 6231,
+  6304, 6305, 6306, 6307, 6308, 6309, 6310, 18000, 18001, 18002, 18003]);
 
 export function check(options) {
   required(options, 'baseline', 'package', 'input', 'status');

@@ -17,6 +17,7 @@ export function check(options) {
   let finished = false;
   for (const [index, raw] of clean(read(options.input)).split('\n').entries()) {
     if (!raw.trim()) continue;
+    if (finished) throw new InputError(problem(options.input, index + 1, 'record after terminal build-finished; capture exactly one build stream'));
     let item;
     try { item = JSON.parse(raw); } catch {
       throw new InputError(problem(options.input, index + 1, 'expected Cargo JSON lines; capture stdout separately from progress output'));
@@ -55,7 +56,7 @@ export function check(options) {
 
 await cli(import.meta.url, `Usage: node tools/ci/clippy-ratchet.mjs --baseline FILE --metadata FILE --input FILE [--package NAME ...] [--exclude NAME ...] [--previous-baseline FILE]
 Read cargo clippy --message-format=json stdout and cargo metadata --format-version=1 JSON.
-Each selected package needs a compiler-artifact, including when cached, and a successful build-finished.
+Each selected package needs a compiler-artifact, including when cached, and exactly one terminal successful build-finished.
 The baseline is {"version":1,"packages":{"package-name":0}}. All baseline packages are checked by default.
 Exit: 0 passed, 1 regression/missing package/build failure, 2 usage or input error.`, {
   baseline: stringOption, metadata: stringOption, input: stringOption, package: repeatedOption, exclude: repeatedOption, 'previous-baseline': stringOption,

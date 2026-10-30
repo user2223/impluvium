@@ -1,7 +1,8 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { cli, files, InputError, problem, read, required, stringOption } from './common.mjs';
+import { cli, files, InputError, plainObject, problem, read, required, stringOption } from './common.mjs';
 import { cargoMetadata } from './metadata.mjs';
+import { toml } from './toml.mjs';
 
 const mpl = /Mozilla[ _-]+Public[ _-]+License|\bMPL(?:-\d+(?:\.\d+)?)?\b/i;
 const copyleft = /\b(?:MPL|GPL|LGPL|AGPL)(?:-\d+(?:\.\d+)?)?\b/i;
@@ -62,13 +63,19 @@ export function check(options) {
   }
   const manifests = new Set(metadata.packages.map(pkg => path.resolve(pkg.manifest_path)));
   for (const file of files(root).filter(file => file.startsWith('engine/') && path.basename(file) === 'Cargo.toml')) {
+    const manifest = toml(path.join(root, file)).data;
+    if (plainObject(manifest.workspace) && !Object.hasOwn(manifest, 'package')) continue; // Virtual workspace.
     if (!manifests.has(path.join(root, file))) {
       throw new InputError(problem(file, 1, 'engine manifest missing from metadata.packages; capture all engine workspaces at this --root'));
     }
   }
   const issues = [];
   const checked = new Set();
-  for (const start of metadata.packages.filter(pkg => relative(pkg).startsWith('engine/'))) {
+  const enginePackages = metadata.packages.filter(pkg => relative(pkg).startsWith('engine/'));
+  if (!enginePackages.length && !options['allow-no-engine']) {
+    throw new InputError(problem(options.metadata, 1, 'no engine/ packages selected; use the repository root or explicitly pass --allow-no-engine'));
+  }
+  for (const start of enginePackages) {
     if (!graph.has(start.id)) throw new InputError(problem(options.metadata, 1, `${start.name}: engine package missing from resolved graph`));
     const visited = new Set();
     const queue = [{ id: start.id, trail: [relative(start)] }];
@@ -92,9 +99,12 @@ export function check(options) {
   return issues;
 }
 
-await cli(import.meta.url, `Usage: node tools/ci/check-licence-boundary.mjs --root DIR --metadata FILE
+await cli(import.meta.url, `Usage: node tools/ci/check-licence-boundary.mjs --root DIR --metadata FILE [--allow-no-engine]
 Read cargo metadata --locked --all-features --format-version=1 JSON, with dependencies and resolve.nodes.
 Reject dependencies inside the repository outside engine/, and reachable MPL/GPL/LGPL/AGPL expressions.
-MPL licence files are also rejected. Metadata must cover all engine manifests on disk.
+MPL licence files are also rejected. Metadata must cover all engine package manifests on disk.
+No engine packages is an input error unless --allow-no-engine is explicit. Virtual workspace manifests need no package ID.
 Metadata and licence files must be available in the same filesystem; no Cargo commands are executed.
-Exit: 0 passed, 1 boundary violation, 2 usage or input error.`, { root: stringOption, metadata: stringOption }, check);
+Exit: 0 passed, 1 boundary violation, 2 usage or input error.`, {
+  root: stringOption, metadata: stringOption, 'allow-no-engine': { type: 'boolean' },
+}, check);

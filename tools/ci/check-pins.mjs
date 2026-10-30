@@ -2,13 +2,20 @@ import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { cli, files, InputError, json, keyLine, lineAt, problem, read, stringOption } from './common.mjs';
 import { dependencies, manifests } from './cargo.mjs';
-import { commands, executable } from './shell.mjs';
+import { commands, executable, hasToolWord, withoutRedirections } from './shell.mjs';
 import { toml } from './toml.mjs';
 import { walkYaml, yaml } from './yaml.mjs';
 
 const requiredJobs = ['checks', 'rust', 'server', 'desktop-ui', 'server-image', 'client-linux'];
 const nonResolvingCargo = new Set(['fmt', '--version', '-V', 'help', 'version']);
 const toolPin = /^(?:[A-Z][A-Z_0-9]*_(?:VERSION|SHA256)|RUST_NIGHTLY|RUSTUP_TOOLCHAIN)$/;
+const packageActions = {
+  pnpm: { install: ['install', 'i'], allowed: ['run', 'exec', 'help', 'list', 'ls', 'why', '--version', '-v', '--help', '-h'], download: ['dlx', 'create'] },
+  npm: { install: ['install', 'i', 'ci'], allowed: ['run', 'run-script', 'help', 'list', 'ls', 'why', '--version', '-v', '--help', '-h'], download: ['exec', 'x', 'create', 'init'] },
+  yarn: { install: ['install'], allowed: ['run', 'exec', 'help', 'list', 'why', '--version', '-v', '--help', '-h'], download: ['dlx', 'create'] },
+};
+const lockChangingActions = new Set(['update', 'upgrade', 'add', 'remove', 'up', 'dedupe', 'import',
+  'uninstall', 'un', 'unlink', 'link', 'rm', 'upgrade-interactive', 'rebuild', 'patch', 'patch-commit', 'set', 'config']);
 
 function imageParts(image) {
   const withoutDigest = image.split('@')[0];
@@ -60,12 +67,18 @@ function downloadIsLocked(root, spec) {
   return false;
 }
 
-function shellChecks(source, file, firstLine, issues, fedora, toolVersions, toolChecksums, channels, root) {
-  const parsed = commands(source, file, firstLine);
+function shellChecks(source, file, firstLine, issues, fedora, toolVersions, toolChecksums, channels, root, sourceLines) {
+  const parsed = commands(source, file, firstLine, sourceLines);
   const verified = new Set();
   const ambiguous = [];
   const cannotVerify = (tool, line) => {
     throw new InputError(problem(file, line, `cannot verify ${tool} invocation at ${file}:${line}; write it as a plain command`));
+  };
+  const unsupported = (token, detail) => {
+    throw new InputError(problem(file, token?.line ?? firstLine, `unsupported construct: ${detail}`));
+  };
+  const literalPosition = token => {
+    if (parsed.hasTools && /[$`]/.test(token?.value ?? '')) unsupported(token, 'dynamic command or tool action');
   };
   const verify = token => {
     if (token.value.includes('$') || token.value.includes('`')) cannotVerify(path.posix.basename(token.value), token.line);
@@ -74,8 +87,9 @@ function shellChecks(source, file, firstLine, issues, fedora, toolVersions, tool
     }
   };
   for (const raw of parsed) {
-    let tokens = executable(raw);
+    let tokens = executable(withoutRedirections(raw, file));
     while (tokens.length) {
+      literalPosition(tokens[0]);
       const command = path.posix.basename(tokens[0].value);
       if (command === 'rustup' && tokens[1]?.value === 'run') {
         const channel = tokens[2]?.value;
@@ -87,26 +101,46 @@ function shellChecks(source, file, firstLine, issues, fedora, toolVersions, tool
         continue;
       }
       if (command === 'corepack') {
+        literalPosition(tokens[1]);
         verify(tokens[0]);
         if (['pnpm', 'npm', 'npx', 'yarn'].includes(tokens[1]?.value)) { tokens = tokens.slice(1); continue; }
-        if (!['enable', 'disable', 'pack', '--version', '-v', '--help', '-h'].includes(tokens[1]?.value)) cannotVerify(command, tokens[0].line);
+        if (!['enable', 'disable', 'pack', '--version', '-v', '--help', '-h'].includes(tokens[1]?.value)) {
+          unsupported(tokens[1] ?? tokens[0], 'corepack action is not allowlisted');
+        }
       }
       const manager = ['pnpm', 'npm', 'yarn'].includes(command);
+      if (manager) literalPosition(tokens[1]);
       const action = manager ? packageAction(tokens) : undefined;
       if (manager && !action) cannotVerify(command, tokens[0].line);
-      if (command === 'npx' || (command === 'pnpm' && action?.action === 'dlx') ||
-          (command === 'npm' && ['exec', 'x'].includes(action?.action))) {
+      if (manager) {
+        literalPosition(tokens[action.index]);
+        if (action.action === undefined && command === 'yarn') action.action = 'install';
+        const policy = packageActions[command];
+        if (lockChangingActions.has(action.action)) {
+          issues.push(problem(file, tokens[0].line, `${command} ${action.action} changes the lock; update dependencies outside CI`));
+        } else if (![...policy.install, ...policy.allowed, ...policy.download].includes(action.action)) {
+          unsupported(tokens[action.index] ?? tokens[0], `${command} action ${action.action ?? '(default)'} is not allowlisted`);
+        }
+      }
+      if ((command === 'npx' && !['--version', '-v', '--help', '-h'].includes(tokens[1]?.value)) ||
+          (manager && packageActions[command].download.includes(action.action))) {
         verify(tokens[0]);
         let index = command === 'npx' ? 1 : action.index + 1;
         if (['--', '--no-install'].includes(tokens[index]?.value)) index++;
         if (!tokens[index] || tokens[index].value.startsWith('-')) cannotVerify(command, tokens[0].line);
-        const locked = downloadIsLocked(root, tokens[index].value);
+        literalPosition(tokens[index]);
+        let spec = tokens[index].value;
+        if (action?.action === 'create' || action?.action === 'init') {
+          // create vite -> create-vite; @scope/name -> @scope/create-name.
+          spec = spec.replace(/^(@[^/]+\/)?([^@/]+)(.*)$/, (_, scope = '', name, version) => `${scope}create-${name}${version}`);
+        }
+        const locked = downloadIsLocked(root, spec);
         if (locked !== false) ambiguous.push({ tool: command, line: tokens[0].line });
-        else issues.push(problem(file, tokens[0].line, `${command} package ${tokens[index].value} is not in a supported lockfile; use a locked local command`));
+        else issues.push(problem(file, tokens[0].line, `${command} package ${spec} is not in a supported lockfile; use a locked local command`));
         tokens = executable(tokens.slice(index));
         continue;
       }
-      if (command === 'pnpm' && action?.action === 'exec') {
+      if (['pnpm', 'yarn'].includes(command) && action?.action === 'exec') {
         verify(tokens[0]);
         let index = action.index + 1;
         if (tokens[index]?.value === '--') index++;
@@ -125,19 +159,24 @@ function shellChecks(source, file, firstLine, issues, fedora, toolVersions, tool
         issues.push(problem(file, tokens[0].line, `cargo +${channel} must match a rust-toolchain.toml channel`));
       }
       const cargoWords = words.slice(0, words.includes('--') ? words.indexOf('--') : undefined);
-      const actionIndex = channel === undefined ? 1 : 2;
+      let actionIndex = channel === undefined ? 1 : 2;
+      while (['--locked', '--frozen'].includes(cargoWords[actionIndex])) actionIndex++;
       const subcommand = cargoWords[actionIndex];
-      // A leading option may take a value; do not guess which later word is a
-      // subcommand. Only an immediately visible allowlisted action is exempt.
+      literalPosition(tokens[1]);
+      literalPosition(tokens[actionIndex]);
+      // Do not guess whether an unknown global option consumes the action.
+      if (subcommand?.startsWith('-') && !nonResolvingCargo.has(subcommand)) {
+        unsupported(tokens[actionIndex], 'Cargo global options before the subcommand; place options after the action');
+      }
       if (!nonResolvingCargo.has(subcommand) && !cargoWords.some(word => ['--locked', '--frozen'].includes(word))) {
         issues.push(problem(file, tokens[0].line, `cargo ${subcommand ?? '(default)'} requires --locked or --frozen before any -- separator`));
       }
     }
     if (command === 'pnpm') {
-      const action = words.find(word => ['install', 'i', 'add', 'update', 'up'].includes(word));
+      const action = packageAction(tokens).action;
       const flags = words.slice(0, words.includes('--') ? words.indexOf('--') : undefined);
       const overridden = flags.some(word => /^--(?:no-frozen-lockfile|(?:config\.)?frozen-lockfile=false)$/.test(word));
-      if (action && (!flags.includes('--frozen-lockfile') || overridden)) {
+      if (packageActions.pnpm.install.includes(action) && (!flags.includes('--frozen-lockfile') || overridden)) {
         issues.push(problem(file, tokens[0].line, `pnpm ${action} requires --frozen-lockfile without an override`));
       }
     }
@@ -148,8 +187,8 @@ function shellChecks(source, file, firstLine, issues, fedora, toolVersions, tool
         issues.push(problem(file, tokens[0].line, 'Tauri build requires --locked forwarded to Cargo after --'));
       }
     }
-    if (['npm', 'yarn'].includes(command) && ((command === 'yarn' && words.length === 1) || words.some(word => ['install', 'i', 'ci', 'add'].includes(word)))) {
-      const bootstrap = command === 'npm' && words.includes('install') &&
+    if (['npm', 'yarn'].includes(command) && packageActions[command].install.includes(packageAction(tokens).action ?? (command === 'yarn' ? 'install' : ''))) {
+      const bootstrap = command === 'npm' && packageAction(tokens).action === 'install' &&
         words.some(word => ['-g', '--global'].includes(word)) &&
         words.filter(word => word.startsWith('corepack@')).length === 1 &&
         words.some(word => ['corepack@${COREPACK_VERSION}', 'corepack@$COREPACK_VERSION'].includes(word)) && toolVersions.has('COREPACK_VERSION') &&
@@ -230,6 +269,9 @@ function checkWorkflow(state, workflowFile) {
   const centralEnv = workflow.value.env?.value ?? {};
   walkYaml(workflow, (node, keys) => {
     const last = keys.at(-1);
+    if (keys.includes('strategy') && keys.includes('matrix') && typeof node.value === 'string' && hasToolWord(node.value)) {
+      throw new InputError(problem(workflowFile, node.line, 'unsupported construct: strategy.matrix value mentions a tool word'));
+    }
     if (last === 'uses') {
       if (typeof node.value !== 'string' || !/^[^\s@]+@[a-f0-9]{40}$/.test(node.value)) {
         if (typeof node.value === 'string' && node.value.startsWith('docker://')) validateImage(node.value.slice(9), workflowFile, node.line);
@@ -267,6 +309,9 @@ function checkWorkflow(state, workflowFile) {
   walkYaml(workflow, (node, keys) => {
     if (keys.at(-1) === 'run') {
       if (typeof node.value !== 'string') throw new InputError(problem(workflowFile, node.line, 'run must contain a shell script'));
+      const expression = /\$\{\{\s*(?:matrix|inputs)\b/.exec(node.value);
+      if (expression) throw new InputError(problem(workflowFile, node.line + lineAt(node.value, expression.index) - 1,
+        'unsupported construct: matrix/inputs expressions in run scripts'));
       shellChecks(node.value, workflowFile, node.line, issues, fedora, toolVersions, toolChecksums, channels, root);
     }
   });
@@ -292,10 +337,10 @@ function dockerOptions(body, file, line) {
   while (rest.startsWith('--')) {
     const match = /^--([a-z-]+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s]+)))?(?=\s|$)\s*/.exec(rest);
     if (!match) throw new InputError(problem(file, line, 'unsupported Docker instruction option syntax'));
-    options.push({ name: match[1], value: match[2] ?? match[3] ?? match[4] });
+    options.push({ name: match[1], value: match[2] ?? match[3] ?? match[4], offset: body.length - rest.length });
     rest = rest.slice(match[0].length);
   }
-  return { options, rest };
+  return { options, rest, restOffset: body.length - rest.length };
 }
 
 function checkDockerfile(state) {
@@ -318,23 +363,29 @@ function checkDockerfile(state) {
       validateImage(args.get(name).value, dockerFile, args.get(name).line);
     } else if (!stages.has(source.toLowerCase())) validateImage(source, dockerFile, line);
   };
-  // Keep a separate physical-line counter when joining continued instructions.
-  let instruction = '', instructionLine = 1;
+  // Docker removes backslash-newline before interpreting instruction options.
+  // Map every retained character back to its physical line for diagnostics.
+  let instruction = '', instructionLine = 1, instructionLines = [];
   const instructions = [];
   for (const [index, line] of docker.split('\n').entries()) {
-    if (!line.trim() || /^\s*#/.test(line)) {
-      if (instruction) instruction += '\\\n';
-      continue;
-    }
+    if (!line.trim() || /^\s*#/.test(line)) continue;
     if (!instruction) instructionLine = index + 1;
-    if (/\\\s*$/.test(line)) instruction += line.replace(/\\\s*$/, '\\\n');
-    else { instructions.push({ text: instruction + line, line: instructionLine }); instruction = ''; }
+    const continued = /\\\s*$/.test(line);
+    const text = continued ? line.replace(/\\\s*$/, '') : line;
+    instruction += text;
+    instructionLines.push(...Array(text.length).fill(index + 1));
+    if (!continued) {
+      instructions.push({ text: instruction, line: instructionLine, lines: instructionLines });
+      instruction = ''; instructionLines = [];
+    }
   }
   if (instruction) throw new InputError(problem(dockerFile, instructionLine, 'unfinished Dockerfile continuation'));
   for (const item of instructions) {
     const match = /^\s*(ARG|FROM|RUN|ENV|COPY|ADD|CMD|ENTRYPOINT|EXPOSE|HEALTHCHECK|LABEL|MAINTAINER|ONBUILD|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR)\s+([\s\S]*)$/i.exec(item.text);
     if (!match) throw new InputError(problem(dockerFile, item.line, 'expected a known Dockerfile instruction'));
     const op = match[1].toUpperCase(), body = match[2];
+    const bodyOffset = item.text.length - body.length;
+    const location = offset => item.lines[bodyOffset + offset] ?? item.line;
     if (['ONBUILD', 'SHELL'].includes(op)) throw new InputError(problem(dockerFile, item.line, `${op} instructions are not supported; use ordinary shell-form RUN`));
     if (op === 'ARG') {
       const arg = /^([A-Za-z_][A-Za-z_0-9]*)(?:=(.*))?$/.exec(body);
@@ -371,7 +422,7 @@ function checkDockerfile(state) {
       for (const option of dockerOptions(body, dockerFile, item.line).options) {
         if (option.name !== 'from') continue;
         if (!option.value) throw new InputError(problem(dockerFile, item.line, 'use COPY --from=SOURCE'));
-        imageSource(option.value, item.line);
+        imageSource(option.value, location(option.offset));
       }
     }
     if (op === 'RUN') {
@@ -382,13 +433,14 @@ function checkDockerfile(state) {
         }
         if (option.name === 'mount') {
           for (const field of option.value.split(',')) {
-            if (field.startsWith('from=')) imageSource(field.slice(5).replace(/^(['"])(.*)\1$/, '$2'), item.line);
+            if (field.startsWith('from=')) imageSource(field.slice(5).replace(/^(['"])(.*)\1$/, '$2'), location(option.offset));
           }
         }
       }
       const script = parsed.rest;
       if (script.startsWith('[') || /<<[-~]?\s*['"]?\w/.test(script)) throw new InputError(problem(dockerFile, item.line, 'use ordinary shell-form RUN without a Dockerfile here-document'));
-      shellChecks(script, dockerFile, item.line, issues, fedora, toolVersions, toolChecksums, channels, root);
+      shellChecks(script, dockerFile, location(parsed.restOffset), issues, fedora, toolVersions, toolChecksums, channels, root,
+        item.lines.slice(bodyOffset + parsed.restOffset));
     }
     if (op === 'ENV') {
       for (const name of [...toolVersions.keys(), ...toolChecksums.keys()]) {

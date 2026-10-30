@@ -44,11 +44,11 @@ test('tsc requires baseline membership and an explicit input status', () => {
   invoke('tsc-ratchet', args(fixture('tsc.txt')).slice(0, -2), 2);
 });
 
-for (const code of [5058, 5083, 6053, 6054, 6059, 6231, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 18002, 18003]) test(`tsc: TS${code} config/input diagnostics fail even at an exact budget`, t => {
+for (const code of [5058, 5083, 6044, 6045, 6046, 6048, 6050, 6051, 6053, 6054, 6059, 6064, 6231, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 18000, 18001, 18002, 18003]) test(`tsc: TS${code} config/input diagnostics fail even at an exact budget`, t => {
   const baseline = path.join(temporary(t), 'one.json');
   writeFileSync(baseline, '{"version":1,"packages":{"core":1}}');
   const input = log(t, `error TS${code}: Invalid configuration or input.\n`);
-  assert.match(invoke('tsc-ratchet', ['--baseline', baseline, ...args(input).slice(2)], 1).stderr, /configuration\/input diagnostic/);
+  assert.match(invoke('tsc-ratchet', ['--baseline', baseline, '--previous-baseline', baseline, ...args(input, '1').slice(2)], 1).stderr, /configuration\/input diagnostic/);
 });
 
 for (const code of [6133, 6138, 6192, 6196, 6198, 6205]) test(`tsc: TS${code} unused source diagnostics remain countable`, t => {

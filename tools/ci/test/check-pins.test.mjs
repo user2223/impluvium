@@ -1,10 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { invoke, replace, repository } from './helpers.mjs';
 
 const workflow = '.gitea/workflows/ci.yml';
+function setScript(root, input, script) {
+  if (input === 'package.json') {
+    const file = path.join(root, input);
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    data.scripts.build = script;
+    writeFileSync(file, JSON.stringify(data, null, 2));
+  } else if (input === workflow) {
+    replace(root, input, 'cargo test --locked -p core', script.replaceAll('\n', '\n          '));
+  } else {
+    replace(root, input, 'cargo build --release --locked -p core', script);
+  }
+}
 test('pins: quoted strings, comments, folded YAML, continuations and repeated job literals pass', t => {
   invoke('check-pins', ['--root', repository(t)], 0);
 });
@@ -286,8 +298,6 @@ test('pins: stray Docker lines are input errors', t => {
 const opaqueScripts = [
   'echo "`cargo build`"',
   'echo `true; cargo build --locked`',
-  '>build.log cargo build',
-  '2>/dev/null cargo build',
   "su builder -c 'cargo build'",
   'nohup cargo build',
   'stdbuf -oL cargo build',
@@ -351,7 +361,7 @@ for (const action of ['b', 'c', 'd', 't', 'r', 'custom-alias']) {
   });
 }
 
-for (const action of ['fmt --all --check', '--version', '-V', 'help', 'version', 'build --frozen']) {
+for (const action of ['fmt --all --check', '--version', '-V', 'help', 'version', 'build --frozen', '--locked build', '--frozen build']) {
   test(`pins: cargo non-resolving actions and frozen builds pass: ${action}`, t => {
     const root = repository(t);
     replace(root, workflow, 'cargo test --locked -p core', `cargo ${action}`);
@@ -466,7 +476,7 @@ test('pins: central variables may pass through unchanged in runuser env', t => {
   invoke('check-pins', ['--root', root], 0);
 });
 
-test('pins: reviewed workflow heredocs and runuser scripts retain compatible syntax', t => {
+test('pins: tool-bearing quoted heredoc scripts are unsupported', t => {
   const root = repository(t);
   const script = [
     "cat > build.sh <<'EOS'",
@@ -479,7 +489,7 @@ test('pins: reviewed workflow heredocs and runuser scripts retain compatible syn
     'runuser -u builder -- env BUILDKIT_VERSION="$BUILDKIT_VERSION" bash build.sh',
   ].join('\n          ');
   replace(root, workflow, 'cargo test --locked -p core', script);
-  invoke('check-pins', ['--root', root], 0);
+  assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: heredoc body mentions a tool word/);
 });
 
 test('pins: changed or extended central variable pass-throughs still fail', t => {
@@ -510,4 +520,200 @@ test('pins: unversioned npm package mentions require an explicit rewrite', t => 
   const root = repository(t);
   replace(root, workflow, 'nodejs24 nodejs24-npm', 'nodejs npm');
   assert.match(invoke('check-pins', ['--root', root], 2).stderr, /cannot verify npm invocation/);
+});
+
+for (const script of [
+  'ACTION=install\npnpm "$ACTION"',
+  'pnpm --filter view "${ACTION}" --frozen-lockfile',
+  'npm "$ACTION"',
+  'yarn "$ACTION"',
+  'pnpm `printf install` --frozen-lockfile',
+  'pnpm "in${SUFFIX}" --frozen-lockfile',
+  'cargo "$ACTION" --locked',
+  'cargo --locked "$ACTION"',
+  'corepack "$MANAGER" --version',
+  'pnpm exec "$COMMAND"',
+  'cargo fmt; "$COMMAND" --version',
+  'cargo fmt; `printf command` --version',
+  'cargo fmt; ${{ env.command }}',
+]) test(`pins: dynamic command or action is unsupported: ${script}`, t => {
+  for (const input of [workflow, 'Dockerfile', 'package.json']) {
+    // Docker instructions cannot contain an uncontinued shell newline.
+    if (input === 'Dockerfile' && script.includes('\n')) continue;
+    const root = repository(t);
+    setScript(root, input, script);
+    assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: dynamic command or tool action/);
+  }
+});
+
+for (const expression of ['${{ matrix.command }}', '${{ inputs.command }}', 'echo "${{ matrix.label }}"', 'echo "${{ inputs.label }}"']) {
+  test(`pins: workflow matrix and inputs expressions are unsupported: ${expression}`, t => {
+    const root = repository(t);
+    replace(root, workflow, '      - run: \'echo "https://images.example.invalid/"\'', `      - run: '${expression}'`);
+    assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: matrix\/inputs expressions/);
+  });
+}
+
+for (const matrix of ["command: ['cargo build']", "include: [{command: 'pnpm install'}]", "exclude: [{command: 'npm update'}]"]) {
+  test(`pins: tool-bearing matrix values are unsupported: ${matrix}`, t => {
+    const root = repository(t);
+    // An extra job has no required-job matrix restriction to mask this check.
+    replace(root, workflow, 'jobs:\n', `jobs:\n  extra:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n        ${matrix}\n    steps:\n` + "      - run: '${{ matrix.command }}'\n");
+    assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: strategy.matrix value mentions a tool word/);
+  });
+}
+
+test('pins: unused tool-bearing matrix values also fail closed', t => {
+  const root = repository(t);
+  replace(root, workflow, 'jobs:\n', "jobs:\n  extra:\n    strategy:\n      matrix: {command: ['cargo build --locked']}\n    steps:\n      - run: echo ready\n");
+  assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: strategy.matrix/);
+});
+
+test('pins: ambiguous Cargo global options cannot hide a dynamic action', t => {
+  const root = repository(t);
+  setScript(root, workflow, 'cargo --color always "$ACTION" --locked');
+  assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: Cargo global options before the subcommand/);
+});
+
+for (const delimiter of ['EOF', "'EOF'", '"EOF"', '\\EOF', 'E"OF"']) {
+  test(`pins: heredoc tool expansions are unsupported for delimiter ${delimiter}`, t => {
+    for (const input of [workflow, 'package.json']) {
+      const root = repository(t);
+      setScript(root, input, `cat <<${delimiter}\n# $(cargo build)\nEOF`);
+      assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: heredoc body mentions a tool word/);
+    }
+  });
+}
+
+for (const tool of ['cargo', 'pnpm', 'npm', 'npx', 'corepack', 'yarn']) {
+  test(`pins: quoted heredoc mentions of ${tool} are unsupported`, t => {
+    const root = repository(t);
+    setScript(root, workflow, `cat <<'EOF'\n# ${tool}\nEOF`);
+    invoke('check-pins', ['--root', root], 2);
+  });
+}
+
+test('pins: tab-stripped and multiple heredocs reject tool-bearing bodies', t => {
+  for (const script of ["cat <<-'EOF'\n\t# $(cargo build)\n\tEOF", "cat <<FIRST <<'SECOND'\nplain text\nFIRST\n# $(cargo build)\nSECOND"]) {
+    const root = repository(t);
+    setScript(root, 'package.json', script);
+    assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: heredoc body mentions a tool word/);
+  }
+});
+
+test('pins: tool-free heredocs retain shell pin checks and following commands', t => {
+  const root = repository(t);
+  setScript(root, workflow, "cat <<'EOF'\necho plain-text\nEOF\ncargo build --locked");
+  invoke('check-pins', ['--root', root], 0);
+  replace(root, workflow, 'echo plain-text', 'buildctl build --opt context:node=docker-image://node:latest');
+  assert.match(invoke('check-pins', ['--root', root], 1).stderr, /context overrides/);
+});
+
+for (const script of ['pnpm upgrade', 'npm update', 'yarn up', 'pnpm add foo --frozen-lockfile', 'pnpm remove foo', 'npm dedupe', 'yarn import']) {
+  test(`pins: lock-changing actions fail: ${script}`, t => {
+    const root = repository(t);
+    setScript(root, workflow, script);
+    assert.match(invoke('check-pins', ['--root', root], 1).stderr, /changes the lock/);
+  });
+}
+
+for (const script of ['pnpm unclassified-action --frozen-lockfile', 'npm unclassified-action', 'yarn unclassified-action', 'pnpm tauri build -- --locked',
+  'pnpm "2">out.log install --frozen-lockfile', 'pnpm \\2>out.log install --frozen-lockfile']) {
+  test(`pins: unclassified package actions are unsupported: ${script}`, t => {
+    const root = repository(t);
+    setScript(root, workflow, script);
+    assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: .* action .* is not allowlisted/);
+  });
+}
+
+test('pins: silent bare yarn is still an install', t => {
+  const root = repository(t);
+  setScript(root, workflow, 'yarn --silent');
+  assert.match(invoke('check-pins', ['--root', root], 1).stderr, /use pnpm install/);
+});
+
+for (const script of ['pnpm i', 'pnpm --filter view i', 'npm ci', 'yarn install --immutable']) {
+  test(`pins: install-like aliases enforce the frozen pnpm policy: ${script}`, t => {
+    const root = repository(t);
+    setScript(root, workflow, script);
+    assert.match(invoke('check-pins', ['--root', root], 1).stderr, /requires --frozen-lockfile|use pnpm install/);
+  });
+}
+
+for (const script of ['pnpm create vite', 'npm create vite', 'npm init vite', 'yarn create vite', 'yarn dlx vite', 'npx help']) {
+  test(`pins: create and dlx obey download rules: ${script}`, t => {
+    const root = repository(t);
+    setScript(root, workflow, script);
+    assert.match(invoke('check-pins', ['--root', root], 1).stderr, /not in a supported lockfile/);
+  });
+}
+
+for (const [name, spec] of [['vite', 'create-vite'], ['@scope/app@1.0.0', '@scope/create-app']]) {
+  test(`pins: locked create launcher remains ambiguous: ${name}`, t => {
+    const root = repository(t);
+    writeFileSync(path.join(root, 'pnpm-lock.yaml'), `packages:\n  '${spec}@1.0.0': {}\n`);
+    setScript(root, workflow, `pnpm create ${name}`);
+    assert.match(invoke('check-pins', ['--root', root], 2).stderr, /cannot verify pnpm invocation/);
+  });
+}
+
+for (const script of ['pnpm run build', 'npm run build', 'yarn run build', 'pnpm i --frozen-lockfile',
+  'yarn exec cargo build --locked', 'pnpm list', 'npm list', 'yarn list', 'pnpm why foo', 'npm why foo', 'yarn why foo',
+  'pnpm help', 'npm help', 'yarn help', 'npx --version']) {
+  test(`pins: explicit package action allowlist passes: ${script}`, t => {
+    const root = repository(t);
+    setScript(root, workflow, script);
+    invoke('check-pins', ['--root', root], 0);
+  });
+}
+
+for (const script of ['cargo build > --locked', 'cargo build>--locked', 'pnpm install > --frozen-lockfile',
+  '>build.log cargo build', '2>/dev/null cargo build', 'cargo build 2>--locked', 'cargo build < --locked', 'cargo build >> --locked']) {
+  test(`pins: redirection operands never supply lock flags: ${script}`, t => {
+    for (const input of [workflow, 'Dockerfile', 'package.json']) {
+      const root = repository(t);
+      setScript(root, input, script);
+      assert.match(invoke('check-pins', ['--root', root], 1).stderr, /requires --locked|requires --frozen-lockfile/);
+    }
+  });
+}
+
+for (const script of ['cargo build --locked >build.log 2>&1', '>build.log cargo build --locked',
+  'cargo build --locked 0</dev/null 3<>file 4>|file 5<&0 6>&-', 'pnpm install --frozen-lockfile >>install.log',
+  'cargo build --locked > "$LOG_FILE"', 'cargo build --locked ">"', 'cargo build --locked 2 >out.log']) {
+  test(`pins: supported redirections preserve genuine lock flags: ${script}`, t => {
+    const root = repository(t);
+    setScript(root, workflow, script);
+    invoke('check-pins', ['--root', root], 0);
+  });
+}
+
+for (const script of ['cargo build --locked &>log', 'cargo build --locked <<<text', 'cargo build --locked > >(cat)',
+  'cargo build --locked >&file', 'cargo build --locked >', 'cargo build --locked >> >file']) {
+  test(`pins: unsupported redirection syntax fails closed: ${script}`, t => {
+    const root = repository(t);
+    setScript(root, workflow, script);
+    assert.match(invoke('check-pins', ['--root', root], 2).stderr, /unsupported construct: redirection/);
+  });
+}
+
+for (const [op, body] of [['COPY', '--from=busybox:latest /bin/sh /shell'], ['RUN', '--mount=type=bind,from=busybox:latest,target=/mnt true']]) {
+  for (const middle of ['', '    # option follows\n\n']) {
+    test(`pins: continued Docker ${op} options require image pins: ${JSON.stringify(middle)}`, t => {
+      const root = repository(t);
+      setScript(root, 'Dockerfile', `true`);
+      replace(root, 'Dockerfile', 'RUN true', `${op} \\\n${middle}    ${body}`);
+      const line = middle ? 13 : 11;
+      assert.match(invoke('check-pins', ['--root', root], 1).stderr, new RegExp(`Dockerfile:${line}: image must be literal and pinned`));
+    });
+  }
+}
+
+test('pins: continued Docker options accept digest images and keep command line locations', t => {
+  const root = repository(t);
+  const image = 'busybox:1.37@sha256:' + 'e'.repeat(64);
+  setScript(root, 'Dockerfile', `COPY \\\n    --from=${image} /bin/sh /shell\nRUN \\\n    # mount follows\n\n    --mount=type=bind,from=${image},target=/mnt \\\n    cargo build --locked`);
+  invoke('check-pins', ['--root', root], 0);
+  replace(root, 'Dockerfile', 'cargo build --locked', 'cargo build');
+  assert.match(invoke('check-pins', ['--root', root], 1).stderr, /Dockerfile:16: cargo build requires --locked/);
 });

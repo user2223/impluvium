@@ -155,3 +155,53 @@ test('licence boundary: metadata is required and unresolved graphs are input err
     invoke('check-licence-boundary', graph(t, transform), 2);
   }
 });
+
+test('licence boundary: a standalone engine root cannot select an empty traversal', t => {
+  const args = graph(t, (data, root) => {
+    data.packages = data.packages.filter(pkg => pkg.id === 'core');
+    data.packages[0].license = 'MPL-2.0';
+    data.workspace_members = ['core'];
+    data.workspace_root = path.join(root, 'engine');
+    data.resolve.nodes = [{ id: 'core', dependencies: [] }];
+    rmSync(path.join(root, 'engine/shared'), { recursive: true });
+  });
+  args[1] = path.join(args[1], 'engine');
+  assert.match(invoke('check-licence-boundary', args, 2).stderr, /no engine\/ packages selected/);
+});
+
+test('licence boundary: no engine packages requires an explicit allow-no-engine flag', t => {
+  const args = graph(t, (data, root) => {
+    rmSync(path.join(root, 'engine'), { recursive: true });
+    data.packages = data.packages.filter(pkg => pkg.id === 'service');
+    data.workspace_members = ['service'];
+    data.resolve.nodes = [{ id: 'service', dependencies: [] }];
+  });
+  assert.match(invoke('check-licence-boundary', args, 2).stderr, /no engine\/ packages selected/);
+  invoke('check-licence-boundary', [...args, '--allow-no-engine'], 0);
+});
+
+test('licence boundary: allow-no-engine does not skip coverage or reachable licence violations', t => {
+  const incomplete = graph(t, data => {
+    data.packages = data.packages.filter(pkg => pkg.id === 'service');
+    data.workspace_members = ['service'];
+    data.resolve.nodes = [{ id: 'service', dependencies: [] }];
+  });
+  assert.match(invoke('check-licence-boundary', [...incomplete, '--allow-no-engine'], 2).stderr, /engine manifest missing from metadata/);
+  const forbidden = graph(t, data => { data.packages[0].license = 'MPL-2.0'; });
+  assert.match(invoke('check-licence-boundary', [...forbidden, '--allow-no-engine'], 1).stderr, /MPL-licensed crate/);
+});
+
+test('licence boundary: virtual engine workspace manifests need no metadata package', t => {
+  const args = graph(t, (data, root) => {
+    writeFileSync(path.join(root, 'engine/Cargo.toml'), '[workspace]\nmembers = ["core", "shared"]\n');
+    data.workspace_root = path.join(root, 'engine');
+  });
+  invoke('check-licence-boundary', args, 0);
+});
+
+test('licence boundary: a workspace with a package still requires metadata coverage', t => {
+  const args = graph(t, (data, root) => {
+    writeFileSync(path.join(root, 'engine/Cargo.toml'), '[workspace]\nmembers = ["core"]\n[package]\nname = "workspace-package"\nversion = "1.0.0"\n');
+  });
+  assert.match(invoke('check-licence-boundary', args, 2).stderr, /engine\/Cargo.toml:1: engine manifest missing/);
+});
