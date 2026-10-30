@@ -1,6 +1,4 @@
 /sites
-/cli
 /desktop
-/backend # go backend
 
 node_modules
