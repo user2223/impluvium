@@ -12,7 +12,6 @@ onlyBuiltDependencies:
   - argon2
   - esbuild
   - prisma
-  - sharp
   - unrs-resolver
   - protobufjs
 

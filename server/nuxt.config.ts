@@ -41,7 +41,7 @@ export default defineNuxtConfig({
 
   modules: [
     "vue3-carousel-nuxt",
-    "nuxt-security", // "@nuxt/image",
+    "nuxt-security",
     "@nuxt/fonts",
     "@nuxt/eslint",
     "@nuxtjs/i18n",
