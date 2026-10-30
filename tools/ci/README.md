@@ -263,7 +263,9 @@ nightly Clippy, selected with `--package`) and `tools/ci/test-baseline.json`
 (exact counts). It reads their copies from the target branch of a pull request
 or from the previous head of a push. Only a base revision whose `ci.yml` does
 not mention a baseline file yet may lack it (the change that introduces the
-file); otherwise the job fails. To measure counts, run the job's steps in its
+file); otherwise the job fails. A pull request or branch push without a base
+revision also fails; only a new branch, a tag push and a manual run check the
+current baselines alone. To measure counts, run the job's steps in its
 container image: the tools print the observed count of every selected package,
 also when the check fails.
 

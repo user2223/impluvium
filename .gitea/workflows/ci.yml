@@ -71,8 +71,11 @@ jobs:
           "$RUNNER_TEMP/rustup-init" -y --profile minimal --default-toolchain none
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.cargo/bin:$PATH"
-          rustup toolchain install && rustup show active-toolchain
-          cd desktop/src-tauri && rustup toolchain install && rustup show active-toolchain
+          rustup toolchain install
+          rustup show active-toolchain
+          cd desktop/src-tauri
+          rustup toolchain install
+          rustup show active-toolchain
       - name: Lock file (consistent with the manifests, Tauri crates at their locked versions)
         run: |
           cargo metadata --locked --all-features --format-version=1 > "$RUNNER_TEMP/metadata.json"
@@ -84,15 +87,23 @@ jobs:
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
           # The ratchets compare the baselines with those of the revision this run builds on: the target
-          # branch of a pull request, the previous head for a push. Counts may only fall, test counts only rise.
-          case "$EVENT_NAME" in
-            pull_request) base="$PR_BASE_SHA" ;;
-            push) base="$PUSH_BEFORE" ;;
-            *) base="" ;;
-          esac
+          # branch of a pull request, the previous head for a branch push. Counts may only fall, test counts
+          # only rise. A missing base fails the run; only a new branch, a tag push and a manual run have none.
           mkdir -p "$RUNNER_TEMP/base"
-          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
-            echo "No base revision for this run ($EVENT_NAME $GITHUB_REF): only the current baselines are checked."
+          case "$EVENT_NAME:$GITHUB_REF" in
+            pull_request:*) base="$PR_BASE_SHA" ;;
+            push:refs/heads/*) base="$PUSH_BEFORE" ;;
+            *)
+              echo "No base revision for this run ($EVENT_NAME $GITHUB_REF): only the current baselines are checked."
+              exit 0
+              ;;
+          esac
+          if [ -z "$base" ]; then
+            echo "The $EVENT_NAME event for $GITHUB_REF names no base revision"
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = push ] && [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "New branch $GITHUB_REF: no base revision, only the current baselines are checked."
             exit 0
           fi
           git fetch --no-tags --depth=1 origin "$base"
