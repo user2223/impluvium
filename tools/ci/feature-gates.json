@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "crates": {
+    "desktop/src-tauri/Cargo.toml": ["fn_traits", "duration_constructors", "duration_millis_float", "iterator_try_collect", "nonpoison_mutex", "sync_nonpoison"],
+    "desktop/src-tauri/database/Cargo.toml": ["nonpoison_rwlock"],
+    "desktop/src-tauri/download_manager/Cargo.toml": ["duration_millis_float", "nonpoison_mutex", "sync_nonpoison"],
+    "desktop/src-tauri/games/Cargo.toml": ["iterator_try_collect", "lock_value_accessors"],
+    "desktop/src-tauri/process/Cargo.toml": ["nonpoison_mutex", "sync_nonpoison", "extend_one", "vec_try_remove"],
+    "desktop/src-tauri/remote/Cargo.toml": ["slice_concat_trait", "sync_nonpoison", "nonpoison_mutex"]
+  }
+}

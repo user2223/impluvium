@@ -1,0 +1,22 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running unittests src/lib.rs (target/debug/deps/core-0123456789abcdef)
+
+running 3 tests
+test tests::first ... ok
+test tests::second ... ok
+test tests::not_ready ... ignored, requires an optional resource
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 4 filtered out; finished in 0.01s
+
+     Running tests/integration.rs (target/debug/deps/integration-0123456789abcdef)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+   Doc-tests core
+
+running 1 test
+test engine/core/src/lib.rs - example (line 1) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s

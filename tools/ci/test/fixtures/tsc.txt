@@ -1,0 +1,4 @@
+src/view.vue(10,5): error TS2322: Type 'string' is not assignable to type 'number'.
+src/app.ts:12:3 - error TS2304: Cannot find name 'missing'.
+
+Found 2 errors in 2 files.

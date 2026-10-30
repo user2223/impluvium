@@ -1,0 +1,4 @@
+{
+  "version": 1,
+  "packages": { "core": { "tests": 2, "docTests": 1 } }
+}

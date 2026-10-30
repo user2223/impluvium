@@ -1,0 +1,8 @@
+[package]
+name = "core"
+version = "0.1.0"
+license.workspace = true
+
+[dependencies]
+shared = { workspace = true }
+# fake = { path = "../../server/crates/service" }

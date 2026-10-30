@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "packages": [
+    { "name": "core", "id": "path+file:///work/impluvium/engine/core#0.1.0" },
+    { "name": "bridge", "id": "bridge 0.1.0 (path+file:///work/impluvium/desktop/bridge)" }
+  ]
+}

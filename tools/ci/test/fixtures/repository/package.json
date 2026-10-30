@@ -1,0 +1,7 @@
+{
+  "name": "fixture",
+  "private": true,
+  "packageManager": "pnpm@10.34.1+sha512.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "engines": { "node": ">=24.0.0 <25" },
+  "scripts": { "build": "cargo build --locked -p core" }
+}

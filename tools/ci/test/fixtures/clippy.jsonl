@@ -1,0 +1,7 @@
+{"reason":"compiler-message","package_id":"path+file:///work/impluvium/engine/core#0.1.0","message":{"level":"warning","code":{"code":"unused_imports"}}}
+{"reason":"compiler-message","package_id":"path+file:///work/impluvium/engine/core#0.1.0","message":{"level":"note","code":null}}
+{"reason":"build-script-executed","package_id":"dependency 1.0.0 (registry+https://registry.example.invalid/)"}
+{"reason":"compiler-message","package_id":"path+file:///work/impluvium/engine/core#0.1.0","message":{"level":"warning","code":{"code":"clippy::needless_return"}}}
+{"reason":"compiler-artifact","package_id":"path+file:///work/impluvium/engine/core#0.1.0","fresh":false}
+{"reason":"compiler-artifact","package_id":"bridge 0.1.0 (path+file:///work/impluvium/desktop/bridge)","fresh":true}
+{"reason":"build-finished","success":true}

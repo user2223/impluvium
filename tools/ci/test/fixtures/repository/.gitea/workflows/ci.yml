@@ -1,0 +1,44 @@
+name: impluvium-ci
+on: [push, pull_request]
+env:
+  BUILDKIT_VERSION: '0.34.1'
+  BUILDKIT_SHA256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  COREPACK_VERSION: '0.36.0'
+jobs:
+  checks:
+    container: 'fedora:44@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    steps:
+      - uses: 'actions/checkout@1111111111111111111111111111111111111111' # pinned action
+      - run: |
+          # cargo build without a lock in a comment is harmless.
+          echo 'cargo test without a lock is just text'
+          cargo deny --locked check licenses bans sources
+          curl 'https://build.example.invalid/'"${BUILDKIT_VERSION}"
+  rust:
+    container:
+      image: fedora:44@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    steps:
+      - run: |
+          cargo fmt --all --check
+          cargo +1.99.1 clippy --locked --message-format=json \
+            --all-targets
+          cargo test --locked -p core
+  server:
+    steps:
+      - run: >-
+          pnpm --filter server
+          install --frozen-lockfile
+  desktop-ui:
+    steps:
+      - run: 'pnpm --filter view install --frozen-lockfile'
+        if: 'always()' # Step conditions are permitted.
+  server-image:
+    steps:
+      - run: 'echo "https://images.example.invalid/"'
+  client-linux:
+    steps:
+      - run: |
+          dnf -y install nodejs24 nodejs24-npm
+          npm install -g "corepack@${COREPACK_VERSION}"
+          pnpm install --frozen-lockfile --filter view
+          pnpm tauri build --bundles rpm -- --locked --profile release-desktop

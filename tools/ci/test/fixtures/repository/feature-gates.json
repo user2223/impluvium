@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "crates": {
+    "desktop/bridge/Cargo.toml": ["existing_gate", "conditional_gate"]
+  }
+}
