@@ -350,3 +350,19 @@ Zero ordinary tests still require a complete observed suite. Missing doc-tests
 are allowed only for a zero exact count/minimum. Failed and truncated suites
 fail independently of the count. Keep the original Cargo exit status fatal as
 shown; the parser cannot infer build failures before the test harness starts.
+
+`check-lock-versions` keeps chosen packages of the root `Cargo.lock` at exact
+versions. The expectations file `locked-versions.json` names each package and
+its version:
+
+```sh
+node tools/ci/check-lock-versions.mjs --lock Cargo.lock --expect tools/ci/locked-versions.json
+```
+
+Every named package must be locked, at the expected version and at no other.
+It holds the Tauri crates together: the desktop manifest pins `tauri` and its
+plugins with `~` requirements, but Tauri's internal crates (`tauri-build`,
+`-codegen`, `-macros`, `-plugin`, `-runtime`, `-runtime-wry`, `-utils`) are
+held only by the lock file. A plain `cargo update` would move them to newer
+minor versions than the locked `tauri` release was built with. Update Tauri as
+one set: change the manifest, the lock and this file in the same change.

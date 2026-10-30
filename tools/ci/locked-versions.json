@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "packages": {
+    "tauri": "2.9.5",
+    "tauri-build": "2.5.3",
+    "tauri-codegen": "2.5.2",
+    "tauri-macros": "2.5.2",
+    "tauri-plugin": "2.5.2",
+    "tauri-runtime": "2.9.2",
+    "tauri-runtime-wry": "2.9.3",
+    "tauri-utils": "2.8.2"
+  }
+}
