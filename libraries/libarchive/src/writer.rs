@@ -169,9 +169,9 @@ impl Disk {
                 ) {
                     ffi::ARCHIVE_EOF => return Ok(written),
                     ffi::ARCHIVE_OK => {
-                        if ffi::archive_write_data_block(self.handle, buff, size, offset)
-                            != ffi::ARCHIVE_OK as isize
-                        {
+                        // Negative values are errors; newer libarchive versions
+                        // return the number of bytes written on success.
+                        if ffi::archive_write_data_block(self.handle, buff, size, offset) < 0 {
                             return Err(ArchiveError::from(self as &dyn Handle));
                         }
                         written += size;

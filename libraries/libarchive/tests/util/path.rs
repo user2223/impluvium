@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::io;
 use std::path::PathBuf;
 use std::process;
 
@@ -25,8 +26,14 @@ impl TempDir {
     /// `name` must be unique per test so that tests can run in parallel.
     pub fn new(name: &str) -> Self {
         let path = env::temp_dir().join(format!("libarchive-tests-{}-{}", process::id(), name));
-        let _ = fs::remove_dir_all(&path);
-        fs::create_dir_all(&path).expect("create temporary directory");
+        match fs::remove_dir_all(&path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => panic!("remove stale temporary directory {}: {e}", path.display()),
+        }
+        // `create_dir` fails if the path exists (also as a symlink), so the
+        // directory is guaranteed to be new and owned by this test.
+        fs::create_dir(&path).expect("create temporary directory");
         TempDir { path }
     }
 
