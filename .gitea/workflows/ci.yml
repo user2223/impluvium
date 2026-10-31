@@ -93,6 +93,24 @@ jobs:
           else
             echo "tools/ci/feature-gates.json: new, $base does not use it yet"
           fi
+          if git cat-file -e "$base:tools/ci/names-baseline.json" 2>/dev/null; then
+            git show "$base:tools/ci/names-baseline.json" > "$RUNNER_TEMP/base/names-baseline.json"
+            echo "tools/ci/names-baseline.json: compared with $base"
+          elif grep -q "tools/ci/names-baseline.json" "$RUNNER_TEMP/base/ci.yml"; then
+            echo "tools/ci/names-baseline.json is used by $base but missing there"
+            exit 1
+          else
+            echo "tools/ci/names-baseline.json: new, $base does not use it yet"
+          fi
+          if git cat-file -e "$base:tools/env-register.json" 2>/dev/null; then
+            git show "$base:tools/env-register.json" > "$RUNNER_TEMP/base/env-register.json"
+            echo "tools/env-register.json: compared with $base"
+          elif grep -q "tools/env-register.json" "$RUNNER_TEMP/base/ci.yml"; then
+            echo "tools/env-register.json is used by $base but missing there"
+            exit 1
+          else
+            echo "tools/env-register.json: new, $base does not use it yet"
+          fi
       - name: Feature gates (only the listed nightly features, only in the listed crates)
         run: |
           previous=()
@@ -100,6 +118,22 @@ jobs:
             previous=(--previous-baseline "$RUNNER_TEMP/base/feature-gates.json")
           fi
           node tools/ci/check-features.mjs --root . "${previous[@]}"
+      - name: Names ratchet (names inherited from the upstream project may only shrink)
+        run: |
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/names-baseline.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/names-baseline.json")
+          fi
+          node tools/ci/check-names.mjs --root . "${previous[@]}"
+      - name: Environment register (every environment name is registered, nothing stale)
+        run: |
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/env-register.json" ]; then
+            previous=(--previous-register "$RUNNER_TEMP/base/env-register.json")
+          fi
+          node tools/ci/check-env.mjs --root . "${previous[@]}"
+      - name: Identity document (docs/dev/identity.md matches the identity table and the register)
+        run: node tools/ci/identity-doc.mjs --root . --check
       - name: Rust toolchain (rust-toolchain.toml) and cargo-deny
         run: |
           curl -sSfo "$RUNNER_TEMP/rustup-init" \
