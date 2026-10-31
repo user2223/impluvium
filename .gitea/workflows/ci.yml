@@ -23,13 +23,14 @@ permissions:
 
 env:
   # Pinned build inputs: actions by commit SHA, job images by digest, tools by version and checksum.
-  # Rust toolchains come from the rust-toolchain.toml files (root: stable, desktop/src-tauri: nightly).
+  # Every pin has exactly one place (tools/ci/check-pins.mjs checks this). The server image's base images are
+  # pinned in the Dockerfile; Rust toolchains come from the rust-toolchain.toml files (root: stable,
+  # desktop/src-tauri: nightly).
   RUSTUP_VERSION: 1.29.2
   RUSTUP_SHA256: 5be191e8c70a5007074254cb74d78dbfdd25cd5a61c27de7b8e5410122ec24f4
   COREPACK_VERSION: 0.36.0
-  NODE_IMAGE: node@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c
-  BUILDKIT_VERSION: v0.34.0
-  BUILDKIT_SHA256: 14813b1fb2a40082114e6d386c6fc5e7dd5298176ce7ee1a18bc33e73e109ac3
+  BUILDKIT_VERSION: v0.34.1
+  BUILDKIT_SHA256: a59539daf547fe0958efe2d07e41c0a6944e1112a66d7e519ec1cf5b673ef15b
 
 jobs:
   server:
@@ -263,6 +264,23 @@ jobs:
           install -m 0755 bin/* /usr/local/bin/
           useradd -m builder
           install -d -o builder "$RUNNER_TEMP/out"
+      - name: Plant .env canaries (must stay out of the build context and the image)
+        run: |
+          # A random value, written to .env files that the .dockerignore must keep out of the build context.
+          canary="impluvium-canary-$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
+          printf '%s\n' "$canary" > "$RUNNER_TEMP/canary"
+          printf 'DATABASE_URL=postgres://canary:%s@localhost/canary\n' "$canary" > server/.env
+          printf 'CANARY=%s\n' "$canary" > .env.local
+          mkdir -p "$RUNNER_TEMP/control"
+          cp Dockerfile "$RUNNER_TEMP/control/Dockerfile"
+          # Positive control: the same ignore file without the .env exclusion. The frontend prefers
+          # <Dockerfile>.dockerignore next to the Dockerfile over the context's .dockerignore.
+          grep -vxF '**/.env*' .dockerignore > "$RUNNER_TEMP/control/Dockerfile.dockerignore"
+          if cmp -s .dockerignore "$RUNNER_TEMP/control/Dockerfile.dockerignore"; then
+            echo "positive control: the .env exclusion line was not found in .dockerignore"
+            exit 1
+          fi
+          chmod -R a+rX "$RUNNER_TEMP/control"
       - name: Build server image (OCI archive)
         env:
           DROP_VERSION: ${{ steps.version.outputs.version }}
@@ -274,18 +292,111 @@ jobs:
           rootlesskit --net=host --disable-host-loopback --copy-up=/etc --copy-up=/run \
             buildkitd --oci-worker-no-process-sandbox --addr "unix://$XDG_RUNTIME_DIR/bk.sock" > /tmp/buildkitd.log 2>&1 &
           for i in $(seq 1 60); do buildctl --addr "unix://$XDG_RUNTIME_DIR/bk.sock" debug workers >/dev/null 2>&1 && break; sleep 1; done
-          buildctl --addr "unix://$XDG_RUNTIME_DIR/bk.sock" build \
-            --frontend dockerfile.v0 --local context=. --local dockerfile=. \
-            --opt context:node:lts-bookworm-slim=docker-image://"$NODE_IMAGE" \
+          bk() { buildctl --addr "unix://$XDG_RUNTIME_DIR/bk.sock" build --frontend dockerfile.v0 --progress plain "$@"; }
+
+          echo "== Leak test part 1: the build context contains no .env file"
+          bk --local context=. --local dockerfile=. --opt target=context-audit
+
+          echo "== Positive control: without the .env exclusion, context-audit must fail"
+          if bk --local context=. --local dockerfile="$CONTROL" --opt target=context-audit > "$OUT/control.log" 2>&1; then
+            cat "$OUT/control.log"
+            echo "positive control: context-audit passed without the exclusion"
+            exit 1
+          fi
+          # Match the step's output lines ("#<step> <seconds> ..."), not the echoed RUN command.
+          grep -E '^#[0-9]+ [0-9.]+ context-audit: FAIL' "$OUT/control.log" \
+            && grep -E '^#[0-9]+ [0-9.]+ /ctx/server/\.env$' "$OUT/control.log" \
+            || { cat "$OUT/control.log"; echo "positive control: failed for another reason"; exit 1; }
+
+          echo "== Server image"
+          bk --local context=. --local dockerfile=. \
             --opt build-arg:BUILD_DROP_VERSION="$DROP_VERSION" \
             --opt build-arg:BUILD_GIT_REF="$GITHUB_SHA" \
             --output type=oci,dest="$OUT/server-image.tar"
           EOS
           chmod 0755 "$RUNNER_TEMP/build.sh"
-          runuser -u builder -- env OUT="$RUNNER_TEMP/out" NODE_IMAGE="$NODE_IMAGE" \
+          runuser -u builder -- env OUT="$RUNNER_TEMP/out" CONTROL="$RUNNER_TEMP/control" \
             DROP_VERSION="$DROP_VERSION" GITHUB_SHA="$GITHUB_SHA" bash "$RUNNER_TEMP/build.sh"
           mv "$RUNNER_TEMP/out/server-image.tar" server-image.tar
           sha256sum server-image.tar
+      - name: Leak test part 2 (the canary is in no image blob)
+        run: |
+          canary="$(cat "$RUNNER_TEMP/canary")"
+          # A string the image must contain (from launch.sh) proves that the scan reads the layers.
+          marker='[Drop] performing migrations'
+          dir="$(mktemp -d)"
+          tar -xf server-image.tar -C "$dir"
+          for f in "$dir"/blobs/sha256/*; do
+            if gzip -t "$f" 2>/dev/null; then gzip -dc "$f"; else cat "$f"; fi
+          done | { grep -aoF -e "$marker" -e "$canary" || true; } | sort | uniq -c | sed "s|$canary|<canary>|" > "$dir/counts"
+          cat "$dir/counts"
+          grep -qF "$marker" "$dir/counts" || { echo "scan control: marker not found, the scan read nothing"; exit 1; }
+          if grep -qF '<canary>' "$dir/counts"; then
+            echo "LEAK: the canary from the planted .env files is in the image"
+            exit 1
+          fi
+          echo "no canary in $(ls "$dir"/blobs/sha256 | wc -l) blobs"
+          rm -rf "$dir"
+      - name: Server image contents (runtime file list and invariants)
+        run: |
+          command -v python3 >/dev/null || apt-get install -y -qq python3
+          dir="$(mktemp -d)"
+          tar -xf server-image.tar -C "$dir"
+          python3 -I - "$dir" <<'EOPY'
+          import json, os, sys, tarfile
+          d = sys.argv[1]
+          blob = lambda digest: os.path.join(d, "blobs", *digest.split(":"))
+          index = json.load(open(os.path.join(d, "index.json")))
+          manifest = json.load(open(blob(index["manifests"][0]["digest"])))
+          if "manifests" in manifest:
+              manifest = json.load(open(blob(manifest["manifests"][0]["digest"])))
+          config = json.load(open(blob(manifest["config"]["digest"])))
+          print("Env:", config["config"].get("Env"))
+          print("Cmd:", config["config"].get("Cmd"), "WorkingDir:", config["config"].get("WorkingDir"))
+          files, elf = {}, b""
+          for layer in manifest["layers"]:
+              with tarfile.open(blob(layer["digest"])) as t:
+                  for m in t:
+                      name = "/" + (m.name[2:] if m.name.startswith("./") else m.name).lstrip("/")
+                      base = os.path.basename(name)
+                      if base == ".wh..wh..opq":
+                          prefix = os.path.dirname(name) + "/"
+                          files = {p: v for p, v in files.items() if not p.startswith(prefix)}
+                      elif base.startswith(".wh."):
+                          files.pop(os.path.join(os.path.dirname(name), base[4:]), None)
+                      else:
+                          files[name] = m
+                          if name == "/usr/bin/torrential" and m.isfile():
+                              elf = t.extractfile(m).read()
+          problems = []
+          want = ["/usr/bin/torrential", "/app/node_modules/.bin/prisma", "/app/startup/launch.sh",
+                  "/app/prisma.config.ts", "/app/prisma/schema.prisma", "/app/app/server/index.mjs", "/nginx.conf"]
+          for w in want:
+              print("present" if w in files else "MISSING", w)
+              if w not in files:
+                  problems.append(f"missing {w}")
+          top = sorted({p.split("/")[2] for p in files if p.startswith("/app/") and len(p.split("/")) > 2})
+          print("/app top level:", top)
+          if top != ["app", "node_modules", "prisma", "prisma.config.ts", "startup"]:
+              problems.append("unexpected /app top level (the runtime must not contain the build context)")
+          env_files = sorted(p for p in files if os.path.basename(p).startswith(".env"))
+          print(".env files in the image:", env_files)
+          if env_files:
+              problems.append(".env files in the image")
+          git = sorted(p for p in files if "/.git/" in p + "/")
+          print(".git in the image:", git[:5])
+          if git:
+              problems.append(".git in the image")
+          print("7z programs:", sorted(p for p in files if p.startswith("/usr/bin/7z")))
+          linked = b"libarchive.so.13\0" in elf
+          print("torrential links libarchive.so.13:", linked)
+          if not linked:
+              problems.append("torrential does not link libarchive.so.13")
+          for p in problems:
+              print("FAIL:", p)
+          sys.exit(1 if problems else 0)
+          EOPY
+          rm -rf "$dir"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: server-image
