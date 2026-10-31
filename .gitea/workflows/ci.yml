@@ -11,18 +11,18 @@ on:
   pull_request:
     branches: ["impluvium/main"]
   workflow_dispatch:
-    # A manual run shares the concurrency group of the push run for the same commit and would cancel it: on
-    # impluvium/main, dispatch only after that push run has finished. The tag must match the desktop version.
+    # The probe tag must match the desktop version.
     inputs:
       probe_tag:
         description: "Run the release-tag branch as if this tag (for example v0.4.0) had been pushed; builds only"
         required: false
         default: ""
 
-# Cancel superseded runs of the same pull request. Every push run gets its own group (keyed by the commit), so a
-# run on the main branch is never cancelled or replaced; publication needs each of them to finish.
+# Cancel superseded runs of the same pull request. Every other run gets its own group (keyed by event and commit),
+# so a push run on the main branch is never cancelled or replaced, also not by a manual run of the same commit;
+# publication needs each push run to finish.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
   cancel-in-progress: true
 
 permissions:
