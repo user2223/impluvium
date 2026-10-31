@@ -11,6 +11,11 @@ on:
   pull_request:
     branches: ["impluvium/main"]
   workflow_dispatch:
+    inputs:
+      probe_tag:
+        description: "Run the release-tag branch as if this tag (for example v0.4.0) had been pushed; builds only"
+        required: false
+        default: ""
 
 # Cancel superseded runs of the same pull request. Every push run gets its own group (keyed by the commit), so a
 # run on the main branch is never cancelled or replaced; publication needs each of them to finish.
@@ -330,13 +335,26 @@ jobs:
       image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:2992a8a0448aba1c093255787390b2a090fefbfd76cc25db107f527e9bd65d3a
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Release tag (pushed v* tag, or probe_tag of a manual run)
+        env:
+          PROBE_TAG: ${{ inputs.probe_tag }}
+        run: |
+          # A manual run with the input probe_tag takes the release-tag branch without a tag (nothing is published).
+          tag=""
+          case "$GITHUB_EVENT_NAME:$GITHUB_REF" in
+            push:refs/tags/v*) tag="$GITHUB_REF_NAME" ;;
+            workflow_dispatch:*) tag="$PROBE_TAG" ;;
+          esac
+          if [ -n "$tag" ] && ! printf '%s\n' "$tag" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'; then
+            echo "Not a SemVer release tag: $tag"
+            exit 1
+          fi
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "Release tag: ${tag:-none}"
       - name: Version
         id: version
         run: |
-          case "$GITHUB_REF" in
-            refs/tags/v*) version="${GITHUB_REF_NAME#v}" ;;
-            *) version="0.0.0-dev" ;;
-          esac
+          if [ -n "$RELEASE_TAG" ]; then version="${RELEASE_TAG#v}"; else version="0.0.0-dev"; fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Rootless BuildKit (unprivileged user, no Docker socket)
         run: |
@@ -508,6 +526,22 @@ jobs:
           # The Node major is pinned in .node-version; the versioned packages provide the plain node and npm.
           node --version | grep -q '^v24\.'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Release tag (pushed v* tag, or probe_tag of a manual run)
+        env:
+          PROBE_TAG: ${{ inputs.probe_tag }}
+        run: |
+          # A manual run with the input probe_tag takes the release-tag branch without a tag (nothing is published).
+          tag=""
+          case "$GITHUB_EVENT_NAME:$GITHUB_REF" in
+            push:refs/tags/v*) tag="$GITHUB_REF_NAME" ;;
+            workflow_dispatch:*) tag="$PROBE_TAG" ;;
+          esac
+          if [ -n "$tag" ] && ! printf '%s\n' "$tag" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'; then
+            echo "Not a SemVer release tag: $tag"
+            exit 1
+          fi
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "Release tag: ${tag:-none}"
       - name: Rust toolchain (desktop/src-tauri/rust-toolchain.toml)
         run: |
           curl -sSfo "$RUNNER_TEMP/rustup-init" \
@@ -528,10 +562,7 @@ jobs:
         working-directory: desktop
         run: |
           # Release tags: RPM Release "1" (the warden policy's release_build.rpm_release); other builds "0.dev".
-          case "$GITHUB_REF" in
-            refs/tags/v*) release="1" ;;
-            *) release="0.dev" ;;
-          esac
+          if [ -n "$RELEASE_TAG" ]; then release="1"; else release="0.dev"; fi
           printf '{"bundle":{"linux":{"rpm":{"epoch":1,"release":"%s"}}}}' "$release" > "$RUNNER_TEMP/rpm.json"
           # The workspace profile release-desktop (LTO, panic = abort) builds the client; output under target/release-desktop.
           # Tauri builds the UI first (beforeBuildCommand: nuxt generate into desktop/.output/main).
@@ -548,13 +579,11 @@ jobs:
           rpm -qp --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE} %{ARCH}\n' "$rpm"
           rpm -qpR "$rpm"
           # A release tag must build exactly its own version: RPM Version = tag without "v", "-" -> "~".
-          case "$GITHUB_REF" in
-            refs/tags/v*)
-              want=$(printf '%s' "${GITHUB_REF_NAME#v}" | tr '-' '~')
-              have=$(rpm -qp --qf '%{VERSION}' "$rpm")
-              [ "$have" = "$want" ] || { echo "RPM version $have does not match tag ${GITHUB_REF_NAME} ($want)"; exit 1; }
-              ;;
-          esac
+          if [ -n "$RELEASE_TAG" ]; then
+            want=$(printf '%s' "${RELEASE_TAG#v}" | tr '-' '~')
+            have=$(rpm -qp --qf '%{VERSION}' "$rpm")
+            [ "$have" = "$want" ] || { echo "RPM version $have does not match tag ${RELEASE_TAG} ($want)"; exit 1; }
+          fi
           sha256sum "$rpm"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
