@@ -11,13 +11,13 @@ use crate::interface::DatabaseInterface;
 pub static DB: LazyLock<DatabaseInterface> = LazyLock::new(DatabaseInterface::set_up_database);
 
 #[cfg(not(debug_assertions))]
-static DATA_ROOT_PREFIX: &str = "drop";
+static DATA_ROOT_PREFIX: &str = "impluvium";
 #[cfg(debug_assertions)]
-static DATA_ROOT_PREFIX: &str = "drop-debug";
+static DATA_ROOT_PREFIX: &str = "impluvium-debug";
 
 pub static DATA_ROOT_DIR: LazyLock<Arc<PathBuf>> = LazyLock::new(|| {
     Arc::new(
-        dirs::data_dir()
+        dirs::data_local_dir()
             .expect("Failed to get data dir")
             .join(DATA_ROOT_PREFIX),
     )
@@ -25,7 +25,8 @@ pub static DATA_ROOT_DIR: LazyLock<Arc<PathBuf>> = LazyLock::new(|| {
 
 /*
 pub(crate) static KEY_IV: LazyLock<([u8; 16], [u8; 16])> = LazyLock::new(|| {
-    let entry = Entry::new("drop", "database_key").expect("failed to open keyring");
+    let service = if cfg!(debug_assertions) { "impluvium-debug" } else { "impluvium" };
+    let entry = Entry::new(service, "database_key").expect("failed to open keyring");
     let mut key = entry.get_secret().unwrap_or_else(|_| {
         let mut buffer = [0u8; 32];
         rand::fill(&mut buffer);

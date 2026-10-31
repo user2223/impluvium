@@ -1,8 +1,8 @@
 [package]
-name = "drop-app"
+name = "impluvium"
 version = "0.4.0"
 publish = false
-description = "The client application for the open-source, self-hosted game distribution platform Drop"
+description = "The desktop client of impluvium, a self-hosted game distribution platform"
 authors = ["Drop OSS"]
 edition = "2024"
 
@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib", "staticlib"]
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "drop_app_lib"
+name = "impluvium_lib"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

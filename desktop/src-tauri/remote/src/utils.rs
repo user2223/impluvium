@@ -27,6 +27,22 @@ impl DropHealthcheck {
         &self.app_name
     }
 }
+const USER_AGENT_TOKEN: &str = "impluvium-desktop";
+
+static USER_AGENT: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "{USER_AGENT_TOKEN}/{} ({}; {})",
+        env!("CARGO_PKG_VERSION"),
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    )
+});
+
+/// The user agent of every request the desktop client sends, built once.
+pub fn desktop_user_agent() -> &'static str {
+    USER_AGENT.as_str()
+}
+
 static DROP_CERT_BUNDLE: LazyLock<Vec<Certificate>> = LazyLock::new(fetch_certificates);
 pub static DROP_CLIENT_SYNC: LazyLock<reqwest::blocking::Client> = LazyLock::new(get_client_sync);
 pub static DROP_CLIENT_ASYNC: LazyLock<ClientWithMiddleware> = LazyLock::new(get_client_async);
@@ -160,7 +176,7 @@ pub fn get_client_sync() -> reqwest::blocking::Client {
     }
     client
         .use_rustls_tls()
-        .user_agent("Drop Desktop Client")
+        .user_agent(desktop_user_agent())
         .connect_timeout(Duration::from_millis(1500))
         .build()
         .expect("Failed to build synchronous client")
@@ -173,7 +189,7 @@ pub fn get_client_async() -> ClientWithMiddleware {
     }
     let normal_client = client
         .use_rustls_tls()
-        .user_agent("Drop Desktop Client")
+        .user_agent(desktop_user_agent())
         .build()
         .expect("Failed to build asynchronous client");
 
@@ -189,7 +205,7 @@ pub fn get_client_ws() -> reqwest::Client {
     }
     client
         .use_rustls_tls()
-        .user_agent("Drop Desktop Client")
+        .user_agent(desktop_user_agent())
         .http1_only()
         .build()
         .expect("Failed to build websocket client")

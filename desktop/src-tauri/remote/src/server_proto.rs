@@ -6,7 +6,7 @@ use http::{
 use log::{error, warn};
 use tauri::UriSchemeResponder;
 
-use crate::utils::DROP_CLIENT_ASYNC;
+use crate::utils::{DROP_CLIENT_ASYNC, desktop_user_agent};
 
 pub async fn handle_server_proto_offline_wrapper(
     request: Request<Vec<u8>>,
@@ -76,7 +76,10 @@ async fn handle_server_proto(request: Request<Vec<u8>>) -> Result<Response<Vec<u
     let mut headers = HeaderMap::new();
     request.headers().clone_into(&mut headers);
     headers.remove(USER_AGENT);
-    headers.append(USER_AGENT, HeaderValue::from_static("Drop Desktop Client"));
+    headers.append(
+        USER_AGENT,
+        HeaderValue::from_str(desktop_user_agent()).expect("user agent is a valid header value"),
+    );
     headers.append(
         "Authorization",
         HeaderValue::from_str(&format!("Bearer {web_token}")).unwrap(),

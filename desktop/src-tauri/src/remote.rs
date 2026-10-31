@@ -39,8 +39,8 @@ pub async fn use_remote(
 
     let result: DropHealthcheck = response.json().await?;
 
-    if result.app_name() != "Drop" {
-        warn!("user entered drop endpoint that connected, but wasn't identified as Drop");
+    if result.app_name() != "impluvium" {
+        warn!("user entered an endpoint that connected, but it was not identified as impluvium");
         return Err(RemoteAccessError::InvalidEndpoint);
     }
 

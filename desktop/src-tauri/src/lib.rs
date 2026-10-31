@@ -311,7 +311,7 @@ pub fn run() {
                 let height = 864.0;
 
                 let main_window = WindowBuilder::new(&handle, "main")
-                    .title("Drop Desktop App")
+                    .title("impluvium")
                     .min_inner_size(1000.0, 500.0)
                     .inner_size(width, height)
                     .decorations(false)

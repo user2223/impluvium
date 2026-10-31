@@ -20,7 +20,7 @@ The UI uses Nuxt 4 and the server Nuxt 3, so install per project as shown instea
 
 The desktop crates are members of the Cargo workspace at the repository root, but they need the nightly toolchain
 pinned in `src-tauri/rust-toolchain.toml`. Run Cargo for them from `src-tauri`, where rustup selects that toolchain,
-for example `cargo clippy --locked -p drop-app`. From the repository root Cargo uses the stable toolchain and cannot
+for example `cargo clippy --locked -p impluvium`. From the repository root Cargo uses the stable toolchain and cannot
 build them. For rust-analyzer, set `RUSTUP_TOOLCHAIN` to the desktop toolchain in its environment (for example with
 `rust-analyzer.cargo.extraEnv`).
 
