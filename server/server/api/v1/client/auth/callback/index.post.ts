@@ -25,7 +25,7 @@ export default defineEventHandler(async (h3) => {
   const token = await clientHandler.generateAuthToken(clientId);
 
   return {
-    redirect: `drop://handshake/${clientId}/${token}`,
+    redirect: `impluvium://handshake/${clientId}/${token}`,
     token: `${clientId}/${token}`,
   };
 });

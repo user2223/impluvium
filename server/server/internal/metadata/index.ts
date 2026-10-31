@@ -36,9 +36,6 @@ export class MissingMetadataProviderConfig extends Error {
   }
 }
 
-// TODO: add useragent to all outbound api calls (best practice)
-export const DropUserAgent = `Drop/${systemConfig.getDropVersion()}`;
-
 export abstract class MetadataProvider {
   abstract name(): string;
   abstract source(): MetadataSource;

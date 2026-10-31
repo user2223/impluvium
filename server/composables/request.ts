@@ -95,7 +95,7 @@ export function isClientRequest() {
   if (import.meta.server) {
     const headers = useRequestHeaders(["User-Agent"]);
     const calculatedClientRequest =
-      headers["user-agent"] == "Drop Desktop Client";
+      headers["user-agent"]?.startsWith("impluvium-desktop/") ?? false;
     existingState.value = calculatedClientRequest;
   }
 

@@ -18,7 +18,7 @@ import type { TaskRunContext } from "../tasks";
 import { logger } from "~/server/internal/logging";
 import type { NitroFetchOptions, NitroFetchRequest } from "nitropack";
 import cacheHandler from "../cache";
-import { systemConfig } from "../config/sys-conf";
+import { thirdPartyUserAgent } from "../user-agent";
 
 interface PCGamingWikiParseRawPage {
   parse: {
@@ -121,7 +121,7 @@ export class PCGamingWikiProvider implements MetadataProvider {
   private loginPromise: Promise<void> | undefined;
   private username: string;
   private password: string;
-  private userAgent = `Drop/${systemConfig.getDropVersion()} (https://github.com/Drop-OSS/drop)`;
+  private userAgent = thirdPartyUserAgent();
 
   constructor() {
     this.username = process.env.PCGAMINGWIKI_BOT_USERNAME ?? "";
