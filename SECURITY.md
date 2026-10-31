@@ -4,8 +4,12 @@
 
 Please do not report security problems in public issues, pull requests or discussions.
 
-Report them privately through GitHub instead: on the impluvium repository page on GitHub, open the security tab (shield
-icon) and choose **Report a vulnerability**. The report is visible only to you and the maintainers.
+Report them privately instead, in one of two ways:
+
+- **GitHub (preferred):** on the impluvium repository page on GitHub, open the security tab (shield icon) and choose
+  **Report a vulnerability**. The report is visible only to you and the maintainers.
+- **E-mail:** write to [security@impluvium.dev](mailto:security@impluvium.dev). Encrypted e-mail is not offered; if
+  the details are sensitive, prefer the GitHub route.
 
 A useful report contains:
 
@@ -25,6 +29,6 @@ branch.
 
 ## What happens next
 
-impluvium is a small project, and reports are handled on a best-effort basis. We aim to reply in the report thread and
-to keep you informed while a fix is prepared. Please give us reasonable time to fix the problem before disclosing it; we
+impluvium is a small project, and reports are handled on a best-effort basis. We aim to reply in the report thread (or
+by e-mail) and to keep you informed while a fix is prepared. Please give us reasonable time to fix the problem before disclosing it; we
 would like to agree on a disclosure date with you.
