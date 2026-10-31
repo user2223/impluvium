@@ -1,0 +1,11 @@
+{
+  "name": "prisma-cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Prisma CLI for the server image: installed into the runtime stage to run migrations.",
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "dotenv": "17.4.2",
+    "prisma": "7.7.0"
+  }
+}

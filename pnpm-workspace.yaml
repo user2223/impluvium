@@ -10,6 +10,7 @@
 # of silently installing nothing. An unfiltered install of the whole workspace is not supported.
 packages:
   - "server/"
+  - "server/prisma-cli/"
   - "libraries/base/"
   - "desktop/"
   - "desktop/main/"
