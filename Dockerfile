@@ -41,9 +41,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-minimal \
     && rm -rf /var/lib/apt/lists/*
 ## The package store goes into the package's own node_modules (pnpm links relatively
-## inside it), so that directory works on its own wherever it is copied.
+## inside it), so that directory works on its own wherever it is copied. Without
+## hoist-workspace-packages=false, pnpm would also link prisma-cli itself into
+## .pnpm/node_modules, pointing back at the package directory (a link cycle in /app).
 RUN pnpm install --frozen-lockfile --prod --filter "{./server/prisma-cli}" --fail-if-no-match \
-    --virtual-store-dir server/prisma-cli/node_modules/.pnpm
+    --virtual-store-dir server/prisma-cli/node_modules/.pnpm \
+    --config.hoist-workspace-packages=false
 RUN python3 -I server/prisma-cli/check-install.py pnpm-lock.yaml server/prisma-cli
 ## loads the schema engine now, at build time
 RUN cd server/prisma-cli \
@@ -52,7 +55,9 @@ RUN cd server/prisma-cli \
 
 ### Install the server's dependencies once
 FROM node-base AS deps
-## Only the server and its workspace dependencies (its Nuxt layer). The desktop projects are not in the build context.
+## Only the server and its workspace dependencies (its Nuxt layer). The directory filter
+## also selects the nested package server/prisma-cli (same lock file, not copied into the
+## runtime image). The desktop projects are not in the build context.
 RUN pnpm install --frozen-lockfile --ignore-scripts --filter "{./server}..." --fail-if-no-match
 
 ### Build torrential
