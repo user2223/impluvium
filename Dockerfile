@@ -86,10 +86,10 @@ FROM deps AS build-system
 ENV NODE_ENV=production
 ENV NUXT_TELEMETRY_DISABLED=1
 
-ARG BUILD_DROP_VERSION
+ARG IMPLUVIUM_VERSION
 ## The build context has no .git directory, so the git ref must be passed in
 ## (CI passes the commit); without it the build reports "unknown".
-ARG BUILD_GIT_REF=unknown
+ARG IMPLUVIUM_GIT_REF=unknown
 
 RUN pnpm -C server run postinstall && pnpm -C server run build
 RUN mkdir -p /rootfs/app \

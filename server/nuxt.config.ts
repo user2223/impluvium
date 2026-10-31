@@ -29,7 +29,7 @@ const dropVersion = getDropVersion();
 
 // get git ref or supply during build
 const commitHash =
-  process.env.BUILD_GIT_REF ??
+  process.env.IMPLUVIUM_GIT_REF ??
   execSync("git rev-parse --short HEAD").toString().trim();
 
 console.log(`Drop ${dropVersion} #${commitHash}`);
@@ -276,8 +276,8 @@ export default defineNuxtConfig({
  */
 function getDropVersion(): string {
   // get drop version from environment variable
-  if (process.env.BUILD_DROP_VERSION) {
-    return process.env.BUILD_DROP_VERSION;
+  if (process.env.IMPLUVIUM_VERSION) {
+    return process.env.IMPLUVIUM_VERSION;
   }
   // example nightly: "v0.3.0-nightly.2025.05.28"
   const defaultVersion = "v0.0.0-alpha.0";
