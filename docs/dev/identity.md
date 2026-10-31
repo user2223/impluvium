@@ -166,8 +166,6 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `FORCE_ENABLE_DEPOTS` | runtime | desktop | active | read | no | no | remove: With the removal of the inherited depot download path. | Forces the depot download path on. |
 | `READER_THREADS` | runtime | torrential | active | read | no | no | remove: When the inherited download service and web proxy are replaced. | Number of reader threads of the download service. |
 | `WORKING_DIRECTORY` | runtime | torrential | active | read | no | no | remove: When the inherited download service and web proxy are replaced. | Working directory of the download service. |
-| `BUILD_DROP_VERSION` | build | build | active | read | no | no | rename to `IMPLUVIUM_VERSION`: With the rename of the build arguments. | Build argument that carries the version shown by the server. |
-| `BUILD_GIT_REF` | build | build | active | read | no | no | rename to `IMPLUVIUM_GIT_REF`: With the rename of the build arguments. | Build argument that carries the Git revision shown by the server. |
 | `CARGO_MANIFEST_DIR` | test | build | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | Set by Cargo; the Rust tests read it through env! to find their data. |
 | `NODE_BASE_IMAGE` | build | build | active | consumer: container build (ARG in the Dockerfile) | no | no | keep: Not planned; the name belongs to the tool that reads it. | Build argument that selects the pinned Node base image. |
 | `RUST_BUILD_IMAGE` | build | build | active | consumer: container build (ARG in the Dockerfile) | no | no | keep: Not planned; the name belongs to the tool that reads it. | Build argument that selects the pinned Rust build image. |
@@ -192,6 +190,6 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `IMPLUVIUM_IGDB_*` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | IGDB provider settings; one variable per former IGDB_ name. |
 | `IMPLUVIUM_PCGAMINGWIKI_*` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | PCGamingWiki provider settings; one variable per former PCGAMINGWIKI_ name. |
 | `IMPLUVIUM_NO_TRAY` | runtime | desktop | planned | read | no | no | keep: Not planned; this is the target name. | Starts the desktop client without a tray icon. |
-| `CARGO_PKG_VERSION` | build | desktop | planned | read | yes | no | keep: Not planned; this is the target name. | Set by Cargo; the desktop user-agent helper will read it through env! to report the crate version. |
-| `IMPLUVIUM_VERSION` | build | build | planned | read | no | no | keep: Not planned; this is the target name. | Build argument that carries the version shown by the server. |
-| `IMPLUVIUM_GIT_REF` | build | build | planned | read | no | no | keep: Not planned; this is the target name. | Build argument that carries the Git revision shown by the server. |
+| `CARGO_PKG_VERSION` | build | desktop | active | read | yes | no | keep: Not planned; the name belongs to the tool that sets it. | Set by Cargo; the desktop user-agent helper reads it through env! to report the crate version. |
+| `IMPLUVIUM_VERSION` | build | build | active | read | no | no | keep: Not planned; this is the target name. | Build argument that carries the version shown by the server. |
+| `IMPLUVIUM_GIT_REF` | build | build | active | read | no | no | keep: Not planned; this is the target name. | Build argument that carries the Git revision shown by the server. |

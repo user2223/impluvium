@@ -61,7 +61,7 @@ explicitly.
 
 Only workflow **top-level** `env` names ending in `_VERSION` or `_SHA256`
 establish central tool pins. Step/job variables such as
-`DROP_VERSION: ${{ steps.version.outputs.version }}` are ordinary runtime data.
+`IMPLUVIUM_VERSION: ${{ steps.version.outputs.version }}` are ordinary runtime data.
 Reusing a central tool name at those levels or assigning it in a shell script
 (including `export`, `env` or `declare`) fails. An unchanged pass-through such as
 `env BUILDKIT_VERSION="$BUILDKIT_VERSION"` or `env BUILDKIT_VERSION="${BUILDKIT_VERSION}"`
@@ -176,7 +176,7 @@ command or `pnpm exec` for local binaries instead.
 
 The repository passes the full check; the `checks` job of `ci.yml` runs it on
 every change, together with the self-tests, `check-features`, `check-names`,
-`check-env`, the identity document check, `check-licence-boundary` and `cargo deny`
+`check-env`, the identity document check, `check-identity`, `check-licence-boundary` and `cargo deny`
 (configured in `deny.toml`).
 
 `check-features` associates each Rust file with its nearest package manifest,
@@ -469,6 +469,23 @@ page so that it can be redirected on the host side.
 ```sh
 node tools/ci/identity-doc.mjs --root . --check
 node tools/identity/write-doc.mjs --root . --stdout > docs/dev/identity.md
+```
+
+`check-identity` ties the places in the code that carry an identity value to the
+identity table. Every entry of `bindings` in `tools/identity.json` names a dotted
+path in the table (`value`), a repository-relative `file` and exactly one
+selector: `json` (a JSON pointer), `toml` (a dotted key) or `regex` (a regular
+expression with exactly one capture group, matched per line over the whole file).
+The check fails when the file is missing, when the selector does not resolve
+exactly once, or when the value found differs from the table. A malformed binding
+or a regular expression without exactly one group is an input error (exit 2).
+With `url_scheme.registered_by_current_client` set to `true`, the scheme must be
+bound in `desktop/src-tauri/tauri.conf.json`; with `false`, that file must name no
+scheme. Deleting or rewriting bound code fails the check until the binding moves
+with it. The check only reads files.
+
+```sh
+node tools/ci/check-identity.mjs --root .
 ```
 
 In the `checks` job, the step "Baseline of the base revision" also extracts
