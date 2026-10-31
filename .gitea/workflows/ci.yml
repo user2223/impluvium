@@ -31,8 +31,97 @@ env:
   COREPACK_VERSION: 0.36.0
   BUILDKIT_VERSION: v0.34.1
   BUILDKIT_SHA256: a59539daf547fe0958efe2d07e41c0a6944e1112a66d7e519ec1cf5b673ef15b
+  CARGO_DENY_VERSION: 0.20.2
+  CARGO_DENY_SHA256: 9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f
 
 jobs:
+  checks:
+    runs-on: impluvium-linux
+    container:
+      image: fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
+    steps:
+      - name: Bootstrap (Node 24 for actions and the checks in tools/ci)
+        run: |
+          dnf -y install --setopt=install_weak_deps=False nodejs24 nodejs24-bin git curl
+          node --version
+          node --version | grep -q '^v24\.'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Self-tests of the CI checks
+        run: node --test tools/ci/test/*.test.mjs
+      - name: Pins (images, actions, tools, locked Cargo commands, frozen installs, Node major, required jobs)
+        run: node tools/ci/check-pins.mjs --root .
+      - name: Baseline of the base revision
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          # As in the rust job: the allow-list of feature gates may only shrink compared with the revision this
+          # run builds on. A missing base fails the run; only a new branch, a tag push and a manual run have none.
+          mkdir -p "$RUNNER_TEMP/base"
+          case "$EVENT_NAME:$GITHUB_REF" in
+            pull_request:*) base="$PR_BASE_SHA" ;;
+            push:refs/heads/*) base="$PUSH_BEFORE" ;;
+            *)
+              echo "No base revision for this run ($EVENT_NAME $GITHUB_REF): only the current allow-list is checked."
+              exit 0
+              ;;
+          esac
+          if [ -z "$base" ]; then
+            echo "The $EVENT_NAME event for $GITHUB_REF names no base revision"
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = push ] && [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "New branch $GITHUB_REF: no base revision, only the current allow-list is checked."
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$base"
+          git show "$base:.gitea/workflows/ci.yml" > "$RUNNER_TEMP/base/ci.yml"
+          if git cat-file -e "$base:tools/ci/feature-gates.json" 2>/dev/null; then
+            git show "$base:tools/ci/feature-gates.json" > "$RUNNER_TEMP/base/feature-gates.json"
+            echo "tools/ci/feature-gates.json: compared with $base"
+          elif grep -q "tools/ci/feature-gates.json" "$RUNNER_TEMP/base/ci.yml"; then
+            echo "tools/ci/feature-gates.json is used by $base but missing there"
+            exit 1
+          else
+            echo "tools/ci/feature-gates.json: new, $base does not use it yet"
+          fi
+      - name: Feature gates (only the listed nightly features, only in the listed crates)
+        run: |
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/feature-gates.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/feature-gates.json")
+          fi
+          node tools/ci/check-features.mjs --root . "${previous[@]}"
+      - name: Rust toolchain (rust-toolchain.toml) and cargo-deny
+        run: |
+          curl -sSfo "$RUNNER_TEMP/rustup-init" \
+            "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init"
+          echo "${RUSTUP_SHA256}  $RUNNER_TEMP/rustup-init" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/rustup-init"
+          "$RUNNER_TEMP/rustup-init" -y --profile minimal --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustup toolchain install
+          rustup show active-toolchain
+          # cargo-deny: the prebuilt release binary, checked against its pinned checksum.
+          archive="cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl"
+          curl -sSfLo "$RUNNER_TEMP/$archive.tar.gz" \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/$archive.tar.gz"
+          echo "${CARGO_DENY_SHA256}  $RUNNER_TEMP/$archive.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
+          install -m 0755 "$RUNNER_TEMP/$archive/cargo-deny" "$HOME/.cargo/bin/cargo-deny"
+      - name: Licence boundary (engine/ stays permissive; there is no engine/ yet)
+        run: |
+          cargo metadata --locked --all-features --format-version=1 > "$RUNNER_TEMP/metadata.json"
+          node tools/ci/check-licence-boundary.mjs --root . --metadata "$RUNNER_TEMP/metadata.json" --allow-no-engine
+      - name: Dependency licences, bans and sources (deny.toml)
+        run: cargo deny --locked check licenses bans sources
+      - name: Security advisories (report only)
+        # Reported in every run, also for release tags; which advisories block is decided with the release checks.
+        continue-on-error: true
+        run: cargo deny --locked check advisories
+
   server:
     runs-on: impluvium-linux
     container:

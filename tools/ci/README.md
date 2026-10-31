@@ -174,13 +174,9 @@ packages). Merely finding a package in a lock does not verify the binary selecte
 that ambiguity or unsupported launcher options produce exit 2. Use a plain
 command or `pnpm exec` for local binaries instead.
 
-Static inspection of the current repository finds these invocations outside the
-subset, which later changes must rewrite: the word `npm` in the package list of
-the `client-linux` bootstrap (exit 2, unverifiable tool word) and `pnpm prisma
-init` in the `Dockerfile` (exit 2, unallowlisted action; use `pnpm exec`). The
-desktop build already uses `pnpm exec tauri build ... -- --locked`. No current
-package script needs an action rewrite. Behind those, the full repository check
-fails on the missing root `.node-version`.
+The repository passes the full check; the `checks` job of `ci.yml` runs it on
+every change, together with the self-tests, `check-features`,
+`check-licence-boundary` and `cargo deny` (configured in `deny.toml`).
 
 `check-features` associates each Rust file with its nearest package manifest,
 ignores strings/comments, and checks gate **names**, including nested
