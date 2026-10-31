@@ -3,12 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node ./build.mjs",
     "tauri": "tauri"
-  },
-  "dependencies": {
-    "pino": "^9.14.0",
-    "pino-pretty": "^13.1.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "~2.10.1"

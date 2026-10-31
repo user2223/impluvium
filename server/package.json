@@ -48,6 +48,7 @@
     "kjua": "^0.10.0",
     "luxon": "^3.6.1",
     "micromark": "^4.0.1",
+    "my-nuxt-layer": "workspace:*",
     "normalize-url": "^8.0.2",
     "nuxt": "^3.21.10",
     "nuxt-security": "2.2.0",

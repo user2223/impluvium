@@ -2,6 +2,17 @@
 
 The official desktop client for Drop.
 
+## Dependencies
+
+The client (`desktop/`, with the Tauri CLI) and its UI (`desktop/main/`) belong to the pnpm workspace at the
+repository root. Install them from the repository root; the UI's Nuxt layer in `libraries/base` comes along:
+
+```sh
+pnpm install --frozen-lockfile --filter "{./desktop}" --filter "{./desktop/main}..."
+```
+
+The UI uses Nuxt 4 and the server Nuxt 3, so install per project as shown instead of the whole workspace.
+
 ## Building
 
 The desktop crates are members of the Cargo workspace at the repository root, but they need the nightly toolchain
@@ -14,7 +25,7 @@ Change `Cargo.lock` (for example with `cargo update`) only from the repository r
 chooses the versions.
 
 Release builds use the workspace profile `release-desktop` and end up in `target/release-desktop/` at the repository
-root:
+root. Tauri first generates the UI (`pnpm -C main run build`, output in `desktop/.output/main`):
 
 ```sh
 pnpm exec tauri build -- --locked --profile release-desktop

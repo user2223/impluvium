@@ -40,8 +40,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Enable pnpm (corepack, version from package.json)
         run: corepack enable && pnpm --version
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install dependencies (server and its Nuxt layer)
+        run: pnpm install --frozen-lockfile --filter "{./server}..." --fail-if-no-match
       - name: Typecheck
         working-directory: server
         run: pnpm run typecheck
@@ -259,8 +259,8 @@ jobs:
       - name: Install dependencies
         run: |
           npm install -g "corepack@${COREPACK_VERSION}" && corepack enable && pnpm --version
-          # only the desktop client and its workspace dependencies (the server postinstall is not needed here)
-          pnpm install --frozen-lockfile --filter "./desktop..."
+          # Only the desktop client (Tauri CLI) and its UI with the UI's Nuxt layer; the server is not needed here.
+          pnpm install --frozen-lockfile --filter "{./desktop}" --filter "{./desktop/main}..." --fail-if-no-match
       - name: Build RPM
         working-directory: desktop
         run: |
@@ -271,7 +271,14 @@ jobs:
           esac
           printf '{"bundle":{"linux":{"rpm":{"epoch":1,"release":"%s"}}}}' "$release" > "$RUNNER_TEMP/rpm.json"
           # The workspace profile release-desktop (LTO, panic = abort) builds the client; output under target/release-desktop.
+          # Tauri builds the UI first (beforeBuildCommand: nuxt generate into desktop/.output/main).
           pnpm exec tauri build --bundles rpm --config "$RUNNER_TEMP/rpm.json" -- --locked --profile release-desktop
+      - name: Check desktop UI output
+        run: |
+          # The client loads main/index.html from desktop/.output, with its assets under /main/_nuxt/.
+          test -f desktop/.output/main/index.html
+          grep -q '"/main/_nuxt/' desktop/.output/main/index.html
+          echo "$(find desktop/.output/main -type f | wc -l) files, $(find desktop/.output/main/_nuxt -type f | wc -l) under _nuxt"
       - name: Check RPM
         run: |
           rpm=$(ls target/release-desktop/bundle/rpm/*.rpm)

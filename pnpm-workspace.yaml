@@ -1,7 +1,14 @@
+# One workspace and one lock for all Node projects. The server and its layer use Nuxt 3, the desktop UI uses Nuxt 4,
+# so install per project with a directory filter, from the repository root:
+#   pnpm install --frozen-lockfile --filter "{./server}..."                              (server)
+#   pnpm install --frozen-lockfile --filter "{./desktop/main}..."                        (desktop UI)
+#   pnpm install --frozen-lockfile --filter "{./desktop}" --filter "{./desktop/main}..."  (desktop client)
+# An unfiltered install of the whole workspace is not supported.
 packages:
   - "server/"
   - "libraries/base/"
   - "desktop/"
+  - "desktop/main/"
 
 onlyBuiltDependencies:
   - "@bufbuild/buf"

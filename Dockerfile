@@ -22,7 +22,8 @@ ENV COREPACK_ENABLE_NETWORK=0
 
 ### INSTALL DEPS ONCE
 FROM base AS deps
-RUN pnpm install --frozen-lockfile --ignore-scripts
+## Only the server and its workspace dependencies (its Nuxt layer). The desktop projects are not in the build context.
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter "{./server}..." --fail-if-no-match
 
 ### BUILD TORRENTIAL
 # Bookworm-pinned to match the runtime image's glibc (a trixie build would not run on bookworm).
@@ -69,7 +70,7 @@ ARG BUILD_DROP_VERSION
 ARG BUILD_GIT_REF=unknown
 
 ## build
-RUN pnpm run --filter=drop postinstall && pnpm run --filter=drop build
+RUN pnpm -C server run postinstall && pnpm -C server run build
 
 
 # create run environment for Drop

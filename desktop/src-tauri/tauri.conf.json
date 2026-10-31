@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm run -C main dev --port 1432",
     "devUrl": "http://localhost:1432/",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm -C main run build",
     "frontendDist": "../.output"
   },
   "app": {
