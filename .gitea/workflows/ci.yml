@@ -61,6 +61,7 @@ jobs:
             webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel libxdo-devel \
             libarchive-devel
           node --version
+          node --version | grep -q '^v24\.'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Rust toolchains (rust-toolchain.toml files)
         run: |
@@ -238,12 +239,14 @@ jobs:
     env:
       NO_STRIP: "true"
     steps:
-      - name: Bootstrap (Node for actions, build dependencies)
+      - name: Bootstrap (Node 24 for actions and the UI build, build dependencies)
         run: |
           dnf -y install --setopt=install_weak_deps=False \
-            nodejs npm git curl file gcc gcc-c++ make pkgconf-pkg-config perl \
+            nodejs24 nodejs24-bin nodejs24-npm-bin git curl file gcc gcc-c++ make pkgconf-pkg-config perl \
             webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel libxdo-devel
           node --version
+          # The Node major is pinned in .node-version; the versioned packages provide the plain node and npm.
+          node --version | grep -q '^v24\.'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Rust toolchain (desktop/src-tauri/rust-toolchain.toml)
         run: |
