@@ -8,8 +8,11 @@ The client (`desktop/`, with the Tauri CLI) and its UI (`desktop/main/`) belong 
 repository root. Install them from the repository root; the UI's Nuxt layer in `libraries/base` comes along:
 
 ```sh
-pnpm install --frozen-lockfile --filter "{./desktop}" --filter "{./desktop/main}..."
+pnpm install --frozen-lockfile --filter "{./desktop}" --filter "{./desktop/main}..." --fail-if-no-match
 ```
+
+The directory filters resolve against the current directory. `--fail-if-no-match` makes the command fail when it is
+run from elsewhere, instead of installing nothing.
 
 The UI uses Nuxt 4 and the server Nuxt 3, so install per project as shown instead of the whole workspace.
 
@@ -25,8 +28,9 @@ Change `Cargo.lock` (for example with `cargo update`) only from the repository r
 chooses the versions.
 
 Release builds use the workspace profile `release-desktop` and end up in `target/release-desktop/` at the repository
-root. Tauri first generates the UI (`pnpm -C main run build`, output in `desktop/.output/main`):
+root. Tauri first generates the UI (`pnpm -C main run build`, output in `desktop/.output/main`). From the repository
+root:
 
 ```sh
-pnpm exec tauri build -- --locked --profile release-desktop
+pnpm -C desktop exec tauri build -- --locked --profile release-desktop
 ```
