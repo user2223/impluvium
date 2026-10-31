@@ -38,7 +38,7 @@
         <div class="mt-2 text-sm text-red-200/80">
           <p>
             You will be unable to install or run games designed for Windows
-            until you install UMU Launcher and restart Drop.
+            until you install UMU Launcher and restart impluvium.
           </p>
         </div>
       </div>
@@ -234,7 +234,7 @@
             <p class="text-sm text-zinc-400">
               Select the path to your Proton layer. It should have at least two
               files, one named "proton" and one named "compatibilitytool.vdf",
-              for Drop to recognise it.
+              for impluvium to recognise it.
             </p>
           </div>
         </div>

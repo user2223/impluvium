@@ -60,7 +60,7 @@ class CapabilityManager {
         cert: serverCertificate.cert,
       });
 
-      // Loop through endpoints and make sure at least one is accessible by the Drop server
+      // Loop through endpoints and make sure at least one is accessible by the impluvium server
       let valid = false;
       for (const endpoint of configuration.endpoints) {
         const healthcheckEndpoint = new URL("/", endpoint);

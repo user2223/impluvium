@@ -22,7 +22,7 @@
                 Failed to load library
               </h1>
               <p class="mt-6 text-base leading-7 text-zinc-400">
-                Drop couldn't load your library: "{{ error }}".
+                impluvium couldn't load your library: "{{ error }}".
               </p>
             </div>
           </main>

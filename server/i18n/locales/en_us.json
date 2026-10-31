@@ -6,7 +6,7 @@
       "noDevices": "No devices connected to your account.",
       "platform": "Platform",
       "revoke": "Revoke",
-      "subheader": "Manage the devices authorized to access your Drop account.",
+      "subheader": "Manage the devices authorized to access your impluvium account.",
       "title": "Devices"
     },
     "home": {
@@ -86,39 +86,39 @@
       "passkey": {
         "createDescription": "WebAuthn, or passkeys, allow you to sign in or complete 2FA with biometrics or hardware security devices.",
         "createTitle": "Create a passkey",
-        "description": "Use a passkey, like biometrics, a hardware security device, or other compatible device to sign in to your Drop account.",
+        "description": "Use a passkey, like biometrics, a hardware security device, or other compatible device to sign in to your impluvium account.",
         "passkeyNameTag": "Name",
         "signinButton": "Sign in with WebAuthn",
         "title": "WebAuthn"
       },
       "success": {
         "back": "{arrow} Back to account security",
-        "description": "Drop has successfully created and added your 2FA method. If this is your first time configuring 2FA, your account now requires it to sign in.",
+        "description": "impluvium has successfully created and added your 2FA method. If this is your first time configuring 2FA, your account now requires it to sign in.",
         "title": "Added your 2FA method!"
       },
       "title": "Two-factor authentication",
       "totp": {
-        "createDescription": "Use your TOTP authenticator, like Google Authenticator, Aegis, or Bitwarden, to add 2FA to your Drop account.",
+        "createDescription": "Use your TOTP authenticator, like Google Authenticator, Aegis, or Bitwarden, to add 2FA to your impluvium account.",
         "createHint": "Enter the generated code to enable TOTP",
         "createTitle": "Set up your authenticator",
-        "description": "Use a one-time code to sign in to your Drop account.",
+        "description": "Use a one-time code to sign in to your impluvium account.",
         "title": "TOTP"
       }
     },
     "callback": {
       "authClient": "Authorize client?",
       "authorize": "Authorize",
-      "authorizedClient": "Drop has successfully authorized the client. You may now close this window.",
+      "authorizedClient": "impluvium has successfully authorized the client. You may now close this window.",
       "issues": "Having issues?",
       "learn": "Learn more {arrow}",
       "paste": "Paste this code into the client to continue:",
       "permWarning": "Accepting this request will allow \"{name}\" on \"{platform}\" to:",
-      "requestedAccess": "\"{name}\" has requested access to your Drop account.",
+      "requestedAccess": "\"{name}\" has requested access to your impluvium account.",
       "success": "Successful!"
     },
     "code": {
-      "description": "Use a code to connect your Drop client if you are unable to open a web browser on your device.",
-      "title": "Connect your Drop client"
+      "description": "Use a code to connect your impluvium client if you are unable to open a web browser on your device.",
+      "title": "Connect your impluvium client"
     },
     "confirmPassword": "Confirm @:auth.password",
     "displayName": "Display Name",
@@ -129,7 +129,7 @@
       "emailFormat": "Must be in the format user{'@'}example.com",
       "passwordFormat": "Must be 8 or more characters",
       "subheader": "Fill in your details below to create your account.",
-      "title": "Create your Drop account",
+      "title": "Create your impluvium account",
       "usernameFormat": "Must be 5 or more characters, and lowercase"
     },
     "signin": {
@@ -138,7 +138,7 @@
       "noAccount": "Don't have an account? Ask an admin to create one for you.",
       "noAccountProtected": "We need you to sign in again for security reasons while attempting to access more sensitive actions.",
       "or": "OR",
-      "pageTitle": "Sign in to Drop",
+      "pageTitle": "Sign in to impluvium",
       "rememberMe": "Remember me",
       "signin": "Sign in",
       "signinWithExternalProvider": "Sign in with {externalProvider} {arrow}",
@@ -191,7 +191,7 @@
   },
   "drop": {
     "desc": "An open-source game distribution platform built for speed, flexibility and beauty.",
-    "drop": "Drop"
+    "drop": "impluvium"
   },
   "editor": {
     "bold": "Bold",
@@ -211,7 +211,7 @@
     "admin": {
       "user": {
         "delete": {
-          "desc": "Drop couldn't delete this user: {0}",
+          "desc": "impluvium couldn't delete this user: {0}",
           "title": "Failed to delete user"
         }
       }
@@ -234,27 +234,27 @@
     },
     "game": {
       "banner": {
-        "description": "Drop failed to update the banner image: {0}",
+        "description": "impluvium failed to update the banner image: {0}",
         "title": "Failed to update the banner image"
       },
       "carousel": {
-        "description": "Drop failed to update the image carousel: {0}",
+        "description": "impluvium failed to update the image carousel: {0}",
         "title": "Failed to update image carousel"
       },
       "cover": {
-        "description": "Drop failed to update the cover image: {0}",
+        "description": "impluvium failed to update the cover image: {0}",
         "title": "Failed to update the cover image"
       },
       "deleteImage": {
-        "description": "Drop failed to delete the image: {0}",
+        "description": "impluvium failed to delete the image: {0}",
         "title": "Failed to delete the image"
       },
       "description": {
-        "description": "Drop failed to update the game description: {0}",
+        "description": "impluvium failed to update the game description: {0}",
         "title": "Failed to update game description"
       },
       "metadata": {
-        "description": "Drop failed to update the game's metadata: {0}",
+        "description": "impluvium failed to update the game's metadata: {0}",
         "title": "Failed to update metadata"
       }
     },
@@ -262,18 +262,18 @@
     "inviteRequired": "Invitation required to sign up.",
     "library": {
       "add": {
-        "desc": "Drop couldn't add this game to your library: {0}",
+        "desc": "impluvium couldn't add this game to your library: {0}",
         "title": "Failed to add game to library"
       },
       "collection": {
         "create": {
-          "desc": "Drop couldn't create your collection: {0}",
+          "desc": "impluvium couldn't create your collection: {0}",
           "title": "Failed to create collection"
         }
       },
       "source": {
         "delete": {
-          "desc": "Drop couldn't delete this source: {0}",
+          "desc": "impluvium couldn't delete this source: {0}",
           "title": "Failed to delete library source"
         }
       }
@@ -281,30 +281,30 @@
     "news": {
       "article": {
         "delete": {
-          "desc": "Drop couldn't delete this article: {0}",
+          "desc": "impluvium couldn't delete this article: {0}",
           "title": "Failed to delete article"
         }
       }
     },
     "occurred": "An error occurred while responding to your request. If you believe this to be a bug, please report it. Try signing in and see if it resolves the issue.",
     "ohNo": "Oh no!",
-    "pageTitle": "{0} | Drop",
+    "pageTitle": "{0} | impluvium",
     "revokeClient": "Failed to revoke client",
     "revokeClientFull": "Failed to revoke client {0}",
     "signIn": "Sign in {arrow}",
     "support": "Support Discord",
     "unknown": "An unknown error occurred",
     "upload": {
-      "description": "Drop couldn't upload the file: {0}",
+      "description": "impluvium couldn't upload the file: {0}",
       "title": "Failed to upload file"
     },
     "version": {
       "delete": {
-        "desc": "Drop encountered an error while deleting the version: {error}",
+        "desc": "impluvium encountered an error while deleting the version: {error}",
         "title": "There an error while deleting the version"
       },
       "order": {
-        "desc": "Drop encountered an error while updating the version: {error}",
+        "desc": "impluvium encountered an error while updating the version: {error}",
         "title": "There an error while updating the version order"
       }
     }
@@ -327,7 +327,7 @@
       "github": "GitHub"
     },
     "topSellers": "Top Sellers",
-    "version": "Drop {version} {gitRef}"
+    "version": "impluvium {version} {gitRef}"
   },
   "header": {
     "admin": {
@@ -374,8 +374,8 @@
     "addGames": "All Games",
     "addToLib": "Add to Library",
     "admin": {
-      "detectedGame": "Drop has detected you have new games to import.",
-      "detectedVersion": "Drop has detected you have new versions of this game to import.",
+      "detectedGame": "impluvium has detected you have new games to import.",
+      "detectedVersion": "impluvium has detected you have new versions of this game to import.",
       "fileExtSelector": {
         "add": "Add \"{0}\"",
         "noSelected": "No extensions selected."
@@ -544,23 +544,23 @@
         "sortLabel": "Sort"
       },
       "noGames": "No games imported",
-      "offline": "Drop couldn't access this game.",
+      "offline": "impluvium couldn't access this game.",
       "offlineTitle": "Game offline",
       "openEditor": "Open in Editor {arrow}",
       "openStore": "Open in Store",
       "shortDesc": "Short Description",
       "sources": {
         "create": "Create source",
-        "createDesc": "Drop will use this source to access your game library, and make them available.",
+        "createDesc": "impluvium will use this source to access your game library, and make them available.",
         "deleteButton": "Delete source",
         "deleteDesc": "Deleting \"{0}\" will cascade delete the library, all of its games, all of their versions, and all of their metadata. This action cannot be undone.",
         "deleteTitle": "Delete library source?",
-        "desc": "Configure your library sources, where Drop will look for new games and versions to import.",
+        "desc": "Configure your library sources, where impluvium will look for new games and versions to import.",
         "documentationLink": "Documentation {arrow}",
         "edit": "Edit source",
         "freeSpace": "Free space",
         "fsDesc": "Imports games from a path on disk. Requires version-based folder structure, and supports archived games.",
-        "fsFlatDesc": "Imports games from a path on disk, but without a separate version subfolder. Useful when migrating an existing library to Drop.",
+        "fsFlatDesc": "Imports games from a path on disk, but without a separate version subfolder. Useful when migrating an existing library to impluvium.",
         "fsFlatTitle": "Compatibility",
         "fsPath": "Path",
         "fsPathDesc": "An absolute path to your game library.",
@@ -575,7 +575,7 @@
         "utilizationPercentage": "Utilization percentage",
         "working": "Working?"
       },
-      "subheader": "As you add folders to your library sources, Drop will detect it and prompt you to import it. Each game needs to be imported before you can import a version.",
+      "subheader": "As you add folders to your library sources, impluvium will detect it and prompt you to import it. Each game needs to be imported before you can import a version.",
       "title": "Libraries",
       "version": {
         "description": "All versions imported for your game.",
@@ -649,11 +649,11 @@
   "selectLanguage": "Select language",
   "services": {
     "nginx": {
-      "description": "Built-in simple reverse proxy to connect all the Drop components together.",
+      "description": "Built-in simple reverse proxy to connect all the impluvium components together.",
       "title": "NGINX"
     },
     "torrential": {
-      "description": "The internal download server for Drop.",
+      "description": "The internal download server for impluvium.",
       "title": "Torrential"
     }
   },
@@ -666,7 +666,7 @@
         "logo": "Logo",
         "serverName": "Server name",
         "serverNameDescription": "The name of the server",
-        "serverNamePlaceholder": "My Drop Instance",
+        "serverNamePlaceholder": "My impluvium Instance",
         "title": "General settings",
         "uploadLogo": "Upload logo"
       },
@@ -682,11 +682,11 @@
   },
   "setup": {
     "auth": {
-      "description": "Authentication in Drop happens through multiple configured 'providers'. Each one can allow users to sign-in through their method. To get started, have at least one authentication provider enabled, and create an account through it.",
+      "description": "Authentication in impluvium happens through multiple configured 'providers'. Each one can allow users to sign-in through their method. To get started, have at least one authentication provider enabled, and create an account through it.",
       "docs": "Documentation {arrow}",
       "enabled": "Enabled?",
       "openid": {
-        "description": "OpenID Connect (OIDC) is an OAuth2 extension commonly supported. Drop requires OIDC configuration to be done via environment variables.",
+        "description": "OpenID Connect (OIDC) is an OAuth2 extension commonly supported. impluvium requires OIDC configuration to be done via environment variables.",
         "skip": "I have a user with OIDC",
         "title": "OpenID Connect"
       },
@@ -701,16 +701,16 @@
     "noPage": "no page",
     "stages": {
       "account": {
-        "description": "You need at least one account to start using Drop.",
+        "description": "You need at least one account to start using impluvium.",
         "name": "Setup your admin account."
       },
       "library": {
-        "description": "Add at least one library source to use Drop.",
+        "description": "Add at least one library source to use impluvium.",
         "name": "Create a library."
       }
     },
     "welcome": "Hey there.",
-    "welcomeDescription": "Welcome to Drop setup wizard. It will walk you through configuring Drop for the first time, and how it works."
+    "welcomeDescription": "Welcome to impluvium setup wizard. It will walk you through configuring impluvium for the first time, and how it works."
   },
   "store": {
     "ageRating": "Age Rating",
@@ -770,8 +770,8 @@
       "weeklyScheduledTitle": "Weekly scheduled tasks"
     }
   },
-  "title": "Drop",
-  "titleTemplate": "{0} - Drop",
+  "title": "impluvium",
+  "titleTemplate": "{0} - impluvium",
   "todo": "Todo",
   "type": "Type",
   "upload": "Upload",
@@ -803,7 +803,7 @@
       "authLink": "Authentication {arrow}",
       "authentication": {
         "configure": "Configure",
-        "description": "Drop supports a variety of \"authentication mechanisms\". As you enable or disable them, they are shown on the sign in screen for users to select from. Click the dot menu to configure the authentication mechanism.",
+        "description": "impluvium supports a variety of \"authentication mechanisms\". As you enable or disable them, they are shown on the sign in screen for users to select from. Click the dot menu to configure the authentication mechanism.",
         "disabled": "Disabled",
         "enabled": "Enabled",
         "enabledKey": "Enabled?",
@@ -815,7 +815,7 @@
       "authoptionsHeader": "Auth Options",
       "delete": "Delete",
       "deleteUser": "Delete user {0}",
-      "description": "Manage the users on your Drop instance, and configure your authentication methods.",
+      "description": "Manage the users on your impluvium instance, and configure your authentication methods.",
       "displayNameHeader": "Display Name",
       "emailHeader": "Email",
       "groups": {
@@ -856,14 +856,14 @@
         "inviteAdminSwitchDescription": "Create this user as an administrator",
         "inviteAdminSwitchLabel": "Admin invitation",
         "inviteButton": "Invite",
-        "inviteDescription": "Drop will generate a URL that you can send to the person you want to invite. You can optionally specify a username or email for them to use.",
+        "inviteDescription": "impluvium will generate a URL that you can send to the person you want to invite. You can optionally specify a username or email for them to use.",
         "inviteEmailDescription": "Must be in the format user{'@'}example.com",
         "inviteEmailLabel": "Email address (optional)",
         "inviteEmailPlaceholder": "me{'@'}example.com",
         "inviteExpiryLabel": "Expires",
         "inviteMonth": "1 month",
         "inviteNever": "Never",
-        "inviteTitle": "Invite user to Drop",
+        "inviteTitle": "Invite user to impluvium",
         "inviteUsernameFormat": "Must be 5 or more characters",
         "inviteUsernameLabel": "Username (optional)",
         "inviteUsernamePlaceholder": "myUsername",

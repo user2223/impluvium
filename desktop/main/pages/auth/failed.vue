@@ -8,7 +8,7 @@
         </h1>
         <div class="mt-4">
           <p class="text-sm text-zinc-400 max-w-sm">
-            Drop encountered an error while connecting to your instance. Error:
+            impluvium encountered an error while connecting to your instance. Error:
             {{ message }}
           </p>
         </div>

@@ -7,7 +7,7 @@
         </h1>
         <div class="mt-4">
           <p class="text-sm text-zinc-400 max-w-md mx-auto">
-            Open Drop on another one of your devices, and use your account
+            Open impluvium on another one of your devices, and use your account
             dropdown to "Authorize client", and enter the code below.
           </p>
           <div

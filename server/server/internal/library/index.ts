@@ -1,5 +1,5 @@
 /**
- * The Library Manager keeps track of games in Drop's library and their various states.
+ * The Library Manager keeps track of games in impluvium's library and their various states.
  * It uses path relative to the library, so it can moved without issue
  *
  * It also provides the endpoints with information about unmatched games
@@ -585,7 +585,7 @@ class LibraryManager {
           notificationSystem.systemPush({
             nonce: `version-create-${gameId}-${version}`,
             title: `'${game.mName}' ('${version.name}') finished importing.`,
-            description: `Drop finished importing version ${version.name} for ${game.mName}.`,
+            description: `impluvium finished importing version ${version.name} for ${game.mName}.`,
             actions: [`View|/admin/library/${gameId}`],
             acls: ["system:import:version:read"],
           });

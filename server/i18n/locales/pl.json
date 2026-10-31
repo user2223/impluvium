@@ -6,7 +6,7 @@
       "noDevices": "Brak urządzeń połączonych z Twoim kontem.",
       "platform": "Platforma",
       "revoke": "Usuń",
-      "subheader": "Zarządzaj urządzeniami z dostępem do Twojego konta Drop.",
+      "subheader": "Zarządzaj urządzeniami z dostępem do Twojego konta impluvium.",
       "title": "Urządzenia"
     },
     "notifications": {
@@ -45,23 +45,23 @@
   },
   "actions": "Akcje",
   "add": "Dodaj",
-  "adminTitle": "Panel Administratora - Drop",
-  "adminTitleTemplate": "{0} - Administrator - Drop",
+  "adminTitle": "Panel Administratora - impluvium",
+  "adminTitleTemplate": "{0} - Administrator - impluvium",
   "auth": {
     "callback": {
       "authClient": "Autoryzować klienta?",
       "authorize": "Autoryzuj",
-      "authorizedClient": "Drop pomyślnie autoryzował klienta. Możesz teraz zamknąć to okno.",
+      "authorizedClient": "impluvium pomyślnie autoryzował klienta. Możesz teraz zamknąć to okno.",
       "issues": "Masz problemy?",
       "learn": "Dowiedz się więcej {arrow}",
       "paste": "Wklej ten kod do klienta aby kontynuować:",
       "permWarning": "Akceptowanie tego żądania pozwoli \"{name}\" na platformie \"{platform}\" na:",
-      "requestedAccess": "\"{name}\" poprosił o dostęp do twojego konta Drop.",
+      "requestedAccess": "\"{name}\" poprosił o dostęp do twojego konta impluvium.",
       "success": "Pomyślnie!"
     },
     "code": {
-      "description": "Użyj kodu aby połączyć twojego klienta Drop jeżeli nie jesteś w stanie otworzyć przeglądarki na swoim urządzeniu.",
-      "title": "Połącz swojego klienta Drop"
+      "description": "Użyj kodu aby połączyć twojego klienta impluvium jeżeli nie jesteś w stanie otworzyć przeglądarki na swoim urządzeniu.",
+      "title": "Połącz swojego klienta impluvium"
     },
     "confirmPassword": "Potwierdź @:auth.password",
     "displayName": "Nazwa Wyświetlana",
@@ -72,7 +72,7 @@
       "emailFormat": "Musi być w formacie uzytkownik{'@'}example.com",
       "passwordFormat": "Musi mieć conajmniej 8 znaków",
       "subheader": "Wpisz poniżej swoje dane, aby utworzyć swoje konto.",
-      "title": "Stwórz swoje konto Drop",
+      "title": "Stwórz swoje konto impluvium",
       "usernameFormat": "Musi mieć co najmniej 5 znaków i małe litery"
     },
     "signin": {
@@ -80,7 +80,7 @@
       "forgot": "Zapomniałeś hasła?",
       "noAccount": "Nie posiadasz konta? Poproś administratora żeby ci je stworzył.",
       "or": "LUB",
-      "pageTitle": "Zaloguj się do Drop",
+      "pageTitle": "Zaloguj się do impluvium",
       "rememberMe": "Zapamiętaj mnie",
       "signin": "Zaloguj się",
       "title": "Zaloguj się do swojego konta"
@@ -123,7 +123,7 @@
   },
   "drop": {
     "desc": "Platforma typu open source do dystrybucji gier, stworzona z myślą o szybkości, elastyczności i estetyce.",
-    "drop": "Drop"
+    "drop": "impluvium"
   },
   "editor": {
     "bold": "Pogrubienie",
@@ -143,7 +143,7 @@
     "admin": {
       "user": {
         "delete": {
-          "desc": "Drop nie mógł usunąć tego użytkownika: {0}",
+          "desc": "impluvium nie mógł usunąć tego użytkownika: {0}",
           "title": "Nie udało się usunąć użytkownika"
         }
       }
@@ -166,27 +166,27 @@
     },
     "game": {
       "banner": {
-        "description": "Drop nie udało się zaktualizować obrazu banera: {0}",
+        "description": "impluvium nie udało się zaktualizować obrazu banera: {0}",
         "title": "Nie udało się zaktualizować obrazu banera"
       },
       "carousel": {
-        "description": "Drop nie udało się zaktualizować karuzeli obrazów: {0}",
+        "description": "impluvium nie udało się zaktualizować karuzeli obrazów: {0}",
         "title": "Nie udało się zaktualizować karuzeli obrazów"
       },
       "cover": {
-        "description": "Drop nie udało się zaktualizować obrazu okładki: {0}",
+        "description": "impluvium nie udało się zaktualizować obrazu okładki: {0}",
         "title": "Nie udało się zaktualizować obrazu okładki"
       },
       "deleteImage": {
-        "description": "Drop nie udało się usunąć obrazu: {0}",
+        "description": "impluvium nie udało się usunąć obrazu: {0}",
         "title": "Nie udało się usunąć obrazu"
       },
       "description": {
-        "description": "Drop nie udało się zaktualizować opisu gry: {0}",
+        "description": "impluvium nie udało się zaktualizować opisu gry: {0}",
         "title": "Nie udało się zaktualizować opisu gry"
       },
       "metadata": {
-        "description": "Drop nie udało się zaktualizować metadanych gry: {0}",
+        "description": "impluvium nie udało się zaktualizować metadanych gry: {0}",
         "title": "Nie udało się zaktualizować metadanych"
       }
     },
@@ -194,18 +194,18 @@
     "inviteRequired": "Do rejestracji wymagane jest zaproszenie.",
     "library": {
       "add": {
-        "desc": "Drop nie mógł dodać tej gry do twojej biblioteki: {0}",
+        "desc": "impluvium nie mógł dodać tej gry do twojej biblioteki: {0}",
         "title": "Nie udało się dodać gry do biblioteki"
       },
       "collection": {
         "create": {
-          "desc": "Drop nie mógł utworzyć twojej kolekcji: {0}",
+          "desc": "impluvium nie mógł utworzyć twojej kolekcji: {0}",
           "title": "Nie udało się utworzyć kolekcji"
         }
       },
       "source": {
         "delete": {
-          "desc": "Drop nie mógł usunąć tego źródła: {0}",
+          "desc": "impluvium nie mógł usunąć tego źródła: {0}",
           "title": "Nie udało się usunąć źródła biblioteki"
         }
       }
@@ -213,30 +213,30 @@
     "news": {
       "article": {
         "delete": {
-          "desc": "Drop nie mógł usunąć tego artykułu: {0}",
+          "desc": "impluvium nie mógł usunąć tego artykułu: {0}",
           "title": "Nie udało się usunąć artykułu"
         }
       }
     },
     "occurred": "Wystąpił błąd podczas odpowiadania na Twoje żądanie. Jeśli uważasz, że jest to błąd, zgłoś go. Spróbuj się zalogować i sprawdź, czy to rozwiąże problem.",
     "ohNo": "O nie!",
-    "pageTitle": "{0} | Drop",
+    "pageTitle": "{0} | impluvium",
     "revokeClient": "Nie udało się usunąć klienta",
     "revokeClientFull": "Nie udało się usunąć klienta {0}",
     "signIn": "Zaloguj się {arrow}",
     "support": "Discord Wsparcia",
     "unknown": "Wystąpił nieznany błąd",
     "upload": {
-      "description": "Drop nie mógł przesłać pliku: {0}",
+      "description": "impluvium nie mógł przesłać pliku: {0}",
       "title": "Nie udało się przesłać pliku"
     },
     "version": {
       "delete": {
-        "desc": "Drop napotkał błąd podczas usuwania wersji: {error}",
+        "desc": "impluvium napotkał błąd podczas usuwania wersji: {error}",
         "title": "Wystąpił błąd podczas usuwania wersji"
       },
       "order": {
-        "desc": "Drop napotkał błąd podczas aktualizowania wersji: {error}",
+        "desc": "impluvium napotkał błąd podczas aktualizowania wersji: {error}",
         "title": "Wystąpił błąd podczas aktualizacji kolejności wersji"
       }
     }
@@ -258,7 +258,7 @@
       "github": "GitHub"
     },
     "topSellers": "Bestsellery",
-    "version": "Drop {version} {gitRef}"
+    "version": "impluvium {version} {gitRef}"
   },
   "header": {
     "admin": {
@@ -301,8 +301,8 @@
     "addGames": "Wszystkie Gry",
     "addToLib": "Dodaj do Biblioteki",
     "admin": {
-      "detectedGame": "Drop wykrył że masz nowe gry do zaimportowania.",
-      "detectedVersion": "Drop wykrył że masz nowe wersje tej gry do zaimportowania.",
+      "detectedGame": "impluvium wykrył że masz nowe gry do zaimportowania.",
+      "detectedVersion": "impluvium wykrył że masz nowe wersje tej gry do zaimportowania.",
       "game": {
         "addAgeRating": "Dodaj kategorię",
         "addCarouselNoImages": "Brak obrazów do dodania.",
@@ -359,7 +359,7 @@
           "setupPlaceholder": "instalator.exe",
           "umuLauncherId": "ID UMU Launcher",
           "umuOverride": "Nadpisz ID Gry UMU Launcher",
-          "umuOverrideDesc": "Domyślnie Drop używa identyfikatora non-ID podczas uruchamiania z pomocą UMU Launcher. Aby uzyskać odpowiednie poprawki dla niektórych gier, może być konieczne ręczne ustawienie tego pola.",
+          "umuOverrideDesc": "Domyślnie impluvium używa identyfikatora non-ID podczas uruchamiania z pomocą UMU Launcher. Aby uzyskać odpowiednie poprawki dla niektórych gier, może być konieczne ręczne ustawienie tego pola.",
           "updateMode": "Tryb aktualizacji",
           "updateModeDesc": "Po włączeniu, te pliki zostaną zainstalowane nad (nadpisując) poprzednią wersją. Jeśli połączonych jest kilka \"trybów aktualizacji\", są one stosowane w kolejności.",
           "version": "Wybierz wersję do zaimportowania"
@@ -426,20 +426,20 @@
       },
       "metadataProvider": "Dostawca Metadanych",
       "noGames": "Brak zaimportowanych gier",
-      "offline": "Drop nie mógł uzyskać dostępu do tej gry.",
+      "offline": "impluvium nie mógł uzyskać dostępu do tej gry.",
       "offlineTitle": "Gra Offline",
       "openEditor": "Otwórz w Edytorze {arrow}",
       "openStore": "Otwórz w Sklepie",
       "shortDesc": "Krótki Opis",
       "sources": {
         "create": "Utwórz źródło",
-        "createDesc": "Drop użyje tego źródła, aby uzyskać dostęp do Twojej biblioteki gier i je udostępnić.",
-        "desc": "Skonfiguruj źródła biblioteki, w których Drop będzie wyszukiwał nowe gry i wersje do zaimportowania.",
+        "createDesc": "impluvium użyje tego źródła, aby uzyskać dostęp do Twojej biblioteki gier i je udostępnić.",
+        "desc": "Skonfiguruj źródła biblioteki, w których impluvium będzie wyszukiwał nowe gry i wersje do zaimportowania.",
         "documentationLink": "Dokumentacja {arrow}",
         "edit": "Edytuj źródło",
         "freeSpace": "Wolna przestrzeń",
         "fsDesc": "Importuje gry ze ścieżki na dysku. Wymaga struktury folderów opartej na wersjach, i obsługuje gry zarchiwizowane.",
-        "fsFlatDesc": "Importuje gry ze ścieżki na dysku, ale bez osobnego podfolderu wersji. Przydatne podczas migracji istniejącej biblioteki do Drop.",
+        "fsFlatDesc": "Importuje gry ze ścieżki na dysku, ale bez osobnego podfolderu wersji. Przydatne podczas migracji istniejącej biblioteki do impluvium.",
         "fsFlatTitle": "Kompatybilność",
         "fsPath": "Ścieżka",
         "fsPathDesc": "Ścieżka absolutna do twojej biblioteki gier.",
@@ -455,7 +455,7 @@
         "utilizationPercentage": "Procent wykorzystania",
         "working": "Działa?"
       },
-      "subheader": "Gdy dodasz foldery do źródeł biblioteki, Drop je wykryje i poprosi o zaimportowanie. Każda gra musi zostać zaimportowana, zanim będzie można zaimportować jej wersję.",
+      "subheader": "Gdy dodasz foldery do źródeł biblioteki, impluvium je wykryje i poprosi o zaimportowanie. Każda gra musi zostać zaimportowana, zanim będzie można zaimportować jej wersję.",
       "title": "Biblioteki",
       "version": {
         "delta": "Tryb uaktualnienia",
@@ -522,7 +522,7 @@
   "selectLanguage": "Wybierz język",
   "settings": {
     "admin": {
-      "description": "Skonfiguruj ustawienia Drop",
+      "description": "Skonfiguruj ustawienia impluvium",
       "store": {
         "dropGameAltPlaceholder": "Przykładowa ikonka Gry",
         "dropGameDescriptionPlaceholder": "To przykładowa gra. Będzie zastąpiona kiedy zaimportujesz grę.",
@@ -535,11 +535,11 @@
   },
   "setup": {
     "auth": {
-      "description": "Uwierzytelnianie w Drop odbywa się za pośrednictwem wielu skonfigurowanych \"dostawców\". Każdy z nich może umożliwiać użytkownikom logowanie się za pomocą wybranej metody. Aby rozpocząć, należy włączyć co najmniej jednego dostawcę uwierzytelniania i utworzyć u niego konto.",
+      "description": "Uwierzytelnianie w impluvium odbywa się za pośrednictwem wielu skonfigurowanych \"dostawców\". Każdy z nich może umożliwiać użytkownikom logowanie się za pomocą wybranej metody. Aby rozpocząć, należy włączyć co najmniej jednego dostawcę uwierzytelniania i utworzyć u niego konto.",
       "docs": "Dokumentacja {arrow}",
       "enabled": "Włączone?",
       "openid": {
-        "description": "OpenID Connect (OIDC) to powszechnie obsługiwane rozszerzenie OAuth2. Drop wymaga konfiguracji OIDC za pomocą zmiennych środowiskowych.",
+        "description": "OpenID Connect (OIDC) to powszechnie obsługiwane rozszerzenie OAuth2. impluvium wymaga konfiguracji OIDC za pomocą zmiennych środowiskowych.",
         "skip": "Mam użytkownika z OIDC",
         "title": "OpenID Connect"
       },
@@ -554,16 +554,16 @@
     "noPage": "brak strony",
     "stages": {
       "account": {
-        "description": "Potrzebujesz co najmniej jednego konta żeby zacząć używać Drop.",
+        "description": "Potrzebujesz co najmniej jednego konta żeby zacząć używać impluvium.",
         "name": "Skonfiguruj swoje konto administratora."
       },
       "library": {
-        "description": "Dodaj co najmniej jedno źródło biblioteki żeby używać Drop.",
+        "description": "Dodaj co najmniej jedno źródło biblioteki żeby używać impluvium.",
         "name": "Utwórz bibliotekę."
       }
     },
     "welcome": "Cześć.",
-    "welcomeDescription": "Witamy w kreatorze konfiguracji Drop. Poprowadzi Cię on przez proces pierwszej konfiguracji Drop i pokaże, jak to wszystko działa."
+    "welcomeDescription": "Witamy w kreatorze konfiguracji impluvium. Poprowadzi Cię on przez proces pierwszej konfiguracji impluvium i pokaże, jak to wszystko działa."
   },
   "store": {
     "about": "O",
@@ -627,8 +627,8 @@
       "weeklyScheduledTitle": "Zadania zaplanowane tygodniowo"
     }
   },
-  "title": "Drop",
-  "titleTemplate": "{0} - Drop",
+  "title": "impluvium",
+  "titleTemplate": "{0} - impluvium",
   "todo": "Do zrobienia",
   "type": "Typ",
   "upload": "Prześlij",
@@ -660,7 +660,7 @@
       "authLink": "Uwierzytelnianie {arrow}",
       "authentication": {
         "configure": "Konfiguruj",
-        "description": "Drop obsługuje różnorodne \"mechanizmy uwierzytelniania\". Po ich włączeniu lub wyłączeniu są one wyświetlane na ekranie logowania, umożliwiając użytkownikom wybór. Kliknij menu z kropkami, aby skonfigurować mechanizm uwierzytelniania.",
+        "description": "impluvium obsługuje różnorodne \"mechanizmy uwierzytelniania\". Po ich włączeniu lub wyłączeniu są one wyświetlane na ekranie logowania, umożliwiając użytkownikom wybór. Kliknij menu z kropkami, aby skonfigurować mechanizm uwierzytelniania.",
         "disabled": "Wyłączone",
         "enabled": "Włączone",
         "enabledKey": "Włączone?",
@@ -672,7 +672,7 @@
       "authoptionsHeader": "Opcje Uwierzytelniania",
       "delete": "Usuń",
       "deleteUser": "Usuń użytkownika {0}",
-      "description": "Zarządzaj użytkownikami na twojej instancji Drop, i skonfiguruj swoje metody uwierzytelniania.",
+      "description": "Zarządzaj użytkownikami na twojej instancji impluvium, i skonfiguruj swoje metody uwierzytelniania.",
       "displayNameHeader": "Nazwa Wyświetlana",
       "emailHeader": "Email",
       "groups": {
@@ -713,14 +713,14 @@
         "inviteAdminSwitchDescription": "Utwórz tego użytkownika jako administratora",
         "inviteAdminSwitchLabel": "Zaproszenie administratora",
         "inviteButton": "Zaproś",
-        "inviteDescription": "Drop wygeneruje adres URL, który możesz wysłać osobie, którą chcesz zaprosić. Opcjonalnie możesz podać jej nazwę użytkownika lub adres e-mail.",
+        "inviteDescription": "impluvium wygeneruje adres URL, który możesz wysłać osobie, którą chcesz zaprosić. Opcjonalnie możesz podać jej nazwę użytkownika lub adres e-mail.",
         "inviteEmailDescription": "Musi być w formacie uzytkownik{'@'}example.com",
         "inviteEmailLabel": "Adres e-mail (opcjonalny)",
         "inviteEmailPlaceholder": "ja{'@'}example.com",
         "inviteExpiryLabel": "Wygasa",
         "inviteMonth": "1 miesiąc",
         "inviteNever": "Nigdy",
-        "inviteTitle": "Zaproś użytkownika do Drop",
+        "inviteTitle": "Zaproś użytkownika do impluvium",
         "inviteUsernameFormat": "Musi mieć 5 lub więcej znaków",
         "inviteUsernameLabel": "Nazwa Użytkownika (opcjonalna)",
         "inviteUsernamePlaceholder": "mojaNazwa",

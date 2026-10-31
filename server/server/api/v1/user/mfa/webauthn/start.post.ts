@@ -34,7 +34,7 @@ export default defineEventHandler(async (h3) => {
 
   const registrationOptions = await generateRegistrationOptions({
     rpID,
-    rpName: "Drop",
+    rpName: "impluvium",
     userName: user.username,
     attestationType: "none",
     authenticatorSelection: {

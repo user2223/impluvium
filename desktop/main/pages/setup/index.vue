@@ -12,7 +12,7 @@
         Let's get you set up
       </h1>
       <p class="mt-6 text-lg leading-8 text-zinc-400">
-        You'll need to have set up a Drop instance and created an account on it. If you're connecting to another person's instance, you'll need the url and an account.
+        You'll need to have set up an impluvium instance and created an account on it. If you're connecting to another person's instance, you'll need the url and an account.
       </p>
       <div class="mt-10 flex items-center justify-center gap-x-6">
         <NuxtLink

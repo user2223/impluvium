@@ -10,7 +10,7 @@
       <div>
         <h3 class="text-sm font-medium leading-6 text-zinc-100">Sign out</h3>
         <p class="mt-1 text-sm leading-6 text-zinc-400">
-          Sign out of your Drop account on this device
+          Sign out of your impluvium account on this device
         </p>
       </div>
       <button

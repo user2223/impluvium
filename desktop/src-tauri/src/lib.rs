@@ -194,7 +194,7 @@ pub fn custom_panic_handler(e: &PanicHookInfo) -> Option<()> {
             .as_secs()
     ));
     let mut file = File::create_new(crash_file).ok()?;
-    file.write_all(format!("Drop crashed with the following panic:\n{e}").as_bytes())
+    file.write_all(format!("impluvium crashed with the following panic:\n{e}").as_bytes())
         .ok()?;
     drop(file);
 

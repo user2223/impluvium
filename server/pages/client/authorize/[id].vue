@@ -225,7 +225,7 @@ const scopes = [
     icon: UserGroupIcon,
   },
   clientData.capabilities["peerAPI"] && {
-    name: "Access the Drop network",
+    name: "Access the impluvium network",
     description:
       "The client will be able to establish P2P connections with other users to enable features like download aggregation, Remote LAN play and P2P multiplayer.",
     href: "/docs/access/network",

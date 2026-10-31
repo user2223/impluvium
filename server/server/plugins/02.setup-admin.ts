@@ -31,5 +31,5 @@ export default defineNitroPlugin(async (_nitro) => {
   });
 
   const setupUrl = `${systemConfig.getExternalUrl()}/setup?token=${token.token}`;
-  logger.info(`Open ${setupUrl} in a browser to get started with Drop.`);
+  logger.info(`Open ${setupUrl} in a browser to get started with impluvium.`);
 });

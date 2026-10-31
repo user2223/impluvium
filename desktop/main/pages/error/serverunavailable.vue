@@ -17,7 +17,7 @@
           Server is unavailable
         </h1>
         <p class="mt-6 text-base leading-7 text-zinc-400">
-          We were unable to contact your Drop instance. See if you can open it
+          We were unable to contact your impluvium instance. See if you can open it
           in your web browser, or contact your server admin for help.
         </p>
         <div class="mt-10 space-x-10">

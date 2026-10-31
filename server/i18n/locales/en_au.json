@@ -1,14 +1,14 @@
 {
   "account": {
     "devices": {
-      "subheader": "Manage the devices authorised to access your Drop account."
+      "subheader": "Manage the devices authorised to access your impluvium account."
     }
   },
   "auth": {
     "callback": {
       "authClient": "Authorise client?",
       "authorize": "Authorise",
-      "authorizedClient": "Drop has successfully authorised the client. You may now close this window."
+      "authorizedClient": "impluvium has successfully authorised the client. You may now close this window."
     }
   },
   "library": {

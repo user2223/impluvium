@@ -6,7 +6,7 @@
           Enable update checks
         </h3>
         <p class="mt-1 text-sm leading-6 text-zinc-400">
-          Drop will automatically check for updates from your server
+          impluvium will automatically check for updates from your server
         </p>
       </div>
       <Switch

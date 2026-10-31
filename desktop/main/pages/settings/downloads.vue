@@ -14,8 +14,8 @@
             Install directories
           </h3>
           <p class="mt-1 text-sm text-zinc-400 max-w-xl">
-            This is where Drop will download game files to, and store them
-            indefinitely while you play. Drop and games may store other
+            This is where impluvium will download game files to, and store them
+            indefinitely while you play. impluvium and games may store other
             information elsewhere, like saves or mods.
           </p>
         </div>
@@ -55,7 +55,7 @@
         Download Settings
       </h3>
       <p class="mt-1 text-sm text-zinc-400 max-w-xl">
-        Configure how Drop downloads games and other content.
+        Configure how impluvium downloads games and other content.
       </p>
 
       <div class="mt-6 max-w-xl">
@@ -77,7 +77,7 @@
           <div>
             <h3 class="text-sm font-medium leading-6 text-zinc-100">Force Offline</h3>
             <p class="mt-1 text-sm leading-6 text-zinc-400">
-              Drop will not make any external connections
+              impluvium will not make any external connections
             </p>
           </div>
           <Switch v-model="forceOffline" :class="[

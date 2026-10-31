@@ -26,8 +26,8 @@ export function setupHooks() {
     createModal(
       ModalType.Notification,
       {
-        title: "Drop encountered an error while downloading",
-        description: `Drop encountered an error while downloading your game: "${(
+        title: "impluvium encountered an error while downloading",
+        description: `impluvium encountered an error while downloading your game: "${(
           event.payload as unknown as string
         ).toString()}"`,
         buttonText: "Close",
@@ -43,7 +43,7 @@ export function setupHooks() {
       {
         title: "Did something go wrong?",
         description:
-          "Drop detected that something might've gone wrong with launching your game. Do you want to open the log directory?",
+          "impluvium detected that something might've gone wrong with launching your game. Do you want to open the log directory?",
         buttonText: "Open",
       },
       async (e, c) => {

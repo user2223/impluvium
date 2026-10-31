@@ -49,7 +49,7 @@ export const userACLDescriptions: ObjectFromList<typeof userACLs> = {
 
 export const systemACLDescriptions: ObjectFromList<typeof systemACLs> = {
   setup:
-    "All permissions required to setup a new Drop instance (setup wizard).",
+    "All permissions required to setup a new impluvium instance (setup wizard).",
 
   "auth:read":
     "Fetch the list of enabled authentication mechanisms configured.",

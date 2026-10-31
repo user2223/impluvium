@@ -288,7 +288,7 @@ class TaskHandler {
       }));
     if (!task) {
       peer.send(
-        `error/${taskId}/Unknown task/Drop couldn't find the task you're looking for.`,
+        `error/${taskId}/Unknown task/impluvium couldn't find the task you're looking for.`,
       );
       return;
     }
@@ -298,7 +298,7 @@ class TaskHandler {
     if (!allowed) {
       // logger.warn("user does not have necessary ACLs");
       peer.send(
-        `error/${taskId}/Unknown task/Drop couldn't find the task you're looking for.`,
+        `error/${taskId}/Unknown task/impluvium couldn't find the task you're looking for.`,
       );
       return;
     }

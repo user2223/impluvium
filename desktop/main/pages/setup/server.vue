@@ -7,7 +7,7 @@
       <h2
         class="mt-10 text-center text-2xl font-bold font-display leading-9 tracking-tight text-zinc-100"
       >
-        Connect to your Drop instance
+        Connect to your impluvium instance
       </h2>
     </div>
 
@@ -17,7 +17,7 @@
           <label
             for="company-website"
             class="block text-sm font-medium leading-6 text-zinc-100"
-            >Drop instance address</label
+            >impluvium instance address</label
           >
           <div class="mt-2">
             <div

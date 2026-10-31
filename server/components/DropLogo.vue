@@ -1,6 +1,6 @@
 <template>
   <svg
-    aria-label="Drop Logo"
+    aria-label="impluvium Logo"
     class="text-blue-400"
     viewBox="0 0 24 24"
     fill="none"

@@ -208,7 +208,7 @@ async function calculateGames(clearAll = false, forceRefresh = false) {
       ModalType.Notification,
       {
         title: "Failed to fetch library",
-        description: `Drop encountered an error while fetching your library: ${e}`,
+        description: `impluvium encountered an error while fetching your library: ${e}`,
       },
       (_, c) => c(),
     );

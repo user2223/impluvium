@@ -12,7 +12,7 @@
           Start with system
         </h3>
         <p class="mt-1 text-sm leading-6 text-zinc-400">
-          Drop will automatically start when you log into your computer
+          impluvium will automatically start when you log into your computer
         </p>
       </div>
       <Switch

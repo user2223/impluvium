@@ -6,7 +6,7 @@
       "noDevices": "Keine Geräte sind mit deinem Konto verbunden.",
       "platform": "Plattform",
       "revoke": "Wiederrufen",
-      "subheader": "Geräte verwalten, die auf Ihr Drop Konto zugreifen dürfen.",
+      "subheader": "Geräte verwalten, die auf Ihr impluvium Konto zugreifen dürfen.",
       "title": "Geräte"
     },
     "home": {
@@ -51,23 +51,23 @@
   },
   "actions": "Aktionen",
   "add": "Hinzufügen",
-  "adminTitle": "Admin Dashboard - Drop",
-  "adminTitleTemplate": "{0} - Admin - Drop",
+  "adminTitle": "Admin Dashboard - impluvium",
+  "adminTitleTemplate": "{0} - Admin - impluvium",
   "auth": {
     "callback": {
       "authClient": "Client autorisieren?",
       "authorize": "Autorisieren",
-      "authorizedClient": "Drop hat den Client erfolgreich autorisiert. Du kannst dieses Fenster nun schließen.",
+      "authorizedClient": "impluvium hat den Client erfolgreich autorisiert. Du kannst dieses Fenster nun schließen.",
       "issues": "Probleme?",
       "learn": "Mehr erfahren {arrow}",
       "paste": "Füge diesen Code in den Client ein, um fortzufahren:",
       "permWarning": "Das akzeptieren dieser Anfrage erlaubt \"{name}\" auf \"{plattform}\" folgende Berechtigungen:",
-      "requestedAccess": "\"{name}\" hat Zugriff auf dein Drop Konto angefordert.",
+      "requestedAccess": "\"{name}\" hat Zugriff auf dein impluvium Konto angefordert.",
       "success": "Erfolgreich!"
     },
     "code": {
-      "description": "Verwende einen Code, um dein Drop Client zu verbinden, wenn dein Gerät kein Webbrowser öffnen kann.",
-      "title": "Verbinde deinen Drop Client"
+      "description": "Verwende einen Code, um dein impluvium Client zu verbinden, wenn dein Gerät kein Webbrowser öffnen kann.",
+      "title": "Verbinde deinen impluvium Client"
     },
     "confirmPassword": "Bestätige @:auth.password",
     "displayName": "Anzeigename",
@@ -78,7 +78,7 @@
       "emailFormat": "Muss im Format nutzer{'@'}beispiel.de sein",
       "passwordFormat": "Muss mindestens 8 Zeichen enthalten",
       "subheader": "Gebe unten deine Daten ein, um dein Konto zu erstellen.",
-      "title": "Erstelle dein Drop Konto",
+      "title": "Erstelle dein impluvium Konto",
       "usernameFormat": "Muss mindestens 5 Zeichen enthalten und aus Kleinbuchstaben bestehen"
     },
     "signin": {
@@ -86,7 +86,7 @@
       "forgot": "Passwort vergessen?",
       "noAccount": "Noch kein Konto? Bitte den Admin, eines für dich zu erstellen.",
       "or": "ODER",
-      "pageTitle": "Bei Drop anmelden",
+      "pageTitle": "Bei impluvium anmelden",
       "rememberMe": "Erinnere mich",
       "signin": "Anmelden",
       "signinWithExternalProvider": "Bei externem Anbieter anmelden {arrow}",
@@ -132,7 +132,7 @@
   },
   "drop": {
     "desc": "Eine Open-Source-Plattform für die Verteilung von Spielen, die auf Geschwindigkeit, Flexibilität und Ästhetik ausgelegt ist.",
-    "drop": "Drop"
+    "drop": "impluvium"
   },
   "editor": {
     "bold": "Fett",
@@ -152,7 +152,7 @@
     "admin": {
       "user": {
         "delete": {
-          "desc": "Drop konnte diesen Benutzer nicht löschen: {0}",
+          "desc": "impluvium konnte diesen Benutzer nicht löschen: {0}",
           "title": "Benutzer konnte nicht gelöscht werden"
         }
       }
@@ -203,7 +203,7 @@
     "inviteRequired": "Registrierung nur mit Einladung möglich.",
     "library": {
       "add": {
-        "desc": "Drop konnte dieses Spiel nicht zu deiner Bibliothek hinzufügen: {0}",
+        "desc": "impluvium konnte dieses Spiel nicht zu deiner Bibliothek hinzufügen: {0}",
         "title": "Das Spiel konnte nicht zur Bibliothek hinzugefügt werden"
       },
       "collection": {
@@ -229,14 +229,14 @@
     },
     "occurred": "Bei der Bearbeitung deiner Anfrage ist ein Fehler aufgetreten. Wenn du glaubst, dass es sich um einen Bug handelt, melde diesen bitte. Versuche dich anzumelden, um zu sehen, ob dadurch das Problem behoben wird.",
     "ohNo": "Oh nein!",
-    "pageTitle": "{0} | Drop",
+    "pageTitle": "{0} | impluvium",
     "revokeClient": "Client konnte nicht widerrufen werden",
     "revokeClientFull": "Client konnte nicht widerrufen werden {0}",
     "signIn": "Anmelden {arrow}",
     "support": "Support Discord",
     "unknown": "Ein unbekannter Fehler ist aufgetreten",
     "upload": {
-      "description": "Drop konnte die Datei nicht hochladen: {0}",
+      "description": "impluvium konnte die Datei nicht hochladen: {0}",
       "title": "Das hochladen der Datei ist Fehlgeschlagen"
     },
     "version": {
@@ -268,7 +268,7 @@
       "github": "GitHub"
     },
     "topSellers": "Bestseller",
-    "version": "Drop {version} {gitRef}"
+    "version": "impluvium {version} {gitRef}"
   },
   "header": {
     "admin": {
@@ -315,8 +315,8 @@
     "addGames": "Alle Spiele",
     "addToLib": "Zur Bibliothek hinzufügen",
     "admin": {
-      "detectedGame": "Drop hat erkannt, dass du ein neues Spiel importieren kannst.",
-      "detectedVersion": "Drop hat erkannt, dass du eine neue Version dieses Spiels importieren kannst.",
+      "detectedGame": "impluvium hat erkannt, dass du ein neues Spiel importieren kannst.",
+      "detectedVersion": "impluvium hat erkannt, dass du eine neue Version dieses Spiels importieren kannst.",
       "game": {
         "addAgeRating": "Bewertung hinzufügen",
         "addCarouselNoImages": "Keine Bilder zum hinzufügen.",
@@ -375,7 +375,7 @@
           "setupPlaceholder": "setup.exe",
           "umuLauncherId": "UMU Launcher ID",
           "umuOverride": "Überschreibe UMU Launcher Spiel ID",
-          "umuOverrideDesc": "Standardmäßig verwendet Drop beim Start über den UMU Launcher eine Nicht-ID. Um die richtigen Patches für manche Spiele zu erhalten, musst du dieses Feld eventuell manuell setzen.",
+          "umuOverrideDesc": "Standardmäßig verwendet impluvium beim Start über den UMU Launcher eine Nicht-ID. Um die richtigen Patches für manche Spiele zu erhalten, musst du dieses Feld eventuell manuell setzen.",
           "updateMode": "Aktualisierungsmodus",
           "updateModeDesc": "Wenn aktiviert, werden diese Dateien über die vorherige Version installiert (überschrieben). Werden mehrere ‚Update-Modi‘ hintereinander verwendet, werden sie in der angegebenen Reihenfolge angewendet.",
           "version": "Wähle die Version für den Import aus"
@@ -442,20 +442,20 @@
       },
       "metadataProvider": "Metadatenanbieter",
       "noGames": "Keine Spiele importiert",
-      "offline": "Drop konnte auf dieses Spiel nicht zugreifen.",
+      "offline": "impluvium konnte auf dieses Spiel nicht zugreifen.",
       "offlineTitle": "Spiel offline",
       "openEditor": "Im Editor öffnen {arrow}",
       "openStore": "Im Store öffnen",
       "shortDesc": "Kurzbeschreibung",
       "sources": {
         "create": "Quelle erstellen",
-        "createDesc": "Drop wird diese Quelle verwenden, um auf deine Spielbibliothek zuzugreifen und die Spiele verfügbar zu machen.",
-        "desc": "Konfiguriere deine Bibliotheksquellen, wo Drop nach neuen Spielen und Versionen zum Import suchen wird.",
+        "createDesc": "impluvium wird diese Quelle verwenden, um auf deine Spielbibliothek zuzugreifen und die Spiele verfügbar zu machen.",
+        "desc": "Konfiguriere deine Bibliotheksquellen, wo impluvium nach neuen Spielen und Versionen zum Import suchen wird.",
         "documentationLink": "Dokumentation {arrow}",
         "edit": "Quelle bearbeiten",
         "freeSpace": "Freier Speicher",
         "fsDesc": "Importiert Spiele von einem Pfad auf der Festplatte. Benötigt eine versionsbasierte Ordnerstruktur und unterstützt archivierte Spiele.",
-        "fsFlatDesc": "Importiert Spiele von einem Pfad auf der Festplatte, jedoch ohne separate Unterordner für Versionen. Nützlich beim Migrieren einer bestehenden Bibliothek zu Drop.",
+        "fsFlatDesc": "Importiert Spiele von einem Pfad auf der Festplatte, jedoch ohne separate Unterordner für Versionen. Nützlich beim Migrieren einer bestehenden Bibliothek zu impluvium.",
         "fsFlatTitle": "Kompatibilität",
         "fsPath": "Pfad",
         "fsPathDesc": "Absoluter Pfad zur Spielebibliothek.",
@@ -471,7 +471,7 @@
         "utilizationPercentage": "Nutzungsgrad",
         "working": "Funktioniert es?"
       },
-      "subheader": "Wenn du Ordner zu deinen Bibliotheksquellen hinzufügst, erkennt Drop diese und fordert dich auf, sie zu importieren. Jedes Spiel muss importiert werden, bevor du eine Version importieren kannst.",
+      "subheader": "Wenn du Ordner zu deinen Bibliotheksquellen hinzufügst, erkennt impluvium diese und fordert dich auf, sie zu importieren. Jedes Spiel muss importiert werden, bevor du eine Version importieren kannst.",
       "title": "Bibliotheken",
       "version": {
         "delta": "Upgrade Modus",
@@ -536,17 +536,17 @@
   "selectLanguage": "Sprache auswählen",
   "services": {
     "nginx": {
-      "description": "Integrierter einfacher Reverse-Proxy, um alle Drop-Komponenten miteinander zu verbinden.",
+      "description": "Integrierter einfacher Reverse-Proxy, um alle impluvium-Komponenten miteinander zu verbinden.",
       "title": "NGINX"
     },
     "torrential": {
-      "description": "Der interne Download-Server für Drop.",
+      "description": "Der interne Download-Server für impluvium.",
       "title": "Torrential"
     }
   },
   "settings": {
     "admin": {
-      "description": "Konfiguriere Drop Einstellungen",
+      "description": "Konfiguriere impluvium Einstellungen",
       "store": {
         "dropGameAltPlaceholder": "Beispiel Spielsymbol",
         "dropGameDescriptionPlaceholder": "Dies ist ein exemplarisches Spiel. Es wird ersetzt wenn du ein Spiel importierst.",
@@ -559,11 +559,11 @@
   },
   "setup": {
     "auth": {
-      "description": "Die Authentifizierung in Drop erfolgt über mehrere konfigurierte ‚Provider‘. Jeder Provider ermöglicht es Nutzern, sich über seine Methode anzumelden. Um zu starten, sollte mindestens ein Authentifizierungs-Provider aktiviert sein und ein Konto über diesen erstellt werden.",
+      "description": "Die Authentifizierung in impluvium erfolgt über mehrere konfigurierte ‚Provider‘. Jeder Provider ermöglicht es Nutzern, sich über seine Methode anzumelden. Um zu starten, sollte mindestens ein Authentifizierungs-Provider aktiviert sein und ein Konto über diesen erstellt werden.",
       "docs": "Dokumentation {arrow}",
       "enabled": "Aktiviert?",
       "openid": {
-        "description": "OpenID Connect (OIDC) ist eine oft unterstützte OAuth2 Erweiterung. Drop erfordert die Konfiguration von OIDC über Umgebungsvariablen.",
+        "description": "OpenID Connect (OIDC) ist eine oft unterstützte OAuth2 Erweiterung. impluvium erfordert die Konfiguration von OIDC über Umgebungsvariablen.",
         "skip": "Ich habe ein OIDC Nutzer",
         "title": "OpenID Connect"
       },
@@ -578,16 +578,16 @@
     "noPage": "keine Seite",
     "stages": {
       "account": {
-        "description": "Du benötigst mindestens ein Konto, um Drop zu benutzen.",
+        "description": "Du benötigst mindestens ein Konto, um impluvium zu benutzen.",
         "name": "Richte dein Administratorkonto ein."
       },
       "library": {
-        "description": "Füge mindestens eine Bibliotheksquelle hinzu, um Drop zu nutzen.",
+        "description": "Füge mindestens eine Bibliotheksquelle hinzu, um impluvium zu nutzen.",
         "name": "Erstelle eine Bibliothek."
       }
     },
     "welcome": "Hallo.",
-    "welcomeDescription": "Willkommen zum Drop Einrichtungsassistenten. Er führt dich durch die erstmalige Konfiguration von Drop und erklärt dir, wie es funktioniert."
+    "welcomeDescription": "Willkommen zum impluvium Einrichtungsassistenten. Er führt dich durch die erstmalige Konfiguration von impluvium und erklärt dir, wie es funktioniert."
   },
   "store": {
     "about": "Über",
@@ -651,8 +651,8 @@
       "weeklyScheduledTitle": "Wöchentliche Aufgaben"
     }
   },
-  "title": "Drop",
-  "titleTemplate": "{0} - Drop",
+  "title": "impluvium",
+  "titleTemplate": "{0} - impluvium",
   "todo": "Todo",
   "type": "Typ",
   "upload": "Hochladen",
@@ -684,7 +684,7 @@
       "authLink": "Authentifizierung {arrow}",
       "authentication": {
         "configure": "Konfigurieren",
-        "description": "Drop unterstützt eine Vielzahl von Authentifizierungsmechanismen. Wenn du sie aktivierst oder deaktivierst, werden sie auf dem Anmeldebildschirm angezeigt, damit Benutzer sie auswählen können. Klicke auf die Drei-Punkte, um den Authentifizierungsmechanismus zu konfigurieren.",
+        "description": "impluvium unterstützt eine Vielzahl von Authentifizierungsmechanismen. Wenn du sie aktivierst oder deaktivierst, werden sie auf dem Anmeldebildschirm angezeigt, damit Benutzer sie auswählen können. Klicke auf die Drei-Punkte, um den Authentifizierungsmechanismus zu konfigurieren.",
         "disabled": "Deaktiviert",
         "enabled": "Aktiviert",
         "enabledKey": "Aktiviert?",
@@ -696,7 +696,7 @@
       "authoptionsHeader": "Authentifizierungseinstellungen",
       "delete": "Löschen",
       "deleteUser": "Benutzer löschen {0}",
-      "description": "Verwalte Benutzer auf deiner Drop-Instanz und konfiguriere deine Authentifizierungsmethode.",
+      "description": "Verwalte Benutzer auf deiner impluvium-Instanz und konfiguriere deine Authentifizierungsmethode.",
       "displayNameHeader": "Anzeigename",
       "emailHeader": "E-Mail",
       "groups": {
@@ -737,14 +737,14 @@
         "inviteAdminSwitchDescription": "Erstelle diesen Benutzer als Administrator",
         "inviteAdminSwitchLabel": "Admin Einladung",
         "inviteButton": "Einladung",
-        "inviteDescription": "Drop erstellt eine URL, die du an die Person senden kannst, die du einladen möchtest. Du kannst optional einen Benutzernamen oder eine E-Mail-Adresse angeben, die sie verwenden soll.",
+        "inviteDescription": "impluvium erstellt eine URL, die du an die Person senden kannst, die du einladen möchtest. Du kannst optional einen Benutzernamen oder eine E-Mail-Adresse angeben, die sie verwenden soll.",
         "inviteEmailDescription": "Muss im Format nutzer{'@'}beispiel.de sein",
         "inviteEmailLabel": "E-Mail-Adresse (optional)",
         "inviteEmailPlaceholder": "ich{'@'}beispiel.de",
         "inviteExpiryLabel": "Läuft ab",
         "inviteMonth": "1 Monat",
         "inviteNever": "Niemals",
-        "inviteTitle": "Ein Benutzer zu Drop einladen",
+        "inviteTitle": "Ein Benutzer zu impluvium einladen",
         "inviteUsernameFormat": "Muss mindestens 5 Zeichen lang sein",
         "inviteUsernameLabel": "Nutzername (optional)",
         "inviteUsernamePlaceholder": "meinNutzername",

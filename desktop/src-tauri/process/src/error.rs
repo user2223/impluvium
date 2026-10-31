@@ -37,9 +37,9 @@ impl Display for ProcessError {
             ProcessError::InvalidArguments(arguments) => {
                 &format!("Invalid arguments in command {arguments}")
             }
-            ProcessError::FailedLaunch(game_id) => {
-                &format!("Drop detected that the game {game_id} may have failed to launch properly")
-            }
+            ProcessError::FailedLaunch(game_id) => &format!(
+                "impluvium detected that the game {game_id} may have failed to launch properly"
+            ),
             ProcessError::NotExecutable(command) => {
                 &format!("The command '{command}' exists but is not marked as executable")
             }

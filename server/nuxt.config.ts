@@ -32,7 +32,7 @@ const commitHash =
   process.env.IMPLUVIUM_GIT_REF ??
   execSync("git rev-parse --short HEAD").toString().trim();
 
-console.log(`Drop ${dropVersion} #${commitHash}`);
+console.log(`impluvium ${dropVersion} #${commitHash}`);
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -123,9 +123,9 @@ export default defineNuxtConfig({
       // tracking for dynamic openapi schema https://github.com/nitrojs/nitro/issues/2974
       // create body from types: https://github.com/nitrojs/nitro/issues/3275
       meta: {
-        title: "Drop",
+        title: "impluvium",
         description:
-          "Drop is an open-source, self-hosted game distribution platform, creating a Steam-like experience for DRM-free games.",
+          "impluvium is an open-source, self-hosted game distribution platform, creating a Steam-like experience for DRM-free games.",
         version: dropVersion,
       },
     },

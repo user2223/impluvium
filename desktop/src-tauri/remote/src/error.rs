@@ -45,7 +45,7 @@ impl Display for RemoteAccessError {
                 if error.is_connect() {
                     return write!(
                         f,
-                        "Failed to connect to Drop server. Check if you access Drop through a browser, and then try again."
+                        "Failed to connect to impluvium server. Check if you access impluvium through a browser, and then try again."
                     );
                 }
 
@@ -103,7 +103,7 @@ impl Display for RemoteAccessError {
             RemoteAccessError::Cache(error) => write!(f, "Cache Error: {error}"),
             RemoteAccessError::CorruptedState => write!(
                 f,
-                "Drop encountered a corrupted internal state. Please report this to the developers, with details of reproduction."
+                "impluvium encountered a corrupted internal state. Please report this to the developers, with details of reproduction."
             ),
             RemoteAccessError::NoDepots => write!(
                 f,

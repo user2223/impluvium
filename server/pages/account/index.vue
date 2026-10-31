@@ -13,7 +13,7 @@
       <p
         class="mt-2 text-pretty text-sm font-medium text-zinc-400 sm:text-md/8"
       >
-        Welcome to your Drop account. Here you can view and manage your account
+        Welcome to your impluvium account. Here you can view and manage your account
         information.
       </p>
     </div>

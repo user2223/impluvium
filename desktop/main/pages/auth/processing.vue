@@ -26,7 +26,7 @@
         </h1>
         <div class="mt-4">
           <p class="text-sm text-zinc-400 max-w-sm">
-            Connecting to Drop server and fetching application information...
+            Connecting to impluvium server and fetching application information...
           </p>
         </div>
       </div>

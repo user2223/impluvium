@@ -209,8 +209,8 @@
           </h3>
           <div class="mt-2">
             <p class="text-sm text-zinc-400">
-              Drop will add {{ game.mName }} to the queue to be downloaded.
-              While downloading, Drop may use up a large amount of resources,
+              impluvium will add {{ game.mName }} to the queue to be downloaded.
+              While downloading, impluvium may use up a large amount of resources,
               particularly network bandwidth and CPU utilisation.
             </p>
           </div>
@@ -804,7 +804,7 @@ async function launch() {
       ModalType.Notification,
       {
         title: `Couldn't run "${game.mName}"`,
-        description: `Drop failed to launch "${game.mName}": ${e}`,
+        description: `impluvium failed to launch "${game.mName}": ${e}`,
         buttonText: "Close",
       },
       (e, c) => c(),
@@ -835,7 +835,7 @@ async function launchIndex(index: number) {
       ModalType.Notification,
       {
         title: `Couldn't run "${game.mName}"`,
-        description: `Drop failed to launch "${game.mName}": ${e}`,
+        description: `impluvium failed to launch "${game.mName}": ${e}`,
         buttonText: "Close",
       },
       (e, c) => c(),
@@ -859,7 +859,7 @@ async function kill() {
       ModalType.Notification,
       {
         title: `Couldn't stop "${game.mName}"`,
-        description: `Drop failed to stop "${game.mName}": ${e}`,
+        description: `impluvium failed to stop "${game.mName}": ${e}`,
         buttonText: "Close",
       },
       (e, c) => c(),

@@ -26,7 +26,7 @@
                   Unrecoverable error
                 </h1>
                 <p class="mt-6 text-base leading-7 text-zinc-400">
-                  Drop encountered an error that it couldn't handle. Please
+                  impluvium encountered an error that it couldn't handle. Please
                   restart the application and file a bug report.
                 </p>
                 <p class="mt-3 text-sm font-monospace text-zinc-500">

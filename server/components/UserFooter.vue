@@ -2,7 +2,7 @@
   <footer class="bg-zinc-950" aria-labelledby="footer-heading">
     <h2 id="footer-heading" class="sr-only">{{ $t("footer.footer") }}</h2>
     <div class="mx-auto max-w-7xl px-6 py-16 sm:py-24 lg:px-8">
-      <!-- Drop Info -->
+      <!-- impluvium Info -->
       <div class="xl:grid xl:grid-cols-3 xl:gap-8">
         <div class="space-y-8">
           <DropWordmark class="h-10" />

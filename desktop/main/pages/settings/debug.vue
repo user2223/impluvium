@@ -5,7 +5,7 @@
         Debug Information
       </h2>
       <p class="mt-1 text-sm leading-6 text-zinc-400">
-        Technical information about your Drop client installation, helpful for
+        Technical information about your impluvium client installation, helpful for
         debugging.
       </p>
 
