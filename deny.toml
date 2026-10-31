@@ -1,0 +1,54 @@
+# cargo-deny configuration for the Cargo workspace (all members, all features, all targets).
+# CI runs `cargo deny --locked check licenses bans sources` as a blocking check and
+# `cargo deny --locked check advisories` as a report only.
+
+[graph]
+all-features = true
+
+[licenses]
+# Every licence a third-party crate may be used under. A crate passes when its licence
+# expression can be satisfied with these; for `A OR B` one of them is enough.
+allow = [
+  "0BSD",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "BSL-1.0",
+  "CC0-1.0",
+  "CDLA-Permissive-2.0",
+  "ISC",
+  "MIT",
+  "MPL-2.0",
+  "Unicode-3.0",
+  "Unlicense",
+  "Zlib",
+]
+confidence-threshold = 0.9
+
+# The repository's own crates set `publish = false`, so cargo-deny skips their licence
+# fields; they are covered by the repository licences (droplet: AGPL-3.0-only). AGPL is
+# not in the list above, so no third-party crate may bring it in.
+[licenses.private]
+ignore = true
+
+[bans]
+# The inherited dependency tree has many duplicate versions; they are reported, not blocking.
+multiple-versions = "warn"
+wildcards = "deny"
+# Path dependencies between the workspace members have no version requirement.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+[advisories]
+# Advisories do not block yet: CI reports them, and the release checks decide later which
+# ones block and which exceptions apply.
+ignore = [
+  # rsa: Marvin attack (timing side channel in RSA decryption), no fixed release exists.
+  { id = "RUSTSEC-2023-0071", reason = "no fixed rsa release; reviewed when advisories start to block" },
+]

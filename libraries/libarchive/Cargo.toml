@@ -1,6 +1,7 @@
 [package]
 name = "libarchive-drop"
 version = "0.1.1"
+publish = false
 authors = ["Jamie Winsor <reset@chef.io>", "Drop OSS"]
 license = "Apache-2.0"
 repository = "https://lab.droposs.org/drop-oss/drop/-/tree/develop/libraries/libarchive"
