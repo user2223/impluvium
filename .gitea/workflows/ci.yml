@@ -134,6 +134,8 @@ jobs:
           node tools/ci/check-env.mjs --root . "${previous[@]}"
       - name: Identity document (docs/dev/identity.md matches the identity table and the register)
         run: node tools/ci/identity-doc.mjs --root . --check
+      - name: Identity bindings (every renamed place carries the value of the identity table)
+        run: node tools/ci/check-identity.mjs --root .
       - name: Rust toolchain (rust-toolchain.toml) and cargo-deny
         run: |
           curl -sSfo "$RUNNER_TEMP/rustup-init" \
@@ -353,7 +355,7 @@ jobs:
           fi
           set +e
           cargo clippy --locked --all-targets --target-dir "$GITHUB_WORKSPACE/target/nightly" --message-format=json \
-            -p drop-app -p client -p database -p download_manager -p games -p process -p remote -p utils \
+            -p impluvium -p client -p database -p download_manager -p games -p process -p remote -p utils \
             -- --cap-lints warn > "$RUNNER_TEMP/clippy-nightly.jsonl"
           clippy_status=$?
           set -e
@@ -361,7 +363,7 @@ jobs:
           # games depends on droplet_types, which the stable run already counts.
           node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json "${previous[@]}" \
             --metadata "$RUNNER_TEMP/metadata.json" --input "$RUNNER_TEMP/clippy-nightly.jsonl" \
-            --package drop-app --package client --package database --package download_manager \
+            --package impluvium --package client --package database --package download_manager \
             --package games --package process --package remote --package utils --exclude droplet_types
           test "$clippy_status" -eq 0
 
@@ -433,7 +435,7 @@ jobs:
           chmod -R a+rX "$RUNNER_TEMP/control"
       - name: Build server image (OCI archive)
         env:
-          DROP_VERSION: ${{ steps.version.outputs.version }}
+          IMPLUVIUM_VERSION: ${{ steps.version.outputs.version }}
         run: |
           cat > "$RUNNER_TEMP/build.sh" <<'EOS'
           set -eu
@@ -460,20 +462,20 @@ jobs:
 
           echo "== Server image"
           bk --local context=. --local dockerfile=. \
-            --opt build-arg:BUILD_DROP_VERSION="$DROP_VERSION" \
-            --opt build-arg:BUILD_GIT_REF="$GITHUB_SHA" \
+            --opt build-arg:IMPLUVIUM_VERSION="$IMPLUVIUM_VERSION" \
+            --opt build-arg:IMPLUVIUM_GIT_REF="$GITHUB_SHA" \
             --output type=oci,dest="$OUT/server-image.tar"
           EOS
           chmod 0755 "$RUNNER_TEMP/build.sh"
           runuser -u builder -- env OUT="$RUNNER_TEMP/out" CONTROL="$RUNNER_TEMP/control" \
-            DROP_VERSION="$DROP_VERSION" GITHUB_SHA="$GITHUB_SHA" bash "$RUNNER_TEMP/build.sh"
+            IMPLUVIUM_VERSION="$IMPLUVIUM_VERSION" GITHUB_SHA="$GITHUB_SHA" bash "$RUNNER_TEMP/build.sh"
           mv "$RUNNER_TEMP/out/server-image.tar" server-image.tar
           sha256sum server-image.tar
       - name: Leak test part 2 (the canary is in no image blob)
         run: |
           canary="$(cat "$RUNNER_TEMP/canary")"
           # A string the image must contain (from launch.sh) proves that the scan reads the layers.
-          marker='[Drop] performing migrations'
+          marker='[impluvium] performing migrations'
           dir="$(mktemp -d)"
           tar -xf server-image.tar -C "$dir"
           for f in "$dir"/blobs/sha256/*; do
