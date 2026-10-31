@@ -1,0 +1,32 @@
+{"version":1,"entries":[
+  {"path":"README.md","lines":[
+    "The code inherited from Drop is being cleaned up and restructured. Version 0.1 will be the first release: a clean,",
+    "impluvium is derived from [Drop](https://github.com/Drop-OSS/drop), an open-source game distribution platform. Many",
+    "thanks to the Drop maintainers and contributors for the work this project builds on.",
+    "impluvium is an independent project. It is not affiliated with or endorsed by the Drop project. For anything about Drop",
+    "itself, please use the [Drop project's own channels](https://droposs.org).",
+    "impluvium is developed with AI assistance. Drop has a no-AI contributions policy",
+    "([contributing guide](https://developer.droposs.org/contributing#policy)), so changes made here are not submitted",
+    "from Drop keeps the terms its authors gave it: some parts are marked AGPL-3.0-or-later, others AGPL-3.0-only. A few"
+  ],"reason":"States where the project comes from."},
+  {"path":"CONTRIBUTING.md","lines":[
+    "The code inherited from Drop is being cleaned up and largely restructured on the way to 0.1. Work done on the current",
+    "- Drop itself: please use the [Drop project's own channels](https://droposs.org)."
+  ],"reason":"States where the project comes from."},
+  {"path":"SECURITY.md","lines":[
+    "If the problem also affects Drop, the project impluvium is derived from, please report it to Drop as well, following",
+    "[Drop's security policy](https://github.com/Drop-OSS/drop/security/policy)."
+  ],"reason":"States where the project comes from."},
+  {"path":"tools/identity.json","lines":[
+    "\"legacy\": {\"identifier\": \"org.droposs.client\", \"data_dir\": \"drop\", \"debug_data_dir\": \"drop-debug\",",
+    "\"keyring_service\": \"drop\", \"url_scheme\": \"drop\", \"user_agent\": \"Drop Desktop Client\",",
+    "\"app_name\": \"Drop\", \"linux_package\": \"drop-desktop-client\", \"desktop_program\": \"drop-app\"},"
+  ],"reason":"The legacy block holds the old values that importers read."},
+  {"path":"docs/dev/identity.md","reason":"Generated page; it prints the legacy block."},
+  {"path":"tools/env-register.json","reason":"The register records inherited names until they are retired."},
+  {"path":"tools/ci/names-allow.json","reason":"Quotes the lines it allows."},
+  {"path":"tools/ci/check-names.mjs","reason":"Defines the patterns."},
+  {"path":"tools/ci/README.md","reason":"Documents the patterns."},
+  {"glob":"tools/ci/test/**","reason":"Self-tests and their synthetic fixtures use the names on purpose."},
+  {"path":"tools/rename/rules.json","reason":"Rule file of the rename tool; it quotes the old names."}
+]}
