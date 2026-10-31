@@ -11,6 +11,8 @@ on:
   pull_request:
     branches: ["impluvium/main"]
   workflow_dispatch:
+    # A manual run shares the concurrency group of the push run for the same commit and would cancel it: on
+    # impluvium/main, dispatch only after that push run has finished. The tag must match the desktop version.
     inputs:
       probe_tag:
         description: "Run the release-tag branch as if this tag (for example v0.4.0) had been pushed; builds only"
@@ -345,11 +347,18 @@ jobs:
             push:refs/tags/v*) tag="$GITHUB_REF_NAME" ;;
             workflow_dispatch:*) tag="$PROBE_TAG" ;;
           esac
-          if [ -n "$tag" ] && ! printf '%s\n' "$tag" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'; then
-            echo "Not a SemVer release tag: $tag"
-            exit 1
+          if [ -n "$tag" ]; then
+            # The whole value must be one SemVer tag. Anything else (a line break, a space) is rejected before
+            # the grep, which would accept a value with one matching line, and before the GITHUB_ENV write.
+            case "$tag" in
+              *[!0-9A-Za-z.-]*) echo "Not a SemVer release tag (unexpected characters)"; exit 1 ;;
+            esac
+            if ! printf '%s\n' "$tag" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'; then
+              echo "Not a SemVer release tag: $tag"
+              exit 1
+            fi
           fi
-          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          printf 'RELEASE_TAG=%s\n' "$tag" >> "$GITHUB_ENV"
           echo "Release tag: ${tag:-none}"
       - name: Version
         id: version
@@ -536,11 +545,18 @@ jobs:
             push:refs/tags/v*) tag="$GITHUB_REF_NAME" ;;
             workflow_dispatch:*) tag="$PROBE_TAG" ;;
           esac
-          if [ -n "$tag" ] && ! printf '%s\n' "$tag" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'; then
-            echo "Not a SemVer release tag: $tag"
-            exit 1
+          if [ -n "$tag" ]; then
+            # The whole value must be one SemVer tag. Anything else (a line break, a space) is rejected before
+            # the grep, which would accept a value with one matching line, and before the GITHUB_ENV write.
+            case "$tag" in
+              *[!0-9A-Za-z.-]*) echo "Not a SemVer release tag (unexpected characters)"; exit 1 ;;
+            esac
+            if ! printf '%s\n' "$tag" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'; then
+              echo "Not a SemVer release tag: $tag"
+              exit 1
+            fi
           fi
-          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          printf 'RELEASE_TAG=%s\n' "$tag" >> "$GITHUB_ENV"
           echo "Release tag: ${tag:-none}"
       - name: Rust toolchain (desktop/src-tauri/rust-toolchain.toml)
         run: |
