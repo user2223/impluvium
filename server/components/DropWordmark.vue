@@ -11,7 +11,7 @@
       />
     </svg>
     <ApplicationLogo aria-hidden="true" class="h-6" />
-    <span class="text-blue-400 font-display font-bold text-xl uppercase">
+    <span class="text-blue-400 font-display font-bold text-xl">
       <template v-if="serverName">
         {{ serverName }}
       </template>

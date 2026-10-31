@@ -64,7 +64,7 @@
         Don't have one?
         {{ " " }}
         <a
-          href="https://github.com/Drop-OSS"
+          href="https://github.com/user2223/impluvium"
           target="_blank"
           class="font-semibold leading-6 text-blue-600 hover:text-blue-500"
           >Host your own instance -></a

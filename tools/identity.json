@@ -60,6 +60,10 @@
     {"value": "env.prefix", "file": ".gitea/workflows/ci.yml", "regex": "^\\s+(IMPLUVIUM_)VERSION=\"\\$IMPLUVIUM_VERSION\" GITHUB_SHA="},
     {"value": "product.name", "file": "server/build/launch.sh", "regex": "^echo \"\\[(impluvium)\\] performing migrations\\.\\.\\.\"$"},
     {"value": "product.name", "file": ".gitea/workflows/ci.yml", "regex": "marker='\\[(impluvium)\\] performing migrations'"},
+    {"value": "product.name", "file": "server/server/internal/config/application-configuration.ts", "regex": "serverName: \"([^\"]+)\","},
+    {"value": "product.repository", "file": "server/components/UserFooter.vue", "regex": "^\\s+to=\"(https://github\\.com/[^\"]+)\"$"},
+    {"value": "product.repository", "file": "server/components/UserFooter.vue", "regex": "href: \"([^\"]+)\",\\s+icon: IconsGithubLogo,"},
+    {"value": "product.repository", "file": "desktop/main/pages/setup/server.vue", "regex": "href=\"(https://github\\.com/[^\"]+)\"\\s+target=\"_blank\""},
     {"value": "packages.npm.server", "file": "server/package.json", "json": "/name"},
     {"value": "packages.npm.desktop", "file": "desktop/package.json", "json": "/name"}
   ]

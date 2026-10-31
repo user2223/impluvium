@@ -38,6 +38,7 @@ class ApplicationConfiguration {
   async initialiseConfiguration() {
     const initialState = await prisma.applicationSettings.create({
       data: {
+        serverName: "impluvium",
         metadataProviders: [],
       },
     });

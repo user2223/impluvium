@@ -92,7 +92,7 @@
 
         <div class="flex items-center justify-center xl:col-span-3 mt-8">
           <NuxtLink
-            :to="`https://github.com/Drop-OSS/drop/releases/tag/${versionInfo.version}`"
+            to="https://github.com/user2223/impluvium"
             class="text-xs text-zinc-700 hover:text-zinc-400 transition-colors duration-200 cursor-default select-none"
           >
             <i18n-t keypath="footer.version" tag="span" scope="global">
@@ -148,7 +148,7 @@ const navigation = computed(() => ({
   social: [
     {
       name: t("footer.social.github"),
-      href: "https://github.com/Drop-OSS",
+      href: "https://github.com/user2223/impluvium",
       icon: IconsGithubLogo,
     },
     {
