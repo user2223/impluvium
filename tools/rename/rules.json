@@ -1,0 +1,37 @@
+{"version":1,"rules":[
+  {"id":"locales-fr-elision","kind":"json","files":["server/i18n/locales/fr.json"],
+   "pattern":"\\bde Drop(?![A-Za-z0-9_])(?!-OSS)","replacement":"d'${product.name}",
+   "exclude":[
+     {"path":"server/i18n/locales/fr.json","keys":["helpUsTranslate","**.fsTitle","**.checkUpdateDescription","footer.aboutDrop"],"reason":"Names or links a resource of the upstream Drop project (translation site, directory format, update check, website link)."}
+   ]},
+  {"id":"locales","kind":"json","files":["server/i18n/locales/*.json"],
+   "pattern":"(?:(?<![A-Za-z0-9_])|(?<=\\\\[nrt]))Drop(?![A-Za-z0-9_])(?!-OSS)","replacement":"product.name",
+   "exclude":[
+     {"glob":"server/i18n/locales/*.json","keys":["helpUsTranslate"],"reason":"Links to the translation site of the upstream Drop project."},
+     {"glob":"server/i18n/locales/*.json","keys":["**.fsTitle"],"reason":"Names the Drop directory format and links to Drop's documentation."},
+     {"glob":"server/i18n/locales/*.json","keys":["**.checkUpdateDescription"],"reason":"Describes the update check, which looks at releases of the upstream Drop project."},
+     {"glob":"server/i18n/locales/*.json","keys":["footer.aboutDrop"],"reason":"Label of a footer link to the Drop website."}
+   ]},
+  {"id":"en-article-lower","kind":"text","files":["server/**/*.vue","server/**/*.ts","desktop/main/**/*.vue","desktop/main/**/*.ts"],
+   "skip":["server/deploy-template/**","server/.devcontainer/**","server/.vscode/**"],
+   "pattern":"(?<![A-Za-z0-9_])a Drop(?![A-Za-z0-9_])(?!-OSS)","replacement":"an ${product.name}"},
+  {"id":"en-article-upper","kind":"text","files":["server/**/*.vue","server/**/*.ts","desktop/main/**/*.vue","desktop/main/**/*.ts"],
+   "skip":["server/deploy-template/**","server/.devcontainer/**","server/.vscode/**"],
+   "pattern":"(?<![A-Za-z0-9_])A Drop(?![A-Za-z0-9_])(?!-OSS)","replacement":"An ${product.name}"},
+  {"id":"server-text","kind":"text","files":["server/**/*.vue","server/**/*.ts"],
+   "skip":["server/deploy-template/**","server/.devcontainer/**","server/.vscode/**"],
+   "pattern":"(?:(?<![A-Za-z0-9_])|(?<=\\\\[nrt]))Drop(?![A-Za-z0-9_])(?!-OSS)","replacement":"product.name",
+   "exclude":[
+     {"path":"server/server/internal/tasks/registry/update.ts","reason":"The update check asks the upstream Drop project for its latest release; message and link name that resource."},
+     {"path":"server/server/internal/objects/fsBackend.ts","lines":["// Upstream Drop uses md5 for ETag hashing"],"reason":"Provenance statement about the upstream project."},
+     {"path":"server/server/internal/clients/ca.ts","lines":["await ca.generateClientCertificate(\"server\", \"Drop Server\");"],"reason":"Subject name inside a generated certificate; not a visible product name."},
+     {"path":"server/layouts/admin.vue","lines":["<DropWordmark class=\"h-full w-auto\" alt=\"Drop`\" />"],"reason":"Kept for now; this layout is revised together with the admin navigation later."}
+   ]},
+  {"id":"desktop-text","kind":"text","files":["desktop/main/**/*.vue","desktop/main/**/*.ts"],
+   "pattern":"(?:(?<![A-Za-z0-9_])|(?<=\\\\[nrt]))Drop(?![A-Za-z0-9_])(?!-OSS)","replacement":"product.name"},
+  {"id":"desktop-rust","kind":"rust","files":["desktop/src-tauri/**/*.rs"],
+   "pattern":"(?:(?<![A-Za-z0-9_])|(?<=\\\\[nrt]))Drop(?![A-Za-z0-9_])(?!-OSS)","replacement":"product.name"},
+  {"id":"manifests","kind":"text","files":["package.json","Cargo.toml","server/package.json","desktop/**/package.json","desktop/**/Cargo.toml","libraries/*/Cargo.toml"],
+   "skip":["libraries/droplet*/**","libraries/libarchive/**"],"lines":"^\\s*\"?description\"?\\s*[=:]",
+   "pattern":"(?:(?<![A-Za-z0-9_])|(?<=\\\\[nrt]))Drop(?![A-Za-z0-9_])(?!-OSS)","replacement":"product.name"}
+]}

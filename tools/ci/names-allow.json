@@ -28,5 +28,6 @@
   {"path":"tools/ci/check-names.mjs","reason":"Defines the patterns."},
   {"path":"tools/ci/README.md","reason":"Documents the patterns."},
   {"glob":"tools/ci/test/**","reason":"Self-tests and their synthetic fixtures use the names on purpose."},
-  {"path":"tools/rename/rules.json","reason":"Rule file of the rename tool; it quotes the old names."}
+  {"path":"tools/rename/rules.json","reason":"Rule file of the rename tool; it quotes the old names."},
+  {"path":"tools/rename/rename.mjs","reason":"The rename tool names the Rust destructor forms it never touches."}
 ]}
