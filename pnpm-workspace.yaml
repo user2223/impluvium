@@ -15,4 +15,5 @@ onlyBuiltDependencies:
   - unrs-resolver
   - protobufjs
 
-shamefullyHoist: true
+# Every project sees only the packages it declares (no hoisting into the root node_modules).
+shamefullyHoist: false

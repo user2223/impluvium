@@ -81,6 +81,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.0.6
         version: 4.2.2(vite@7.3.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.107.0)(terser@5.51.2)(yaml@2.9.1))
+      '@vueuse/core':
+        specifier: 13.6.0
+        version: 13.6.0(vue@3.5.44(typescript@5.9.3))
       '@vueuse/nuxt':
         specifier: 13.6.0
         version: 13.6.0(a7d24e0efc1e9d777754e83aa1689fb4)

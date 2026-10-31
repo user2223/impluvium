@@ -55,9 +55,12 @@ FROM base AS build-system
 ENV NODE_ENV=production
 ENV NUXT_TELEMETRY_DISABLED=1
 
-## copy deps and rest of project files
+## copy deps and rest of project files. Packages are not hoisted, so every project has its own node_modules
+## (links into the root node_modules/.pnpm store); the links are relative and stay valid at the same paths.
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/server/node_modules ./server/node_modules
+COPY --from=deps /app/libraries/base/node_modules ./libraries/base/node_modules
 
 
 ARG BUILD_DROP_VERSION
