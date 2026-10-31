@@ -31,3 +31,8 @@ export function invoke(tool, args, expected) {
   if (expected !== 0) assert.match(result.stderr, /:\d+: /);
   return result;
 }
+export function copyOf(t, name) {
+  const directory = temporary(t);
+  cpSync(fixture(name), directory, { recursive: true });
+  return directory;
+}

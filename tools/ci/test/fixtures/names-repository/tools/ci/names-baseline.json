@@ -1,0 +1,6 @@
+{"version":1,"files":{
+  "build.sh": {"build-arg":1,"rpm-package":1},
+  "config.json": {"word":1},
+  "src/lib.rs": {"app-lib":1,"app-package":1,"literal-debug-name":1,"word":1},
+  "web/page.vue": {"desktop-title":1,"literal-name":1,"oss":1,"scheme":1,"word":3}
+}}

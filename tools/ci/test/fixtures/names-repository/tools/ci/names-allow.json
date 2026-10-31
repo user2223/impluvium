@@ -1,0 +1,5 @@
+{"version":1,"entries":[
+  {"path":"docs/ORIGIN.md","reason":"Origin statement."},
+  {"path":"config.json","lines":["\"legacy\": \"Drop\","],"reason":"Legacy value."},
+  {"path":"tools/ci/names-allow.json","reason":"Quotes the lines it allows."}
+]}

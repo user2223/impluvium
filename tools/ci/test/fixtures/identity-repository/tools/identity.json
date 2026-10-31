@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "product": {"name": "example", "publisher": "example", "domain": "example.com", "repository": "https://example.com/example/example"},
+  "programs": {"desktop": "example", "server": "example-server"},
+  "user_agent": {"os": ["linux", "windows"], "arch": ["x86_64"]},
+  "bindings": []
+}

@@ -1,0 +1,4 @@
+FROM scratch
+ARG EXAMPLE_BASE=example.com/base:1
+ENV EXAMPLE_PORT=4000 EXAMPLE_FLAG="a b" \
+    EXAMPLE_LAST=1

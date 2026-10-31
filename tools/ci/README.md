@@ -175,8 +175,9 @@ that ambiguity or unsupported launcher options produce exit 2. Use a plain
 command or `pnpm exec` for local binaries instead.
 
 The repository passes the full check; the `checks` job of `ci.yml` runs it on
-every change, together with the self-tests, `check-features`,
-`check-licence-boundary` and `cargo deny` (configured in `deny.toml`).
+every change, together with the self-tests, `check-features`, `check-names`,
+`check-env`, the identity document check, `check-licence-boundary` and `cargo deny`
+(configured in `deny.toml`).
 
 `check-features` associates each Rust file with its nearest package manifest,
 ignores strings/comments, and checks gate **names**, including nested
@@ -372,3 +373,106 @@ plugins with `~` requirements, but Tauri's internal crates (`tauri-build`,
 held only by the lock file. A plain `cargo update` would move them to newer
 minor versions than the locked `tauri` release was built with. Update Tauri as
 one set: change the manifest, the lock and this file in the same change.
+
+`check-names` is a ratchet on names inherited from the upstream project. It
+counts, per file and pattern, the lines that match one of ten patterns (the
+upstream product name as a word, its organisation in both spellings, its URL
+scheme, the old desktop titles, the old package, library, RPM and build-argument
+names, and the old data directory and keyring names as string literals). A line
+counts once per pattern. In Rust files the destructor forms `impl ... Drop for`,
+`ops::Drop` and `Drop::drop` are not names. Binary files (any NUL byte) are
+skipped. `names-baseline.json` holds only the counts and must match **exactly**,
+as for the diagnostic ratchets:
+
+```json
+{"version":1,"files":{"web/page.vue":{"word":3,"scheme":1}}}
+```
+
+A higher count fails; a lower one asks for a lower baseline in the same change.
+`--previous-baseline FILE` (the base revision's file) allows the counts to shrink
+per file and pattern only; a new file or pattern in the baseline counts as growth.
+`names-allow.json` lists permanent exceptions: each entry names a `path` or a
+`glob`, a `reason` and optionally `lines` (exact line texts; without `lines` the
+whole file is exempt). An allowed line that no longer exists fails. The tool
+never writes: `--print-baseline` prints the current counts as a new baseline on
+standard output, so redirect it on the host side when a change has to update the
+file.
+
+```sh
+node tools/ci/check-names.mjs --root . --previous-baseline /tmp/base-names.json
+node tools/ci/check-names.mjs --root . --print-baseline > names-baseline.json
+```
+
+`check-env` keeps `tools/env-register.json` and the code in step. Each register
+entry has `name`, `kind`, `component`, `status`, `evidence`, `standard`,
+`secret`, `fate` (`action` keep, rename or remove, `to` for a rename, and `when`
+as an English sentence), `description` and, for names built at run time, a
+`pattern`. `evidence` is `read` when project code reads the name, or
+`consumer: <who>` when a tool, framework or image does. The register is public:
+it carries no planning identifiers and the check rejects the common shapes.
+The check reads these forms and nothing else:
+
+- `process.env.NAME`, `process.env["NAME"]` and `process.env['NAME']` in
+  `*.ts`, `*.js`, `*.mjs` and `*.vue` below `server/`, `desktop/main/` and
+  `libraries/base/`;
+- in `*.rs`, `std::env::var("NAME")`, `std::env::var_os("NAME")`, the same calls
+  as `env::var(...)` and `env::var_os(...)` when the file imports the module
+  (`use std::env;`, `use std::{..., env, ...};` or `use std::env::{self, ...};`),
+  and the macros `option_env!("NAME")` and `env!("NAME")` with any of the
+  delimiters `()`, `[]` and `{}`;
+- `ARG NAME` and `ENV NAME=value` in a `Dockerfile`, and `NAME=value` in a
+  `*.env.example` file (optionally with `export` and spaces around `=`; commented
+  declarations count too). Any other line in such a file that is not empty or a
+  comment is exit 2.
+
+In `*.vue` files only the `<script>` blocks are read (the template cannot reach `process`); a script tag whose block cannot be extracted is exit 2. In scripts a `/` after a value or an unclear context is read as division, never as a regex. In scripts, comments are blanked before matching (so `process /* x */ .env.NAME`
+is a read and a commented-out read is not), while string contents stay visible: a
+read inside a string or template text would still count. `process` may only
+appear as `process.<member>` (`process.platform`, `process.cwd()`, `process.exit()`
+and `process.env` are fine); an alias, cast (`process as ...`), spread,
+destructuring or computed access is rejected.
+
+Everything else that touches the environment is an error: any other use of
+`process.env` (destructuring, aliases, spread, enumeration, a computed name),
+any other use of `process` as a value, in Rust the direct import or alias
+of a reader (`use std::env::var;`, `use std::env::{var, ...};`,
+`use std::{..., env::var, ...};`, `use std::env as ...;`, `var as ...`, also over
+several lines; `{self as ...}` counts as an alias of its parent), `env::vars()`, `env::vars_os()`, and `var` calls with a name that
+is not a string literal. The only exception is a register entry with a `pattern`
+(`prefix`, `file` and a `snippet` of at least two consecutive lines): the line that
+builds the name and the line that reads it. The rejected access must end on the
+last line of the snippet in that file, and the first line must contain the prefix.
+If either line changes, the exception no longer matches and the check fails.
+`tools/`, `.gitea/`, the self-tests and shell scripts are not scanned for reads;
+the only product script reads no project variable.
+
+The check fails when (a) a name that is read or declared is not registered, (b) an
+`active` entry with evidence `read` has no read site (a declaration in an example
+file or `Dockerfile` is not one), (c) an `IMPLUVIUM_` name appears anywhere in the
+repository (except the self-tests) without a register entry (a name ending in `*`
+covers its family), or (d) with `--previous-register FILE` (the base revision's
+register), a name without the `IMPLUVIUM_` prefix that is not a standard name
+becomes `active` or `planned` for the first time. A malformed register or
+unreadable source is exit 2.
+
+```sh
+node tools/ci/check-env.mjs --root . --previous-register /tmp/base-env-register.json
+```
+
+`identity-doc` renders `docs/dev/identity.md` from `tools/identity.json` and the
+register through a pure function (`render`) and compares it with the committed
+page; it only reads (`--check` is required). The page is written by
+`tools/identity/write-doc.mjs`, which uses the same function. Run the writer, like
+every repository script, only in a disposable container; `--stdout` prints the
+page so that it can be redirected on the host side.
+
+```sh
+node tools/ci/identity-doc.mjs --root . --check
+node tools/identity/write-doc.mjs --root . --stdout > docs/dev/identity.md
+```
+
+In the `checks` job, the step "Baseline of the base revision" also extracts
+`tools/ci/names-baseline.json` and `tools/env-register.json` from the base
+revision, exactly like the feature-gate allow-list: a missing file in the base is
+the first introduction and allowed only while the base `ci.yml` does not mention
+it.
