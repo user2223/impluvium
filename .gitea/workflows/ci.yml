@@ -49,6 +49,66 @@ jobs:
         working-directory: server
         run: pnpm run lint
 
+  desktop-ui:
+    runs-on: impluvium-linux
+    container:
+      image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:2992a8a0448aba1c093255787390b2a090fefbfd76cc25db107f527e9bd65d3a
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Enable pnpm (corepack, version from package.json)
+        run: corepack enable && pnpm --version
+      - name: Install dependencies (desktop UI and its Nuxt layer)
+        run: pnpm install --frozen-lockfile --filter "{./desktop/main}..." --fail-if-no-match
+      - name: Baseline of the base revision
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          # As in the rust job: the TypeScript error count may only fall compared with the revision this run
+          # builds on. A missing base fails the run; only a new branch, a tag push and a manual run have none.
+          mkdir -p "$RUNNER_TEMP/base"
+          case "$EVENT_NAME:$GITHUB_REF" in
+            pull_request:*) base="$PR_BASE_SHA" ;;
+            push:refs/heads/*) base="$PUSH_BEFORE" ;;
+            *)
+              echo "No base revision for this run ($EVENT_NAME $GITHUB_REF): only the current baseline is checked."
+              exit 0
+              ;;
+          esac
+          if [ -z "$base" ]; then
+            echo "The $EVENT_NAME event for $GITHUB_REF names no base revision"
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = push ] && [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "New branch $GITHUB_REF: no base revision, only the current baseline is checked."
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$base"
+          git show "$base:.gitea/workflows/ci.yml" > "$RUNNER_TEMP/base/ci.yml"
+          if git cat-file -e "$base:tools/ci/tsc-baseline.json" 2>/dev/null; then
+            git show "$base:tools/ci/tsc-baseline.json" > "$RUNNER_TEMP/base/tsc-baseline.json"
+            echo "tools/ci/tsc-baseline.json: compared with $base"
+          elif grep -q "tools/ci/tsc-baseline.json" "$RUNNER_TEMP/base/ci.yml"; then
+            echo "tools/ci/tsc-baseline.json is used by $base but missing there"
+            exit 1
+          else
+            echo "tools/ci/tsc-baseline.json: new, $base does not use it yet"
+          fi
+      - name: Typecheck (error count may only fall)
+        run: |
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/tsc-baseline.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/tsc-baseline.json")
+          fi
+          set +e
+          pnpm -C desktop/main run typecheck > "$RUNNER_TEMP/typecheck.txt" 2>&1
+          typecheck_status=$?
+          set -e
+          cat "$RUNNER_TEMP/typecheck.txt"
+          node tools/ci/tsc-ratchet.mjs --baseline tools/ci/tsc-baseline.json "${previous[@]}" \
+            --package view --input "$RUNNER_TEMP/typecheck.txt" --status "$typecheck_status"
+
   rust:
     runs-on: impluvium-linux
     container:

@@ -269,6 +269,9 @@ current baselines alone. To measure counts, run the job's steps in its
 container image: the tools print the observed count of every selected package,
 also when the check fails.
 
+The `desktop-ui` job uses `tools/ci/tsc-baseline.json` (package `view`, the Nuxt
+typecheck of `desktop/main`) and reads its base copy the same way.
+
 For Clippy, capture **stdout only**, preserving JSON lines. Metadata must include
 `workspace_members` and dependencies; exact package IDs are joined against it,
 so path basenames and Rust target names need not equal package names.
