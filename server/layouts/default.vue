@@ -17,19 +17,10 @@
 
 <script setup lang="ts">
 const clientRequest = isClientRequest();
-const i18nHead = useLocaleHead();
 
 const { t } = useI18n();
 
 useHead({
-  htmlAttrs: {
-    lang: i18nHead.value.htmlAttrs.lang,
-    // @ts-expect-error head.value.htmlAttrs.dir is not typed as strictly as it should be
-    dir: i18nHead.value.htmlAttrs.dir,
-  },
-  // // seo headers
-  // link: [...i18nHead.value.link],
-  // meta: [...i18nHead.value.meta],
   titleTemplate(title) {
     return title ? t("titleTemplate", [title]) : t("title");
   },

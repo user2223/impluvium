@@ -1,5 +1,5 @@
 {
-  "name": "view",
+  "name": "impluvium-desktop-ui",
   "private": true,
   "version": "0.3.4",
   "type": "module",
@@ -17,9 +17,9 @@
     "@tauri-apps/plugin-dialog": "~2.6.0",
     "@tauri-apps/plugin-os": "~2.3.2",
     "@tauri-apps/plugin-shell": "~2.3.3",
+    "impluvium-ui-base": "workspace:*",
     "micromark": "^4.0.1",
-    "my-nuxt-layer": "workspace:*",
-    "nuxt": "^4.5.1",
+    "nuxt": "4.6.4",
     "vue": "^3.5.42",
     "vue-router": "^5.2.0",
     "vuedraggable": "^4.1.0"

@@ -18,7 +18,8 @@
                  "tokens": {"desktop": "impluvium-desktop", "cli": "impluvium-cli", "run": "impluvium-run",
                             "server": "impluvium-server", "manifest": "impluvium-manifest"}},
   "packages": {"crate_prefix": "impluvium-", "npm_prefix": "impluvium-", "image": "impluvium-server",
-               "npm": {"server": "impluvium-web", "desktop": "impluvium-desktop"}},
+               "npm": {"server": "impluvium-web", "desktop": "impluvium-desktop",
+                       "desktop_ui": "impluvium-desktop-ui", "ui_base": "impluvium-ui-base"}},
   "legacy": {"identifier": "org.droposs.client", "data_dir": "drop", "debug_data_dir": "drop-debug",
              "keyring_service": "drop", "url_scheme": "drop", "user_agent": "Drop Desktop Client",
              "app_name": "Drop", "linux_package": "drop-desktop-client", "desktop_program": "drop-app"},
@@ -65,6 +66,12 @@
     {"value": "product.repository", "file": "server/components/UserFooter.vue", "regex": "href: \"([^\"]+)\",\\s+icon: IconsGithubLogo,"},
     {"value": "product.repository", "file": "desktop/main/pages/setup/server.vue", "regex": "href=\"(https://github\\.com/[^\"]+)\"\\s+target=\"_blank\""},
     {"value": "packages.npm.server", "file": "server/package.json", "json": "/name"},
-    {"value": "packages.npm.desktop", "file": "desktop/package.json", "json": "/name"}
+    {"value": "packages.npm.desktop", "file": "desktop/package.json", "json": "/name"},
+    {"value": "packages.npm.desktop_ui", "file": "desktop/main/package.json", "json": "/name"},
+    {"value": "packages.npm.ui_base", "file": "libraries/base/package.json", "json": "/name"},
+    {"value": "packages.npm.ui_base", "file": "server/package.json", "regex": "^\\s*\"(impluvium-ui-base)\": \"workspace:\\*\",$"},
+    {"value": "packages.npm.ui_base", "file": "desktop/main/package.json", "regex": "^\\s*\"(impluvium-ui-base)\": \"workspace:\\*\",$"},
+    {"value": "packages.npm.desktop_ui", "file": "tools/ci/tsc-baseline.json", "regex": "^\\s*\"(impluvium-desktop-ui)\": [0-9]+,?$"},
+    {"value": "packages.npm.desktop_ui", "file": ".gitea/workflows/ci.yml", "regex": "--package ([\\w-]+) --input \"\\$RUNNER_TEMP/typecheck\\.txt\""}
   ]
 }

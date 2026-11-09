@@ -14,7 +14,7 @@ pnpm install --frozen-lockfile --filter "{./desktop}" --filter "{./desktop/main}
 The directory filters resolve against the current directory. `--fail-if-no-match` makes the command fail when it is
 run from elsewhere, instead of installing nothing.
 
-The UI uses Nuxt 4 and the server Nuxt 3, so install per project as shown instead of the whole workspace.
+Both the desktop UI and the server use Nuxt 4. Install per project as shown instead of the whole workspace.
 
 ## Building
 

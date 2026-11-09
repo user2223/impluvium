@@ -240,7 +240,7 @@ jobs:
           set -e
           cat "$RUNNER_TEMP/typecheck.txt"
           node tools/ci/tsc-ratchet.mjs --baseline tools/ci/tsc-baseline.json "${previous[@]}" \
-            --package view --input "$RUNNER_TEMP/typecheck.txt" --status "$typecheck_status"
+            --package impluvium-desktop-ui --input "$RUNNER_TEMP/typecheck.txt" --status "$typecheck_status"
 
   rust:
     runs-on: impluvium-linux

@@ -263,9 +263,9 @@
   "header": {
     "admin": {
       "admin": "Administrator",
-      "home": "Strona Główna",
       "library": "Biblioteka",
       "metadata": "Metadane",
+      "overview": "Strona Główna",
       "settings": {
         "store": "Sklep",
         "title": "Ustawienia",

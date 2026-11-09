@@ -273,9 +273,9 @@
   "header": {
     "admin": {
       "admin": "Admin",
-      "home": "Startseite",
       "library": "Bibliothek",
       "metadata": "Metadaten",
+      "overview": "Startseite",
       "settings": {
         "store": "Store",
         "title": "Einstellungen",

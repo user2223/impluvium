@@ -37,6 +37,11 @@ console.log(`impluvium ${dropVersion} #${commitHash}`);
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   extends: ["../libraries/base"],
+  // Keep the existing app files beside nuxt.config.ts when using Nuxt 4.
+  srcDir: ".",
+  future: {
+    compatibilityVersion: 4,
+  },
   // Module config from here down
 
   modules: [
@@ -73,10 +78,6 @@ export default defineNuxtConfig({
     componentIslands: true,
   },
 
-  // future: {
-  //   compatibilityVersion: 4,
-  // },
-
   vite: {
     plugins: [
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,6 +92,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      htmlAttrs: { lang: "en-us", dir: "ltr" },
       link: [{ rel: "icon", href: "/favicon.ico" }],
     },
   },
@@ -164,6 +166,9 @@ export default defineNuxtConfig({
         verbatimModuleSyntax: false,
         strictNullChecks: true,
         exactOptionalPropertyTypes: true,
+        // Nuxt 4 turns this on by default. The existing code was written and
+        // checked without it, so adopting it is separate work from the upgrade.
+        noUncheckedIndexedAccess: false,
       },
     },
   },
@@ -173,20 +178,19 @@ export default defineNuxtConfig({
   },
 
   i18n: {
-    bundle: {
-      optimizeTranslationDirective: false,
-    },
+    restructureDir: "i18n",
+    langDir: "locales",
+    vueI18n: "i18n.config.ts",
     defaultLocale: "en-us",
-    lazy: true,
     strategy: "no_prefix",
     experimental: {
       localeDetector: "localeDetector.ts",
-      autoImportTranslationFunctions: true,
     },
     detectBrowserLanguage: {
       useCookie: true,
-      cookieKey: "drop_i18n_redirected",
+      cookieKey: "impluvium_i18n_redirected",
       fallbackLocale: "en-us",
+      redirectOn: "all",
     },
     locales: [
       { code: "en-us", language: "en-us", name: "English", file: "en_us.json" },

@@ -106,6 +106,8 @@ Bindings that tie a value to the place in the code that uses it follow the code 
 | `image` | `impluvium-server` |
 | `npm.server` | `impluvium-web` |
 | `npm.desktop` | `impluvium-desktop` |
+| `npm.desktop_ui` | `impluvium-desktop-ui` |
+| `npm.ui_base` | `impluvium-ui-base` |
 
 ### Legacy values (read by importers only)
 

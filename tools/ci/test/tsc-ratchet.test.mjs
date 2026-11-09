@@ -65,3 +65,70 @@ for (const status of ['3', '127', '137', '143']) test(`tsc: incomplete exit stat
 test('tsc: completed exit statuses 1 and 2 are accepted with matching diagnostics', () => {
   for (const status of ['1', '2']) invoke('tsc-ratchet', args(fixture('tsc.txt'), status), 0);
 });
+
+function renamedBudget(t, current, previous, count = 42, selected = 'impluvium-desktop-ui') {
+  const root = temporary(t);
+  const baseline = path.join(root, 'current.json');
+  const oldBaseline = path.join(root, 'previous.json');
+  writeFileSync(baseline, JSON.stringify({ version: 1, packages: current }));
+  writeFileSync(oldBaseline, JSON.stringify({ version: 1, packages: previous }));
+  const input = log(t, 'source.vue(1,1): error TS2322: Incompatible types.\n'.repeat(count));
+  return ['--baseline', baseline, '--previous-baseline', oldBaseline, '--package', selected,
+    '--input', input, '--status', count ? '2' : '0'];
+}
+
+test('tsc: the desktop UI rename preserves or lowers the predecessor budget', t => {
+  for (const count of [42, 41, 0]) {
+    const input = renamedBudget(t, { 'impluvium-desktop-ui': count }, { view: 42 }, count);
+    const before = readFileSync(input[1], 'utf8');
+    invoke('tsc-ratchet', input, 0);
+    assert.equal(readFileSync(input[1], 'utf8'), before);
+  }
+});
+
+test('tsc: the desktop UI rename cannot increase its inherited budget', t => {
+  const input = renamedBudget(t, { 'impluvium-desktop-ui': 43 }, { view: 42 }, 43);
+  assert.match(invoke('tsc-ratchet', input, 1).stderr, /baseline was relaxed/);
+});
+
+test('tsc: a rename does not hide additional compiler diagnostics', t => {
+  const input = renamedBudget(t, { 'impluvium-desktop-ui': 42 }, { view: 42 }, 43);
+  assert.match(invoke('tsc-ratchet', input, 1).stderr, /43 diagnostics exceeds baseline 42/);
+});
+
+test('tsc: the predecessor and successor cannot both claim budgets', t => {
+  for (const oldBudget of [0, 42]) {
+    const input = renamedBudget(t, { view: oldBudget, 'impluvium-desktop-ui': 42 }, { view: 42 });
+    assert.match(invoke('tsc-ratchet', input, 1).stderr, /both names cannot claim a budget/);
+    // The restriction also holds for runs without a base revision.
+    invoke('tsc-ratchet', [...input.slice(0, 2), ...input.slice(4)], 1);
+  }
+  const input = renamedBudget(t, { 'impluvium-desktop-ui': 42 }, { view: 42, 'impluvium-desktop-ui': 42 });
+  assert.match(invoke('tsc-ratchet', input, 1).stderr, /duplicate predecessor budgets/);
+});
+
+test('tsc: a renamed budget requires its exact predecessor', t => {
+  for (const previous of [{}, { other: 42 }]) {
+    const input = renamedBudget(t, { 'impluvium-desktop-ui': 42 }, previous);
+    assert.match(invoke('tsc-ratchet', input, 1).stderr, /missing predecessor view/);
+  }
+});
+
+test('tsc: the rename exception cannot fund another new package', t => {
+  const input = renamedBudget(t, { 'impluvium-desktop-ui': 42, other: 1 }, { view: 42 });
+  assert.match(invoke('tsc-ratchet', input, 1).stderr, /other: added package in baseline with a nonzero budget/);
+  const alias = renamedBudget(t, { another: 42 }, { view: 42 }, 42, 'another');
+  assert.match(invoke('tsc-ratchet', alias, 1).stderr, /another: added package in baseline/);
+});
+
+test('tsc: after migration the successor cannot reclaim the old budget or revive the old name', t => {
+  const raised = renamedBudget(t, { 'impluvium-desktop-ui': 42 }, { 'impluvium-desktop-ui': 41 });
+  assert.match(invoke('tsc-ratchet', raised, 1).stderr, /baseline was relaxed/);
+  const reversed = renamedBudget(t, { view: 42 }, { 'impluvium-desktop-ui': 42 }, 42, 'view');
+  assert.match(invoke('tsc-ratchet', reversed, 1).stderr, /view: added package in baseline/);
+});
+
+test('tsc: migration still checks unselected packages for relaxed budgets', t => {
+  const input = renamedBudget(t, { 'impluvium-desktop-ui': 42, other: 2 }, { view: 42, other: 1 });
+  assert.match(invoke('tsc-ratchet', input, 1).stderr, /other: baseline was relaxed/);
+});

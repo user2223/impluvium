@@ -266,7 +266,7 @@ current baselines alone. To measure counts, run the job's steps in its
 container image: the tools print the observed count of every selected package,
 also when the check fails.
 
-The `desktop-ui` job uses `tools/ci/tsc-baseline.json` (package `view`, the Nuxt
+The `desktop-ui` job uses `tools/ci/tsc-baseline.json` (package `impluvium-desktop-ui`, the Nuxt
 typecheck of `desktop/main`) and reads its base copy the same way.
 
 For Clippy, capture **stdout only**, preserving JSON lines. Metadata must include
@@ -296,10 +296,10 @@ are accepted. Run the package typecheck command after preparation:
 
 ```sh
 set +e
-pnpm --filter view run typecheck > /tmp/typecheck.txt 2>&1
+pnpm --filter impluvium-desktop-ui run typecheck > /tmp/typecheck.txt 2>&1
 typecheck_status=$?
 set -e
-node tools/ci/tsc-ratchet.mjs --baseline tools/ci/tsc-baseline.json --previous-baseline /tmp/base-tsc.json --package view --input /tmp/typecheck.txt --status "$typecheck_status"
+node tools/ci/tsc-ratchet.mjs --baseline tools/ci/tsc-baseline.json --previous-baseline /tmp/base-tsc.json --package impluvium-desktop-ui --input /tmp/typecheck.txt --status "$typecheck_status"
 ```
 
 Only completed exit statuses 0, 1 and 2 are accepted. Configuration/input

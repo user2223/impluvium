@@ -209,11 +209,9 @@ import { ArrowLeftIcon, BellIcon } from "@heroicons/vue/16/solid";
 import { XMarkIcon } from "@heroicons/vue/24/solid";
 import type { Settings } from "~/server/internal/utils/types";
 
-const i18nHead = useLocaleHead();
-
 const navigation: Array<NavigationItem & { icon: Component }> = [
   {
-    label: $t("header.admin.home"),
+    label: $t("header.admin.overview"),
     route: "/admin",
     prefix: "/admin",
     icon: HomeIcon,
@@ -279,11 +277,6 @@ useFavicon(favicon, { rel: "icon" });
 const applicationName = serverName || $t("drop.drop");
 
 useHead({
-  htmlAttrs: {
-    lang: i18nHead.value.htmlAttrs.lang,
-    // @ts-expect-error head.value.htmlAttrs.dir is not typed as strictly as it should be
-    dir: i18nHead.value.htmlAttrs.dir,
-  },
   titleTemplate(title) {
     return title
       ? $t("adminTitleTemplate", [title, applicationName])

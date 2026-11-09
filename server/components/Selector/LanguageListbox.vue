@@ -96,15 +96,6 @@ const { locales, locale: currLocale, setLocale } = useI18n();
 
 function changeLocale(locale: Locale) {
   setLocale(locale);
-
-  // dynamically update the HTML attributes for language and direction
-  // this is necessary for proper rendering of the page in the new language
-  useHead({
-    htmlAttrs: {
-      lang: locale,
-      dir: locales.value.find((l) => l.code === locale)?.dir || "ltr",
-    },
-  });
 }
 
 function localeToEmoji(local: string): string {

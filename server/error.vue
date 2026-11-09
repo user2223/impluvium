@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { NuxtError } from "#app";
 
+useLocaleHtmlAttributes();
+
 const props = defineProps({
   error: {
     type: Object as () => NuxtError,

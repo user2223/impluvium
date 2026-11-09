@@ -332,9 +332,9 @@
   "header": {
     "admin": {
       "admin": "Admin",
-      "home": "Home",
       "library": "Library",
       "metadata": "Meta",
+      "overview": "Home",
       "settings": {
         "general": "General Settings",
         "store": "Store",
