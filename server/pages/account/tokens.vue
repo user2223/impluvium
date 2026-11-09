@@ -148,9 +148,9 @@
 </template>
 
 <script setup lang="ts">
-import { ArkErrors, type } from "arktype";
 import { DateTime, type DurationLike } from "luxon";
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/vue/20/solid";
+import { parseTokenCreatePayload } from "~/utils/browser-validation";
 
 const tokens = ref(await $dropFetch("/api/v1/user/token"));
 const acls = await $dropFetch("/api/v1/user/token/acls");
@@ -160,20 +160,13 @@ const createLoading = ref(false);
 
 const newToken = ref<string | undefined>();
 
-const suggestedName = ref();
+const suggestedName = ref<string>();
 const suggestedAcls = ref<string[]>([]);
-
-const payloadParser = type({
-  name: "string?",
-  acls: "string[]?",
-});
 
 const route = useRoute();
 if (route.query.payload) {
   try {
-    const rawPayload = JSON.parse(atob(route.query.payload.toString()));
-    const payload = payloadParser(rawPayload);
-    if (payload instanceof ArkErrors) throw payload;
+    const payload = parseTokenCreatePayload(route.query.payload.toString());
     suggestedName.value = payload.name;
     suggestedAcls.value = payload.acls ?? [];
     createOpen.value = true;

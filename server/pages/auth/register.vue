@@ -193,7 +193,11 @@
 
 <script setup lang="ts">
 import { XCircleIcon } from "@heroicons/vue/24/solid";
-import { type } from "arktype";
+import {
+  isRegistrationEmail,
+  isRegistrationUsername,
+  isRegistrationPassword,
+} from "~/utils/browser-validation";
 
 const { t } = useI18n();
 
@@ -216,22 +220,9 @@ const username = ref(invitation?.username);
 const password = ref("");
 const confirmPassword = ref(undefined);
 
-const emailValidator = type("string.email");
-const validEmail = computed(
-  () => !((emailValidator(email.value) as unknown) instanceof type.errors),
-);
-
-const usernameValidator = type("string.alphanumeric >= 5").to("string.lower");
-const validUsername = computed(
-  () =>
-    !((usernameValidator(username.value) as unknown) instanceof type.errors),
-);
-
-const passwordValidator = type("string >= 8");
-const validPassword = computed(
-  () =>
-    !((passwordValidator(password.value) as unknown) instanceof type.errors),
-);
+const validEmail = computed(() => isRegistrationEmail(email.value));
+const validUsername = computed(() => isRegistrationUsername(username.value));
+const validPassword = computed(() => isRegistrationPassword(password.value));
 const validConfirmPassword = computed(
   () => password.value == confirmPassword.value,
 );
