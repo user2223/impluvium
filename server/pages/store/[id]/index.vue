@@ -287,7 +287,7 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/24/outline";
 import { StarIcon, ServerIcon, CloudIcon } from "@heroicons/vue/24/solid";
 import { micromark } from "micromark";
-import { formatBytes } from "~/server/internal/utils/files";
+import { formatBytes } from "~/utils/format-bytes";
 
 const route = useRoute();
 const gameId = route.params.id.toString();

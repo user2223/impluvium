@@ -146,7 +146,7 @@ import type { WorkingLibrarySource } from "~/server/api/v1/admin/library/sources
 import type { LibraryBackend } from "~/prisma/client/enums";
 import { BackwardIcon, CheckIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { DropLogo } from "#components";
-import { formatBytes } from "~/server/internal/utils/files";
+import { formatBytes } from "~/utils/format-bytes";
 import { getBarColor } from "~/utils/colors";
 import { getPercentage } from "~/utils/utils";
 

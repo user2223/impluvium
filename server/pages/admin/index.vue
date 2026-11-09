@@ -172,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatBytes } from "~/server/internal/utils/files";
+import { formatBytes } from "~/utils/format-bytes";
 import GamepadIcon from "~/components/Icons/GamepadIcon.vue";
 import { ServerStackIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { getPercentage } from "~/utils/utils";

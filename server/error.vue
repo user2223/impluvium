@@ -11,9 +11,37 @@ const props = defineProps({
 const { t } = useI18n();
 const route = useRoute();
 const statusCode = props.error?.statusCode;
-const message = props.error?.data
-  ? JSON.parse(props.error.data as string).message
-  : props.error.cause || props.error?.statusMessage || t("errors.unknown");
+const message = computed(() => {
+  let data: unknown = props.error?.data;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      data = undefined;
+    }
+  }
+  if (
+    data &&
+    typeof data === "object" &&
+    "message" in data &&
+    typeof data.message === "string" &&
+    data.message
+  ) {
+    return data.message;
+  }
+
+  const cause = props.error?.cause;
+  return (
+    (typeof cause === "string"
+      ? cause
+      : cause instanceof Error
+        ? cause.message
+        : undefined) ||
+    props.error?.statusMessage ||
+    props.error?.message ||
+    t("errors.unknown")
+  );
+});
 const showSignIn = statusCode ? statusCode == 403 || statusCode == 401 : false;
 
 async function signIn() {
@@ -23,7 +51,7 @@ async function signIn() {
 }
 
 useHead({
-  title: t("errors.pageTitle", [statusCode ?? message]),
+  title: () => t("errors.pageTitle", [statusCode ?? message.value]),
 });
 
 if (import.meta.client) {
@@ -38,7 +66,7 @@ if (import.meta.client) {
     <header
       class="mx-auto w-full max-w-7xl px-6 pt-6 sm:pt-10 lg:col-span-2 lg:col-start-1 lg:row-start-1 lg:px-8"
     >
-      <ApplicationLogo class="h-10 w-auto sm:h-12" />
+      <DropLogo class="h-10 w-auto sm:h-12" />
     </header>
     <main
       class="mx-auto w-full max-w-7xl px-6 py-24 sm:py-32 lg:col-span-2 lg:col-start-1 lg:row-start-2 lg:px-8"
