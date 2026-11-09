@@ -69,69 +69,66 @@
                 </th>
               </tr>
             </thead>
-            <draggable
-              :list="game.versions"
+            <SortableList
+              v-model="game.versions"
               handle=".handle"
               class="divide-y divide-white/10"
               tag="tbody"
-              @update="() => updateVersionOrder()"
+              @change="updateVersionOrder"
             >
-              <template #item="{ element: version }: { element: VersionType }">
-                <tr :key="version.versionId">
-                  <td>
-                    <Bars3Icon
-                      class="cursor-move w-6 h-6 text-zinc-400 handle"
-                    />
-                  </td>
-                  <td class="py-4 pr-3 pl-4 sm:pl-0">
-                    <div class="flex flex-col">
-                      <span
-                        class="text-sm font-medium whitespace-nowrap text-white"
-                        >{{ version.displayName ?? version.versionPath }}</span
-                      >
-                      <span class="text-xs text-zinc-500 mono">{{
-                        version.versionId
-                      }}</span>
-                    </div>
-                  </td>
-                  <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-400">
-                    {{ version.versionPath }}
-                  </td>
-                  <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-400">
-                    {{ version.delta }}
-                  </td>
+              <tr v-for="version in game.versions" :key="version.versionId">
+                <td>
+                  <Bars3Icon class="cursor-move w-6 h-6 text-zinc-400 handle" />
+                </td>
+                <td class="py-4 pr-3 pl-4 sm:pl-0">
+                  <div class="flex flex-col">
+                    <span
+                      class="text-sm font-medium whitespace-nowrap text-white"
+                      >{{ version.displayName ?? version.versionPath }}</span
+                    >
+                    <span class="text-xs text-zinc-500 mono">{{
+                      version.versionId
+                    }}</span>
+                  </div>
+                </td>
+                <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-400">
+                  {{ version.versionPath }}
+                </td>
+                <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-400">
+                  {{ version.delta }}
+                </td>
 
-                  <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-400">
-                    <ul class="space-y-2">
-                      <GameEditorVersionConfig
-                        v-for="config in version.setups"
-                        :key="config.setupId"
-                        :config="config"
-                      />
-                      <li
-                        v-if="version.setups.length == 0"
-                        class="text-xs uppercase font-display text-zinc-700 font-semibold"
-                      >
-                        {{ $t("library.admin.version.noSetups") }}
-                      </li>
-                    </ul>
-                  </td>
-                  <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-400">
-                    <div v-if="version.onlySetup">
-                      {{ $t("library.admin.version.setupOnly") }}
-                    </div>
-                    <ul v-else class="space-y-2">
-                      <GameEditorVersionConfig
-                        v-for="config in version.launches"
-                        :key="config.launchId"
-                        :config="config"
-                      />
-                    </ul>
-                  </td>
-                  <td
-                    class="py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-0 space-x-2"
-                  >
-                    <!--
+                <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-400">
+                  <ul class="space-y-2">
+                    <GameEditorVersionConfig
+                      v-for="config in version.setups"
+                      :key="config.setupId"
+                      :config="config"
+                    />
+                    <li
+                      v-if="version.setups.length == 0"
+                      class="text-xs uppercase font-display text-zinc-700 font-semibold"
+                    >
+                      {{ $t("library.admin.version.noSetups") }}
+                    </li>
+                  </ul>
+                </td>
+                <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-400">
+                  <div v-if="version.onlySetup">
+                    {{ $t("library.admin.version.setupOnly") }}
+                  </div>
+                  <ul v-else class="space-y-2">
+                    <GameEditorVersionConfig
+                      v-for="config in version.launches"
+                      :key="config.launchId"
+                      :config="config"
+                    />
+                  </ul>
+                </td>
+                <td
+                  class="py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-0 space-x-2"
+                >
+                  <!--
                     <button class="text-blue-400 hover:text-blue-300">
                       Edit<span class="sr-only"
                         >,
@@ -139,16 +136,15 @@
                       >
                     </button>
                     -->
-                    <button
-                      class="text-red-400 hover:text-red-300"
-                      @click="() => deleteVersion(version.versionId)"
-                    >
-                      {{ $t("common.delete") }}
-                    </button>
-                  </td>
-                </tr></template
-              >
-            </draggable>
+                  <button
+                    class="text-red-400 hover:text-red-300"
+                    @click="() => deleteVersion(version.versionId)"
+                  >
+                    {{ $t("common.delete") }}
+                  </button>
+                </td>
+              </tr>
+            </SortableList>
           </table>
         </div>
       </div>
@@ -200,8 +196,6 @@ if (!game.value)
     statusCode: 500,
     statusMessage: "Game not provided to editor component",
   });
-
-type VersionType = (typeof game.value.versions)[number];
 
 async function updateVersionOrder() {
   try {

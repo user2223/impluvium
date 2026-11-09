@@ -222,6 +222,9 @@ importers:
       shescape:
         specifier: ^2.1.14
         version: 2.1.15(@ericcornelissen/lregexp@1.0.8)
+      sortablejs:
+        specifier: 1.14.0
+        version: 1.14.0
       stream-mime-type:
         specifier: ^2.0.0
         version: 2.0.0
@@ -243,9 +246,6 @@ importers:
       vue3-carousel-nuxt:
         specifier: ^1.1.5
         version: 1.1.6(magicast@0.5.5)(vue@3.5.44(typescript@5.9.3))
-      vuedraggable:
-        specifier: ^4.1.0
-        version: 4.1.0(vue@3.5.44(typescript@5.9.3))
     devDependencies:
       '@bufbuild/buf':
         specifier: ^1.65.0
@@ -277,6 +277,9 @@ importers:
       '@types/semver':
         specifier: ^7.7.0
         version: 7.8.0
+      '@types/sortablejs':
+        specifier: 1.15.8
+        version: 1.15.8
       '@types/turndown':
         specifier: ^5.0.5
         version: 5.0.6
@@ -3059,6 +3062,9 @@ packages:
 
   '@types/semver@7.8.0':
     resolution: {integrity: sha512-1mAINjtQCXXeLkJ9ehXkwOcBpqtLxiVtKhpUf83DdRNdQKV0iXZpaHYqRr7nj+wvxuJzoAmAwXI+sCNMv1CzLQ==}
+
+  '@types/sortablejs@1.15.8':
+    resolution: {integrity: sha512-b79830lW+RZfwaztgs1aVPgbasJ8e7AXtZYHTELNXZPsERt4ymJdjV4OccDbHQAvHrCcFpbF78jkm0R6h/pZVg==}
 
   '@types/turndown@5.0.6':
     resolution: {integrity: sha512-ru00MoyeeouE5BX4gRL+6m/BsDfbRayOskWqUvh7CLGW+UXxHQItqALa38kKnOiZPqJrtzJUgAC2+F0rL1S4Pg==}
@@ -11775,6 +11781,8 @@ snapshots:
   '@types/resolve@1.20.2': {}
 
   '@types/semver@7.8.0': {}
+
+  '@types/sortablejs@1.15.8': {}
 
   '@types/turndown@5.0.6': {}
 

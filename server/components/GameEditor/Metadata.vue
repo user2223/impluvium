@@ -172,29 +172,31 @@
             {{ $t("library.admin.game.imageCarouselEmpty") }}
           </div>
 
-          <draggable
+          <SortableList
             v-else
-            :list="game.mImageCarouselObjectIds"
+            v-model="game.mImageCarouselObjectIds"
             class="w-full flex flex-row gap-x-4 overflow-x-auto my-2 py-4"
-            @update="() => updateImageCarousel()"
+            @change="updateImageCarousel"
           >
-            <template #item="{ element }: { element: string }">
-              <div class="relative group min-w-fit">
-                <img :src="useObject(element)" class="h-48 w-auto" />
-                <div
-                  class="transition-all lg:opacity-0 lg:group-hover:opacity-100 absolute inset-0 flex flex-col items-center justify-center gap-y-2 bg-zinc-950/50"
+            <div
+              v-for="element in game.mImageCarouselObjectIds"
+              :key="element"
+              class="relative group min-w-fit"
+            >
+              <img :src="useObject(element)" class="h-48 w-auto" />
+              <div
+                class="transition-all lg:opacity-0 lg:group-hover:opacity-100 absolute inset-0 flex flex-col items-center justify-center gap-y-2 bg-zinc-950/50"
+              >
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-x-1.5 rounded-md bg-blue-600 px-1.5 py-0.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/25 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                  @click="() => removeImageFromCarousel(element)"
                 >
-                  <button
-                    type="button"
-                    class="inline-flex items-center gap-x-1.5 rounded-md bg-blue-600 px-1.5 py-0.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/25 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                    @click="() => removeImageFromCarousel(element)"
-                  >
-                    {{ $t("library.admin.game.removeImageCarousel") }}
-                  </button>
-                </div>
+                  {{ $t("library.admin.game.removeImageCarousel") }}
+                </button>
               </div>
-            </template>
-          </draggable>
+            </div>
+          </SortableList>
         </div>
 
         <!-- description editor -->
