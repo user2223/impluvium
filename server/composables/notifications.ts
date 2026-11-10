@@ -37,7 +37,11 @@ export function startNotificationConnection() {
     generation === sessionContext().generation &&
     !!sessionContext().session;
 
-  async function restore(generation: number, epoch: number) {
+  async function restore(
+    generation: number,
+    epoch: number,
+    liveUpdates = true,
+  ) {
     if (!current(generation, epoch)) return;
     const controller = new AbortController();
     request = controller;
@@ -45,6 +49,7 @@ export function startNotificationConnection() {
       const list = await $apiFetch("GET /api/v1/notifications", {
         signal: controller.signal,
         timeout: 15000,
+        retry: liveUpdates ? undefined : false,
       });
       if (!current(generation, epoch)) return;
       if (
@@ -55,9 +60,10 @@ export function startNotificationConnection() {
       }
       merge([...live.values(), ...list.filter((item) => !live.has(item.id))]);
       attempt = 0;
-      status.value = "connected";
+      if (liveUpdates) status.value = "connected";
     } catch (error) {
       if (!current(generation, epoch)) return;
+      if (!liveUpdates) return;
       const code = (error as FetchError)?.status;
       if (code === 401 || code === 403) {
         unauthorized = true;
@@ -84,6 +90,11 @@ export function startNotificationConnection() {
     (value) => {
       status.value = value;
       if (value !== "connected") stopRestore();
+      if (value === "unavailable") {
+        // Load once without live updates; only a new session can try again.
+        stopped = false;
+        void restore(sessionContext().generation, revision, false);
+      }
     },
     () => {
       stopRestore();

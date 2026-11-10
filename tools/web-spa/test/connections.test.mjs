@@ -1,19 +1,22 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { loadWrapper } from '../../web-api/test/wrapper.mjs';
 import { WebSocketHandler } from '../../../server/composables/ws.ts';
 import { advanceSessionContext, confirmSessionContext } from '../../../server/composables/session-context.ts';
 import { startNotificationConnection, useNotifications, useNotificationConnection } from '../../../server/composables/notifications.ts';
-import { startTaskConnection, useTask, useTaskReady } from '../../../server/composables/task.ts';
+import { startTaskConnection, useTask, useTaskReady, useTaskConnection } from '../../../server/composables/task.ts';
 import { startSystemConnection, useSystemData, useSystemConnection } from '../../../server/composables/admin-home.ts';
 
-test('channels follow sessions, reconnect with capped backoff and stop on auth failure', async () => {
+async function connectionFixture(run, protocol = 'https:', userAgent = 'Mozilla/5.0') {
   const originals = new Map();
   const install = (name, value) => {
-    originals.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
+    if (!originals.has(name)) originals.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
     Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
   };
   const sockets = [];
   const timers = new Map();
+  const scheduledTimers = [];
   const states = new Map();
   let timerId = 0;
   class Socket {
@@ -27,8 +30,9 @@ test('channels follow sessions, reconnect with capped backoff and stop on auth f
     message(data) { this.onmessage?.({ data }); }
   }
   install('WebSocket', Socket);
-  install('location', { protocol: 'https:', host: 'example.invalid', href: 'https://example.invalid/store' });
-  install('setTimeout', (callback, delay) => { const id = ++timerId; timers.set(id, { callback, delay }); return id; });
+  install('location', { protocol, host: 'example.invalid', href: `${protocol}//example.invalid/store` });
+  install('navigator', { userAgent });
+  install('setTimeout', (callback, delay) => { const id = ++timerId; scheduledTimers.push(delay); timers.set(id, { callback, delay }); return id; });
   install('clearTimeout', (id) => { timers.delete(id); });
   install('ref', (value) => ({ value }));
   install('useState', (key, create) => {
@@ -53,6 +57,30 @@ test('channels follow sessions, reconnect with capped backoff and stop on auth f
   };
   try {
     advanceSessionContext();
+    const { isClientRequest } = await loadWrapper();
+    install('isClientRequest', isClientRequest);
+    // Evaluate the app's actual computed value against the consumer states.
+    const app = await readFile(new URL('../../../server/app.vue', import.meta.url), 'utf8');
+    const warning = app.match(/const connectionInterrupted = computed\([\s\S]*?\n\);/);
+    assert.ok(warning, 'The app must compute its live update warning');
+    const interrupted = new Function('computed', 'notificationStatus', 'taskStatus', 'systemStatus',
+      `${warning[0]}\nreturn connectionInterrupted;`)(
+      (getter) => ({ get value() { return getter(); } }),
+      useNotificationConnection(), useTaskConnection(), useSystemConnection(),
+    );
+    await run({ sockets, timers, scheduledTimers, pendingLists, disposers, retry, interrupted, install });
+  } finally {
+    for (const dispose of disposers) dispose();
+    advanceSessionContext();
+    for (const [name, descriptor] of originals) {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+      else delete globalThis[name];
+    }
+  }
+}
+
+test('channels follow sessions, reconnect with capped backoff and stop on auth failure', async () => {
+  await connectionFixture(async ({ sockets, timers, pendingLists, disposers, retry, interrupted }) => {
     let resets = 0;
     const statuses = [];
     const frames = [];
@@ -146,7 +174,9 @@ test('channels follow sessions, reconnect with capped backoff and stop on auth f
       pendingLists.at(-1).reject(Object.assign(new Error('Temporary failure'), { status: 503 }));
       await Promise.resolve();
       assert.equal(useNotificationConnection().value, 'interrupted');
+      assert.equal(interrupted.value, true);
       assert.equal(retry(), delay);
+      assert.equal(interrupted.value, true);
       assert.equal(sockets.length, socketCount);
     }
     recoveredNotification.message(JSON.stringify({ id: 'live', title: 'Recovered live' }));
@@ -196,12 +226,179 @@ test('channels follow sessions, reconnect with capped backoff and stop on auth f
     const next = useTask('new-task');
     newTask.message(JSON.stringify({ id: 'new-task', log: ['new'], progress: 10 }));
     assert.deepEqual(next.value.log, ['new']);
-  } finally {
-    for (const dispose of disposers) dispose();
-    advanceSessionContext();
-    for (const [name, descriptor] of originals) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-      else delete globalThis[name];
-    }
+  });
+});
+
+for (const [protocol, userAgent] of [
+  ['server:', 'Mozilla/5.0'],
+  ['file:', 'Mozilla/5.0'],
+  ['http:', 'impluvium-desktop/0.0.0 (windows; x86_64)'],
+]) {
+  test(`${protocol} with ${userAgent} disables live updates until the session changes without scheduling retries`, async () => {
+    await connectionFixture(async ({ sockets, timers, scheduledTimers, pendingLists, disposers, interrupted }) => {
+      if (protocol === 'http:') {
+        location.host = 'server.localhost';
+        location.href = 'http://server.localhost/store';
+      }
+      disposers.push(startNotificationConnection(), startTaskConnection(), startSystemConnection());
+      const session = { id: 'synthetic-admin', admin: true };
+      const assertUnavailable = () => {
+        assert.equal(sockets.length, 0);
+        assert.equal(timers.size, 0);
+        assert.deepEqual(scheduledTimers, [], 'Unavailable channels must never schedule a timer');
+        assert.equal(useNotificationConnection().value, 'unavailable');
+        assert.equal(useTaskConnection().value, 'unavailable');
+        assert.equal(useSystemConnection().value, 'unavailable');
+        assert.equal(useTaskReady().value, false);
+        assert.deepEqual(useSystemData().value, { totalRam: 0, freeRam: 0, cpuLoad: 0, cpuCores: 0 });
+        assert.equal(interrupted.value, false);
+      };
+      confirmSessionContext(session);
+      assert.equal(useTask('unavailable-task').value, undefined);
+      assertUnavailable();
+      assert.equal(pendingLists.length, 1, 'Notifications still load one HTTP snapshot');
+      assert.equal(pendingLists.at(-1).options.retry, false, 'The HTTP snapshot must disable ofetch retries');
+      pendingLists.at(-1).resolve([{ id: 'snapshot', title: 'Snapshot' }]);
+      await Promise.resolve();
+      assert.deepEqual(useNotifications().value.map((item) => item.id), ['snapshot']);
+      assertUnavailable();
+      confirmSessionContext(session);
+      assert.equal(pendingLists.length, 1);
+
+      for (const status of [503, 401, 403]) {
+        advanceSessionContext();
+        confirmSessionContext(session);
+        const count = pendingLists.length;
+        assert.equal(pendingLists.at(-1).options.retry, false);
+        pendingLists.at(-1).reject(Object.assign(new Error('Snapshot failed'), { status }));
+        await Promise.resolve();
+        confirmSessionContext(session);
+        assertUnavailable();
+        assert.equal(pendingLists.length, count, 'A failed snapshot must not retry in this session');
+      }
+
+      advanceSessionContext();
+      confirmSessionContext(session);
+      const obsolete = pendingLists.at(-1);
+      advanceSessionContext();
+      confirmSessionContext(session);
+      assert.equal(obsolete.options.signal.aborted, true);
+      obsolete.resolve([{ id: 'obsolete' }]);
+      await Promise.resolve();
+      assert.deepEqual(useNotifications().value, []);
+      pendingLists.at(-1).resolve([{ id: 'current' }]);
+      await Promise.resolve();
+      assert.deepEqual(useNotifications().value.map((item) => item.id), ['current']);
+
+      location.protocol = 'http:';
+      navigator.userAgent = 'Mozilla/5.0';
+      confirmSessionContext(session);
+      assertUnavailable();
+      advanceSessionContext();
+      confirmSessionContext(session);
+      assert.equal(sockets.length, 3, 'A new session must re-evaluate transport availability');
+      assert.ok(sockets.every((socket) => socket.url.startsWith('ws://')));
+      assert.equal(interrupted.value, false);
+      assert.equal(timers.size, 0);
+    }, protocol, userAgent);
+  });
+}
+
+for (const [protocol, scheme] of [['http:', 'ws:'], ['https:', 'wss:']]) {
+  test(`${protocol} only warns after a failure and throughout recovery`, async () => {
+    await connectionFixture(async ({ sockets, timers, pendingLists, disposers, retry, interrupted }) => {
+      disposers.push(startNotificationConnection(), startTaskConnection(), startSystemConnection());
+      assert.equal(interrupted.value, false);
+      confirmSessionContext({ id: 'synthetic-admin', admin: true });
+      assert.equal(sockets.length, 3);
+      assert.ok(sockets.every((socket) => socket.url.startsWith(`${scheme}//example.invalid/`)));
+      assert.equal(useNotificationConnection().value, 'connecting');
+      assert.equal(useTaskConnection().value, 'connecting');
+      assert.equal(useSystemConnection().value, 'connecting');
+      assert.equal(interrupted.value, false, 'The first connection attempt must not warn');
+      assert.equal(timers.size, 0);
+
+      const [notification, task, system] = sockets;
+      notification.open(); system.open();
+      assert.equal(pendingLists.at(-1).options.retry, undefined, 'Browser snapshot retries retain their default');
+      assert.equal(interrupted.value, false, 'Initial snapshot recovery must not warn');
+      pendingLists.at(-1).resolve([]);
+      await Promise.resolve();
+      const systemFrame = JSON.stringify({ totalRam: 100, freeRam: 20, cpuLoad: 5, cpuCores: 4 });
+      system.message(systemFrame);
+
+      task.close();
+      assert.equal(interrupted.value, true, 'A failed first connection must warn');
+      retry();
+      assert.equal(interrupted.value, true);
+      sockets.at(-1).open();
+      assert.equal(interrupted.value, true, 'A handshake alone does not restore the channel');
+      sockets.at(-1).message('connect');
+      assert.equal(interrupted.value, false);
+
+      sockets.at(-1).close();
+      assert.equal(interrupted.value, true, 'A dropped established connection must warn');
+      retry();
+      assert.equal(interrupted.value, true);
+      sockets.at(-1).open();
+      sockets.at(-1).message('connect');
+      assert.equal(interrupted.value, false);
+
+      notification.close();
+      assert.equal(interrupted.value, true);
+      retry();
+      sockets.at(-1).open();
+      assert.equal(interrupted.value, true, 'The warning must remain until the HTTP snapshot returns');
+      pendingLists.at(-1).resolve([]);
+      await Promise.resolve();
+      assert.equal(interrupted.value, false);
+
+      system.onerror();
+      assert.equal(interrupted.value, true);
+      retry();
+      sockets.at(-1).open();
+      assert.equal(interrupted.value, true);
+      sockets.at(-1).message(systemFrame);
+      assert.equal(interrupted.value, false);
+      sockets.at(-1).message('unauthenticated');
+      assert.equal(interrupted.value, true);
+      assert.equal(timers.size, 0);
+      advanceSessionContext();
+      assert.equal(interrupted.value, false);
+      confirmSessionContext({ id: 'synthetic-admin', admin: true });
+      assert.equal(interrupted.value, false, 'A new session starts without an interruption warning');
+    }, protocol);
+  });
+}
+
+test('a constructor failure warns until a retry restores application state', async () => {
+  await connectionFixture(async ({ sockets, timers, disposers, retry, interrupted, install }) => {
+    const Socket = globalThis.WebSocket;
+    install('WebSocket', class {
+      constructor() { throw new Error('Connection failed'); }
+    });
+    disposers.push(startTaskConnection());
+    confirmSessionContext({ id: 'synthetic-admin', admin: true });
+    assert.equal(sockets.length, 0);
+    assert.equal(timers.size, 1);
+    assert.equal(interrupted.value, true);
+    install('WebSocket', Socket);
+    assert.equal(retry(), 1000);
+    assert.equal(interrupted.value, true);
+    sockets.at(-1).open();
+    sockets.at(-1).message('connect');
+    assert.equal(interrupted.value, false);
+  });
+});
+
+test('the interruption warning uses English and German messages from i18n', async () => {
+  const app = await readFile(new URL('../../../server/app.vue', import.meta.url), 'utf8');
+  assert.match(app, /\$t\("errors\.liveUpdatesInterrupted"\)/);
+  for (const [locale, expected] of [
+    ['en_us', 'Live updates are interrupted. Displayed values may be out of date.'],
+    ['de', 'Die Live-Aktualisierung ist unterbrochen. Angezeigte Werte sind möglicherweise nicht mehr aktuell.'],
+  ]) {
+    const messages = JSON.parse(await readFile(new URL(`../../../server/i18n/locales/${locale}.json`, import.meta.url), 'utf8'));
+    assert.equal(messages.errors.liveUpdatesInterrupted, expected);
   }
 });

@@ -4,7 +4,15 @@
       <h2 class="text-sm font-medium text-zinc-400">
         {{ $t("tasks.admin.runningTasksTitle") }}
       </h2>
+      <p
+        v-if="taskStatus === 'unavailable'"
+        role="status"
+        class="mt-4 text-sm text-zinc-400"
+      >
+        {{ $t("errors.liveDataUnavailable") }}
+      </p>
       <ul
+        v-else
         role="list"
         class="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-3 lg:grid-cols-4"
       >
@@ -17,7 +25,7 @@
         </li>
       </ul>
       <div
-        v-if="liveRunningTasks.length == 0"
+        v-if="taskStatus !== 'unavailable' && liveRunningTasks.length == 0"
         class="text-zinc-500 text-sm font-semibold"
       >
         {{ $t("tasks.admin.noTasksRunning") }}
@@ -222,6 +230,7 @@ definePageMeta({
 });
 
 const { t } = useI18n();
+const taskStatus = useTaskConnection();
 
 const { runningTasks, historicalTasks, dailyTasks, weeklyTasks, other } =
   await $apiFetch("GET /api/v1/admin/task");

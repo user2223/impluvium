@@ -5,7 +5,7 @@
     role="status"
     class="bg-amber-950 px-4 py-2 text-amber-100"
   >
-    {{ connectionWarning }}
+    {{ $t("errors.liveUpdatesInterrupted") }}
   </div>
   <NuxtLayout>
     <NuxtPage />
@@ -40,8 +40,6 @@ import type { ApiResponse } from "./shared/api/types";
 
 const user = useUser();
 const nuxtApp = useNuxtApp();
-const connectionWarning =
-  "Live updates are interrupted. Displayed values may be out of date.";
 let contextGeneration = sessionContext().generation;
 const stopContext = onSessionContext((session) => {
   const generation = sessionContext().generation;
@@ -61,10 +59,7 @@ const taskStatus = useTaskConnection();
 const systemStatus = useSystemConnection();
 const connectionInterrupted = computed(() =>
   [notificationStatus.value, taskStatus.value, systemStatus.value].some(
-    (value) =>
-      value === "interrupted" ||
-      value === "connecting" ||
-      value === "unauthenticated",
+    (value) => ["interrupted", "unauthenticated"].includes(value),
   ),
 );
 

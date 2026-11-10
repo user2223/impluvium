@@ -11,7 +11,14 @@
       </i18n-t>
     </NuxtLink>
 
-    <div v-if="task" class="flex flex-col w-full gap-y-4">
+    <p
+      v-if="taskStatus === 'unavailable'"
+      role="status"
+      class="text-sm text-zinc-400"
+    >
+      {{ $t("errors.liveDataUnavailable") }}
+    </p>
+    <div v-else-if="task" class="flex flex-col w-full gap-y-4">
       <h1
         class="inline-flex items-center gap-x-3 text-3xl text-zinc-100 font-bold font-display"
       >
@@ -98,6 +105,7 @@ const route = useRoute();
 const taskId = route.params.id.toString();
 
 const task = useTask(taskId);
+const taskStatus = useTaskConnection();
 
 definePageMeta({
   layout: "admin",

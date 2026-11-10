@@ -9,6 +9,7 @@ export type ConnectionStatus =
   | "connecting"
   | "interrupted"
   | "connected"
+  | "unavailable"
   | "unauthenticated";
 
 /** Constructing a channel registers its lifecycle; it never opens on import. */
@@ -67,6 +68,15 @@ export class WebSocketHandler {
   }
 
   private open() {
+    if (
+      isClientRequest() ||
+      (location.protocol !== "http:" && location.protocol !== "https:")
+    ) {
+      // Embedded documents need a separate live update transport.
+      this.blocked = true;
+      this.status("unavailable");
+      return;
+    }
     const generation = this.generation;
     const url =
       (location.protocol === "https:" ? "wss://" : "ws://") +
@@ -82,7 +92,8 @@ export class WebSocketHandler {
     this.ws = ws;
     const current = () =>
       this.ws === ws && generation === sessionContext().generation;
-    this.status("connecting");
+    // Keep the warning visible while recovering from a failed connection.
+    this.status(this.attempt > 0 ? "interrupted" : "connecting");
     ws.onopen = () => {
       if (!current()) return;
       // A channel becomes current only after its consumer restores its state.

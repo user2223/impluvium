@@ -88,7 +88,14 @@
 
         <div class="col-span-6 row-span-1 lg:col-span-2 lg:row-span-2">
           <TileWithLink title="System">
-            <div class="h-full pb-15 content-center">
+            <p
+              v-if="systemStatus === 'unavailable'"
+              role="status"
+              class="text-sm text-zinc-400"
+            >
+              {{ $t("errors.liveDataUnavailable") }}
+            </p>
+            <div v-else class="h-full pb-15 content-center">
               <div class="grid grid-cols-1 text-center gap-4">
                 <h3 class="col-span-1 text-lg font-semibold flex">
                   <div class="flex-1 text-left">
@@ -189,6 +196,7 @@ useHead({
 const { t } = useI18n();
 
 const systemData = useSystemData();
+const systemStatus = useSystemConnection();
 
 const { version, gameCount, sources, userStats } = await $apiFetch(
   "GET /api/v1/admin/home",

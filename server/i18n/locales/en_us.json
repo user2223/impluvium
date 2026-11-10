@@ -278,6 +278,8 @@
         }
       }
     },
+    "liveDataUnavailable": "Live data is not available here in the desktop app. Please open this page in a browser.",
+    "liveUpdatesInterrupted": "Live updates are interrupted. Displayed values may be out of date.",
     "news": {
       "article": {
         "delete": {

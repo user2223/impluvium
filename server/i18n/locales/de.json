@@ -219,6 +219,8 @@
         }
       }
     },
+    "liveDataUnavailable": "Live-Daten sind hier in der Desktop-App nicht verfügbar. Bitte öffne diese Seite im Browser.",
+    "liveUpdatesInterrupted": "Die Live-Aktualisierung ist unterbrochen. Angezeigte Werte sind möglicherweise nicht mehr aktuell.",
     "news": {
       "article": {
         "delete": {
