@@ -597,7 +597,8 @@ jobs:
         with:
           name: server-image
           path: server-image.tar
-          retention-days: 30
+          # Each image is about 180 MB; keep only what smoke tests and publication need.
+          retention-days: 7
 
   client-linux:
     runs-on: impluvium-linux
