@@ -322,6 +322,7 @@ pub fn run() {
                 main_window
                     .add_child(
                         WebviewBuilder::new("frontend", WebviewUrl::App("main".into()))
+                            .user_agent(::remote::utils::desktop_user_agent())
                             .auto_resize(),
                         LogicalPosition::new(0., 0.),
                         LogicalSize::new(width, height),

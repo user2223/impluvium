@@ -8,6 +8,7 @@
 !pnpm-workspace.yaml
 !server/
 !libraries/base/
+!tools/web-spa/
 
 # Rust workspace. Only torrential is built, but Cargo loads every member, so
 # the desktop crates are needed with their manifests and sources (and nothing
@@ -31,3 +32,7 @@
 **/target
 **/node_modules
 **/.env*
+**/.nuxt*
+**/.output*
+**/.spa-server
+**/.data

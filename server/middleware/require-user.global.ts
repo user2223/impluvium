@@ -9,7 +9,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
 
   const user = useUser();
   if (user.value === undefined) {
-    await updateUser();
+    await initializeUser();
   }
   if (!user.value) {
     return navigateTo({

@@ -195,3 +195,4 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `CARGO_PKG_VERSION` | build | desktop | active | read | yes | no | keep: Not planned; the name belongs to the tool that sets it. | Set by Cargo; the desktop user-agent helper reads it through env! to report the crate version. |
 | `IMPLUVIUM_VERSION` | build | build | active | read | no | no | keep: Not planned; this is the target name. | Build argument that carries the version shown by the server. |
 | `IMPLUVIUM_GIT_REF` | build | build | active | read | no | no | keep: Not planned; this is the target name. | Build argument that carries the Git revision shown by the server. |
+| `IMPLUVIUM_BUILD_PROFILE` | build | build | active | read | no | no | keep: Not planned; this is the target name. | Selects server (real Nitro server tree) or spa (static export with an empty server tree); outputs use separate directories. |

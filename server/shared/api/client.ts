@@ -57,7 +57,12 @@ export type ApiArguments<K extends ApiFetchKey> =
     ? [options?: ApiOptions<K>]
     : [options: ApiOptions<K>];
 
+/** Normalize only an empty response body; DTO fields keep their wire types. */
+export type ApiFetchResponse<K extends ApiFetchKey> =
+  | Exclude<ApiRouteMap[K]["response"], undefined>
+  | (undefined extends ApiRouteMap[K]["response"] ? null : never);
+
 export type ApiFetch = <K extends ApiFetchKey>(
   key: K,
   ...args: ApiArguments<NoInfer<K>>
-) => Promise<ApiRouteMap[K]["response"]>;
+) => Promise<ApiFetchResponse<K>>;

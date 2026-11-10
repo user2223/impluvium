@@ -24,10 +24,10 @@ test('typed GET, PATCH, DELETE and multipart upload reach HTTP with the observed
   try {
     const require = createRequire(join(root, 'server/package.json'));
     const { ofetch } = require('ofetch');
-    install('$fetch', ofetch.create({ baseURL: `http://127.0.0.1:${server.address().port}` }));
-    install('tryUseNuxtApp', () => undefined);
-    install('getCurrentInstance', () => undefined);
-    const { $apiFetch } = await loadWrapper(false);
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    // Resolve relative requests as a browser would, without custom baseURL defaults.
+    install('$fetch', { raw: (url, options) => ofetch.raw(new URL(url, origin).href, options) });
+    const { $apiFetch } = await loadWrapper();
     const query = { q: 'Sample & ü', type: 'Game' };
     await $apiFetch('GET /api/v1/admin/search/game', { query });
     const path = { id: 'sample/with %2F?#ü' };
@@ -59,6 +59,33 @@ test('typed GET, PATCH, DELETE and multipart upload reach HTTP with the observed
       if (descriptor) Object.defineProperty(globalThis, name, descriptor);
       else delete globalThis[name];
     }
+    server.closeAllConnections();
+    await new Promise((accept, reject) => server.close((error) => error ? reject(error) : accept()));
+  }
+});
+
+test('typed browser responses normalize real ofetch empty bodies and HTTP 204 to null', async () => {
+  const server = createServer((request, response) => {
+    response.statusCode = request.method === 'GET' ? 204 : 200;
+    response.setHeader('Content-Type', 'application/json');
+    response.end();
+  });
+  await new Promise((accept) => server.listen(0, '127.0.0.1', accept));
+  const original = Object.getOwnPropertyDescriptor(globalThis, '$fetch');
+  try {
+    const require = createRequire(join(root, 'server/package.json'));
+    const { ofetch } = require('ofetch');
+    Object.defineProperty(globalThis, '$fetch', {
+      configurable: true, writable: true,
+      value: { raw: (url, options) => ofetch.raw(new URL(url, `http://127.0.0.1:${server.address().port}`).href, options) },
+    });
+    const { $apiFetch } = await loadWrapper();
+    assert.equal(await $apiFetch('GET /api/v1/user'), null);
+    assert.equal(await $apiFetch('DELETE /api/v1/admin/company/:id', { path: { id: 'sample' } }), null);
+    assert.equal(await $apiFetch('HEAD /api/v1/object/:id', { path: { id: 'sample' } }), null);
+  } finally {
+    if (original) Object.defineProperty(globalThis, '$fetch', original);
+    else delete globalThis.$fetch;
     server.closeAllConnections();
     await new Promise((accept, reject) => server.close((error) => error ? reject(error) : accept()));
   }

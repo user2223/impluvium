@@ -56,9 +56,7 @@ useHead({
   title: () => t("errors.pageTitle", [statusCode ?? message.value]),
 });
 
-if (import.meta.client) {
-  console.warn(props.error);
-}
+console.warn(props.error);
 </script>
 
 <template>

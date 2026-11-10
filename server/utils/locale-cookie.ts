@@ -10,10 +10,10 @@ export function decodeLocaleCookie(value: string): string | undefined {
   }
 }
 
-/** The locale cookies in a Cookie header whose value cannot be decoded. */
-export function malformedLocaleCookies(header: string): string[] {
+/** The browser locale cookies whose values cannot be decoded. */
+export function malformedLocaleCookies(cookies: string): string[] {
   const malformed = new Set<string>();
-  for (const pair of header.split(";")) {
+  for (const pair of cookies.split(";")) {
     const separator = pair.indexOf("=");
     if (separator === -1) continue;
     const name = pair.slice(0, separator).trim();

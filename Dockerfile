@@ -93,7 +93,7 @@ ARG IMPLUVIUM_GIT_REF=unknown
 
 RUN pnpm -C server run postinstall && pnpm -C server run build
 RUN mkdir -p /rootfs/app \
-    && cp -a server/.output /rootfs/app/app \
+    && cp -a server/.output/server /rootfs/app/app \
     && cp -a server/prisma /rootfs/app/prisma \
     && cp -a server/prisma.config.ts /rootfs/app/ \
     && cp -a server/build /rootfs/app/startup \
@@ -135,4 +135,4 @@ ENV NGINX_CONFIG="/nginx.conf"
 # Nuxt's port
 ENV PORT=4000
 
-CMD ["sh", "/app/startup/launch.sh"]
+CMD ["sh", "-c", "node /app/app/server/index.mjs --check-static-output && exec sh /app/startup/launch.sh"]

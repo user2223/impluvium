@@ -1,7 +1,49 @@
-import type { ApiFetch } from "../../../server/shared/api/client";
-import type { UploadTarget } from "../../../server/shared/api/upload";
+import type { ApiFetch, ApiFetchResponse } from "../../../server/shared/api/client";
+import type { ApiRouteMap } from "../../../server/shared/api/generated/routes";
+import type { GameUpload, UploadTarget } from "../../../server/shared/api/upload";
 
 declare const fetchApi: ApiFetch;
+
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends
+  (<T>() => T extends B ? 1 : 2) ? true : false;
+type Assert<Value extends true> = Value;
+
+// The map retains Nitro's raw response types. Only the browser API normalizes
+// an absent response body; optional fields inside returned DTOs stay optional.
+export type BrowserResponseCases = [
+  Assert<Equal<ApiRouteMap["DELETE /api/v1/admin/company/:id"]["response"], undefined>>,
+  Assert<Equal<ApiRouteMap["GET /api/v1/object/:id"]["response"], Blob | undefined>>,
+  Assert<Equal<ApiFetchResponse<"DELETE /api/v1/admin/company/:id">, null>>,
+  Assert<Equal<ApiFetchResponse<"HEAD /api/v1/object/:id">, null>>,
+  Assert<Equal<ApiFetchResponse<"GET /api/v1/object/:id">, Blob | null>>,
+  Assert<Equal<ApiFetchResponse<"GET /api/v1/user">, Exclude<ApiRouteMap["GET /api/v1/user"]["response"], undefined> | null>>,
+  Assert<Equal<ApiFetchResponse<"GET /api/v1">, ApiRouteMap["GET /api/v1"]["response"]>>,
+  Assert<Equal<ApiFetchResponse<"GET /api/v1/auth">["oidcProviderName"], string | undefined>>,
+  Assert<Equal<ApiFetchResponse<"POST /api/v1/client/user/webtoken">, string>>,
+  Assert<Equal<ApiFetchResponse<"GET /api/v1/user/superlevel">, boolean>>,
+  Assert<Equal<GameUpload, ApiFetchResponse<"POST /api/v1/admin/game/image">>>,
+];
+
+async function browserResponseConsumers() {
+  const empty: null = await fetchApi("DELETE /api/v1/admin/company/:id", { path: { id: "sample" } });
+  const head: null = await fetchApi("HEAD /api/v1/object/:id", { path: { id: "sample" } });
+  const image: Blob | null = await fetchApi("GET /api/v1/object/:id", { path: { id: "sample" } });
+  if (image !== null) image.slice();
+  const user = await fetchApi("GET /api/v1/user");
+  if (user !== null) user.displayName.trim();
+  const upload: GameUpload = await fetchApi("POST /api/v1/admin/game/image", { body: new FormData() });
+  const emptyUpload: GameUpload = null;
+  // @ts-expect-error Empty browser responses are null, not undefined.
+  const oldEmpty: undefined = await fetchApi("DELETE /api/v1/admin/company/:id", { path: { id: "sample" } });
+  // @ts-expect-error A potentially empty binary response must be narrowed first.
+  const nonNullableImage: Blob = await fetchApi("GET /api/v1/object/:id", { path: { id: "sample" } });
+  // @ts-expect-error Nullable JSON responses must be narrowed before field access.
+  user.displayName.trim();
+  // @ts-expect-error Upload events use the normalized browser response too.
+  const oldUpload: GameUpload = undefined;
+  void [empty, head, image, upload, emptyUpload, oldEmpty, nonNullableImage, oldUpload];
+}
+void browserResponseConsumers;
 
 const companyUpload: UploadTarget = { key: "POST /api/v1/admin/company/:id/icon", path: { id: "sample" } };
 const gameUpload: UploadTarget = { key: "POST /api/v1/admin/game/image" };

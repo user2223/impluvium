@@ -25,13 +25,24 @@ async function checkIndependentClient() {
       import type { ApiFetch } from "./shared/api/client";
       declare global {
         const $apiFetch: ApiFetch;
-        interface ImportMeta { readonly client: boolean; readonly server: boolean }
         function updateUser(): Promise<void>;
-        function useUser(): { value: { admin: boolean } | null };
+        function initializeUser(): Promise<void>;
+        function useUser(): { value: { admin: boolean } | null | undefined };
         function isClientRequest(): boolean;
         function ref<T>(value: T): { value: T };
         function computed<T>(getter: () => T): { readonly value: T };
         function onMounted(callback: () => void): void;
+        function onScopeDispose(callback: () => void): void;
+        function useNuxtApp(): { runWithContext<T>(callback: () => T): T };
+        function clearNuxtState(keys: string[]): void;
+        function startNotificationConnection(): () => void;
+        function startTaskConnection(): () => void;
+        function startSystemConnection(): () => void;
+        type ConnectionStatus = 'closed' | 'connecting' | 'interrupted' | 'connected' | 'unauthenticated';
+        function useNotificationConnection(): { value: ConnectionStatus };
+        function useTaskConnection(): { value: ConnectionStatus };
+        function useSystemConnection(): { value: ConnectionStatus };
+        function createError(error: { statusCode: number; fatal?: boolean; statusMessage: string; cause?: unknown }): Error;
         function useI18n(): { t: (key: string, values?: unknown[]) => string };
         function useRoute(): { query: Record<string, string | string[] | undefined> };
         function useHead(head: { title?: string; titleTemplate?: (title?: string) => string }): void;
@@ -43,7 +54,7 @@ async function checkIndependentClient() {
     [componentsPath, 'export declare const IconsDiscordLogo: unknown; export declare const IconsGithubLogo: unknown;'],
   ]);
   // Typecheck the actual consumer scripts with small UI context declarations,
-  // instead of Nuxt's generated globals, which also expose the old fetch interface.
+  // instead of Nuxt's generated globals, which also expose backend types.
   for (const file of [
     'app.vue', 'components/ApplicationLogo.vue', 'components/DropWordmark.vue',
     'components/UserFooter.vue', 'layouts/default.vue', 'pages/auth/signin.vue',

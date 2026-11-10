@@ -496,7 +496,7 @@ async function updateGames(
   });
   if (resetGames) {
     games.value = newValues.results;
-    if (import.meta.client) await reset();
+    await reset();
   } else {
     games.value.push(...newValues.results);
   }

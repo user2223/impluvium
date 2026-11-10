@@ -1,4 +1,5 @@
-import type { ApiBody, ApiResponse } from "./types";
+import type { ApiBody } from "./types";
+import type { ApiFetchResponse } from "./client";
 import type { ApiRouteMap } from "./generated/routes";
 
 type UploadKey =
@@ -17,9 +18,9 @@ export type UploadTarget = {
     : never;
 }[UploadKey];
 
-export type GameUpload = ApiResponse<"POST /api/v1/admin/game/image">;
-export type CompanyUpload = ApiResponse<
+export type GameUpload = ApiFetchResponse<"POST /api/v1/admin/game/image">;
+export type CompanyUpload = ApiFetchResponse<
   | "POST /api/v1/admin/company/:id/icon"
   | "POST /api/v1/admin/company/:id/banner"
 >;
-export type LogoUpload = ApiResponse<"POST /api/v1/admin/settings/logo">;
+export type LogoUpload = ApiFetchResponse<"POST /api/v1/admin/settings/logo">;

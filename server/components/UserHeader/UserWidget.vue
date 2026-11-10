@@ -43,7 +43,6 @@
               v-for="(nav, navIdx) in navigation"
               :key="navIdx"
               v-slot="{ active, close }"
-              hydrate-on-visible
               as="div"
             >
               <NuxtLink
@@ -57,7 +56,7 @@
                 {{ nav.label }}
               </NuxtLink>
             </MenuItem>
-            <MenuItem v-slot="{ active, close }" hydrate-on-visible as="div">
+            <MenuItem v-slot="{ active, close }" as="div">
               <NuxtLink
                 to="/auth/signout"
                 :class="[

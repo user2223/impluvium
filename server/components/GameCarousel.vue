@@ -1,36 +1,22 @@
 <template>
   <div ref="currentComponent">
-    <ClientOnly fallback-tag="span">
-      <VueCarousel :items-to-show="singlePage" :items-to-scroll="singlePage">
-        <VueSlide
-          v-for="(game, gameIdx) in games"
-          :key="gameIdx"
-          class="justify-start"
-        >
-          <GamePanel
-            :game="game"
-            :href="game ? `/store/${game.id}` : undefined"
-            :show-title-description="showGamePanelTextDecoration"
-          />
-        </VueSlide>
+    <VueCarousel :items-to-show="singlePage" :items-to-scroll="singlePage">
+      <VueSlide
+        v-for="(game, gameIdx) in games"
+        :key="gameIdx"
+        class="justify-start"
+      >
+        <GamePanel
+          :game="game"
+          :href="game ? `/store/${game.id}` : undefined"
+          :show-title-description="showGamePanelTextDecoration"
+        />
+      </VueSlide>
 
-        <template #addons>
-          <VueNavigation />
-        </template>
-      </VueCarousel>
-      <template #fallback>
-        <div
-          class="flex flex-nowrap flex-row overflow-hidden whitespace-nowrap"
-        >
-          <SkeletonCard
-            v-for="index in 10"
-            :key="index"
-            :loading="true"
-            class="mr-3 flex-none"
-          />
-        </div>
+      <template #addons>
+        <VueNavigation />
       </template>
-    </ClientOnly>
+    </VueCarousel>
   </div>
 </template>
 

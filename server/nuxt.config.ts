@@ -34,11 +34,23 @@ const commitHash =
 
 console.log(`impluvium ${dropVersion} #${commitHash}`);
 
+const buildProfile = process.env.IMPLUVIUM_BUILD_PROFILE ?? "server";
+if (buildProfile !== "server" && buildProfile !== "spa") {
+  throw new Error("IMPLUVIUM_BUILD_PROFILE must be server or spa");
+}
+const spaBuild = buildProfile === "spa";
+const appRoot = fileURLToPath(new URL(".", import.meta.url));
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   extends: ["../libraries/base"],
   // Keep the existing app files beside nuxt.config.ts when using Nuxt 4.
   srcDir: ".",
+  ssr: false,
+  spaLoadingTemplate: "spa-loading-template.html",
+  // Leave the real serverDir at Nuxt's default. The export sees an empty tree.
+  ...(spaBuild ? { serverDir: ".spa-server" } : {}),
+  buildDir: spaBuild ? ".nuxt/spa" : ".nuxt",
   future: {
     compatibilityVersion: 4,
   },
@@ -46,7 +58,6 @@ export default defineNuxtConfig({
 
   modules: [
     "vue3-carousel-nuxt",
-    "nuxt-security",
     "@nuxt/eslint",
     "@nuxtjs/i18n",
     "@vueuse/nuxt",
@@ -70,12 +81,13 @@ export default defineNuxtConfig({
     server: true,
     client: true,
   },
+  features: { inlineStyles: false },
 
   experimental: {
     buildCache: true,
     viewTransition: false,
     appManifest: false,
-    componentIslands: true,
+    componentIslands: false,
   },
 
   vite: {
@@ -93,7 +105,10 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: "en-us", dir: "ltr" },
-      link: [{ rel: "icon", href: "/favicon.ico" }],
+      link: [
+        { rel: "icon", href: "/favicon.ico" },
+        { rel: "stylesheet", href: "/loading.css" },
+      ],
     },
   },
 
@@ -111,6 +126,11 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // The delivery middleware owns lookup, headers and compression. Nitro must
+    // not serve files using the server build's different public-asset inventory.
+    ...(!spaBuild ? { serveStatic: false } : {}),
+    output: { dir: path.join(appRoot, ".output", spaBuild ? "spa" : "server") },
+    ...(spaBuild ? { prerender: { crawlLinks: false, routes: ["/"] } } : {}),
     minify: true,
     compressPublicAssets: true,
 
@@ -249,27 +269,6 @@ export default defineNuxtConfig({
         file: "zh_tw.json",
       },
     ],
-  },
-
-  security: {
-    headers: {
-      contentSecurityPolicy: {
-        "upgrade-insecure-requests": false,
-
-        "img-src": [
-          "'self'",
-          "data:",
-          "https://www.giantbomb.com",
-          "https://images.pcgamingwiki.com",
-          "https://images.igdb.com",
-          "https://*.steamstatic.com",
-        ],
-      },
-      strictTransportSecurity: false,
-    },
-    rateLimiter: false,
-    xssValidator: false,
-    requestSizeLimiter: false,
   },
 });
 

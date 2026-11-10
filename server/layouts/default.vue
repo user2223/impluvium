@@ -3,11 +3,11 @@
     v-if="!clientRequest"
     class="flex flex-col w-full min-h-screen bg-zinc-900"
   >
-    <LazyUserHeader class="z-50" hydrate-on-idle />
+    <LazyUserHeader class="z-50" />
     <div class="grow flex">
       <NuxtPage />
     </div>
-    <LazyUserFooter class="z-50" hydrate-on-interaction />
+    <LazyUserFooter class="z-50" />
   </div>
   <div v-else class="flex flex-col w-full min-h-screen bg-zinc-900">
     <NuxtPage />

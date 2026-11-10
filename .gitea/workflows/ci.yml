@@ -208,6 +208,21 @@ jobs:
       - name: Lint
         working-directory: server
         run: pnpm run lint
+      - name: Static transport, output and connection contracts
+        run: node --test --test-concurrency=1 tools/web-spa/test/*.test.mjs
+      - name: Separate server build and service-free static export
+        env:
+          IMPLUVIUM_GIT_REF: ${{ github.sha }}
+          IMPLUVIUM_VERSION: 0.0.0-dev
+        run: |
+          pnpm -C server run build:server
+          pnpm -C server run generate
+          pnpm -C server run build:assemble
+          test -f server/.output/server/server/index.mjs
+          test -f server/.output/spa/public/index.html
+          test -f server/.output/server/public/csp-hashes.json
+          node server/.output/server/server/index.mjs --check-static-output
+          node tools/web-spa/check-startup.mjs server/.output/server
 
   desktop-ui:
     runs-on: impluvium-linux
@@ -549,7 +564,9 @@ jobs:
                               elf = t.extractfile(m).read()
           problems = []
           want = ["/usr/bin/torrential", "/app/node_modules/.bin/prisma", "/app/startup/launch.sh",
-                  "/app/prisma.config.ts", "/app/prisma/schema.prisma", "/app/app/server/index.mjs", "/nginx.conf"]
+                  "/app/prisma.config.ts", "/app/prisma/schema.prisma", "/app/app/server/index.mjs", "/nginx.conf",
+                  "/app/app/server/nitro-entry.mjs", "/app/app/public/index.html",
+                  "/app/app/public/loading.css", "/app/app/public/csp-hashes.json"]
           for w in want:
               print("present" if w in files else "MISSING", w)
               if w not in files:

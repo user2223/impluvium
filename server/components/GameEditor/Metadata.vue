@@ -555,11 +555,8 @@
 </template>
 
 <script setup lang="ts">
-import type {
-  AdminFetchGameType,
-  ApiBody,
-  GameModel,
-} from "~/shared/api/types";
+import type { AdminFetchGameType, ApiBody } from "~/shared/api/types";
+import type { GameUpload } from "~/shared/api/upload";
 import { AgeRatingOrganization } from "~/shared/api/generated/enums";
 import { getAvailableRatings } from "~/utils/ageRatings";
 import { micromark } from "micromark";
@@ -921,7 +918,7 @@ async function deleteImage(id: string) {
   }
 }
 
-async function uploadAfterImageUpload(result: GameModel | undefined) {
+async function uploadAfterImageUpload(result: GameUpload) {
   if (!game.value) return;
   if (!result) {
     throw new Error("The server returned no game after uploading the image");

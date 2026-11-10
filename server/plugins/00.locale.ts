@@ -9,22 +9,11 @@ import {
 // Nuxt decodes cookies without catching errors, and i18n reads its own cookie
 // through that path, so a malformed value has to be gone before i18n starts.
 function expireMalformedLocaleCookies() {
-  const header = import.meta.server
-    ? (useRequestHeader("cookie") ?? "")
-    : document.cookie;
-  const expired = malformedLocaleCookies(header).map(
+  const expired = malformedLocaleCookies(document.cookie).map(
     (name) => `${name}=; Max-Age=0; Path=/; SameSite=Lax`,
   );
   if (expired.length === 0) return;
-  if (import.meta.server) {
-    const setCookie = useResponseHeader("set-cookie");
-    setCookie.value = [setCookie.value ?? []]
-      .flat()
-      .map(String)
-      .concat(expired);
-  } else {
-    for (const cookie of expired) document.cookie = cookie;
-  }
+  for (const cookie of expired) document.cookie = cookie;
 }
 
 export default defineNuxtPlugin({
@@ -34,7 +23,7 @@ export default defineNuxtPlugin({
   setup(nuxtApp) {
     expireMalformedLocaleCookies();
 
-    // Capture the incoming preference before i18n can create its default cookie.
+    // Capture the browser preference before i18n can create its default cookie.
     const current = useCookie<unknown>(UI_LOCALE_COOKIE, {
       readonly: true,
       decode: decodeLocaleCookie,
