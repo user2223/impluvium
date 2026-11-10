@@ -1,11 +1,17 @@
 /** Register language attributes independently of layouts and API availability. */
 export function useLocaleHtmlAttributes() {
-  const localeHead = useLocaleHead({ seo: false });
+  // The locale plugin also calls this outside component setup.
+  const { $i18n } = useNuxtApp();
 
-  return useHead(() => ({
-    htmlAttrs: {
-      lang: localeHead.value.htmlAttrs?.lang ?? "en-us",
-      dir: localeHead.value.htmlAttrs?.dir === "rtl" ? "rtl" : "ltr",
-    },
-  }));
+  return useHead(() => {
+    const locale = unref($i18n.localeProperties);
+
+    return {
+      htmlAttrs: {
+        lang: locale.language || locale.code,
+        // The app uses i18n's default ltr direction.
+        dir: locale.dir === "rtl" ? "rtl" : "ltr",
+      },
+    };
+  });
 }

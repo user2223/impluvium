@@ -25,8 +25,17 @@ async function fixture(cookies, check) {
   const jar = new Map(Object.entries(cookies));
   const events = [];
   const heads = [];
-  const locales = ['en-us', 'de', 'fr', 'ar'];
-  const attrs = { value: { htmlAttrs: { lang: 'en-us', dir: 'ltr' } } };
+  const locales = [
+    { code: 'en-us', language: 'en-us' },
+    { code: 'de', language: 'de' },
+    { code: 'fr', language: 'fr' },
+    { code: 'ar', language: 'ar', dir: 'rtl' },
+  ];
+  const localeCodes = locales.map(({ code }) => code);
+  const locale = { value: 'en-us' };
+  const localeProperties = {
+    get value() { return locales.find(({ code }) => code === locale.value) ?? { code: locale.value }; },
+  };
   let hook;
   const writes = [];
   install('document', {
@@ -52,23 +61,25 @@ async function fixture(cookies, check) {
       },
     };
   });
-  install('useLocaleHead', (options) => { assert.equal(options.seo, false); return attrs; });
+  install('useLocaleHead', () => assert.fail('HTML attributes must not invoke SEO head generation'));
   install('useHead', (getter) => { assert.equal(typeof getter, 'function'); heads.push(getter); });
   try {
     const { useLocaleHtmlAttributes } = await loadSource('server/composables/locale-head.ts');
     install('useLocaleHtmlAttributes', useLocaleHtmlAttributes);
     const { default: plugin } = await loadSource('server/plugins/00.locale.ts');
     assert.equal(plugin.order, -30, 'Cookie cleanup and hook registration must precede the router');
-    const updateAttrs = (locale) => { attrs.value = { htmlAttrs: { lang: locale, dir: locale === 'ar' ? 'rtl' : 'ltr' } }; };
     const app = {
       hook(name, callback) { assert.equal(name, 'app:created'); hook = callback; },
       runWithContext(callback) { return callback(); },
       $i18n: {
-        localeCodes: { value: locales },
-        async setLocale(locale) { events.push(`locale:${locale}`); await Promise.resolve(); updateAttrs(locale); },
+        locale,
+        localeProperties,
+        localeCodes: { value: localeCodes },
+        async setLocale(code) { events.push(`locale:${code}`); await Promise.resolve(); locale.value = code; },
         setLocaleCookie(locale) { writes.push(locale); jar.set(UI_LOCALE_COOKIE, encodeURIComponent(locale)); },
       },
     };
+    install('useNuxtApp', () => app);
     const run = async (browserLocale = 'en-us') => {
       hook = undefined;
       plugin.setup(app);
@@ -77,13 +88,13 @@ async function fixture(cookies, check) {
       // Simulate i18n's own cookie/browser selection between plugin setup and
       // app:created, including its creation of a default preference cookie.
       const current = decodeLocaleCookie(jar.get(UI_LOCALE_COOKIE) ?? '');
-      const detected = locales.includes(current) ? current : browserLocale;
+      const detected = localeCodes.includes(current) ? current : browserLocale;
       jar.set(UI_LOCALE_COOKIE, encodeURIComponent(detected));
-      updateAttrs(detected);
+      locale.value = detected;
       await hook();
       assert.equal(heads.length, 1);
     };
-    await check({ jar, events, heads, writes, attrs, run });
+    await check({ jar, events, heads, writes, locale, locales, run });
   } finally {
     for (const [name, descriptor] of originals) {
       if (descriptor) Object.defineProperty(globalThis, name, descriptor);
@@ -159,13 +170,33 @@ test('absent or unsupported legacy cookies keep the browser selection', async ()
 });
 
 test('language attributes stay reactive and independent of layouts and API data', async () => {
-  await fixture({}, async ({ attrs, heads, run }) => {
+  await fixture({}, async ({ locale, heads, run }) => {
     await run('en-us');
-    attrs.value = { htmlAttrs: { lang: 'ar', dir: 'rtl' } };
+    assert.deepEqual(heads[0](), { htmlAttrs: { lang: 'en-us', dir: 'ltr' } });
+    locale.value = 'de';
+    assert.deepEqual(heads[0](), { htmlAttrs: { lang: 'de', dir: 'ltr' } });
+    locale.value = 'ar';
     assert.deepEqual(heads[0](), { htmlAttrs: { lang: 'ar', dir: 'rtl' } });
-    attrs.value = { htmlAttrs: {} };
+    locale.value = 'en-us';
     assert.deepEqual(heads[0](), { htmlAttrs: { lang: 'en-us', dir: 'ltr' } });
     const errorRoot = await readFile(join(root, 'server/error.vue'), 'utf8');
     assert.match(errorRoot, /useLocaleHtmlAttributes\(\)/);
+  });
+});
+
+test('language attributes preserve configured language tags and fall back to locale codes', async () => {
+  await fixture({}, async ({ locale, locales, heads, run }) => {
+    await run('de');
+    const german = locales.find(({ code }) => code === 'de');
+    german.language = 'de-DE';
+    assert.deepEqual(heads[0](), { htmlAttrs: { lang: 'de-DE', dir: 'ltr' } });
+    delete german.language;
+    assert.deepEqual(heads[0](), { htmlAttrs: { lang: 'de', dir: 'ltr' } });
+    locale.value = 'en-us';
+    const english = locales.find(({ code }) => code === 'en-us');
+    english.language = 'en-US';
+    assert.deepEqual(heads[0](), { htmlAttrs: { lang: 'en-US', dir: 'ltr' } });
+    delete english.language;
+    assert.deepEqual(heads[0](), { htmlAttrs: { lang: 'en-us', dir: 'ltr' } });
   });
 });
