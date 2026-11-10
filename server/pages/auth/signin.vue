@@ -26,9 +26,7 @@
 
         <div class="mt-10">
           <div>
-            <AuthSimple
-              v-if="enabledAuthProviders.includes('Simple' as AuthMec)"
-            />
+            <AuthSimple v-if="enabledAuthProviders.includes('Simple')" />
             <div
               v-if="enabledAuthProviders.length > 1"
               class="py-4 flex flex-row items-center justify-center gap-x-4 font-bold text-sm text-zinc-600"
@@ -38,7 +36,7 @@
               <span class="h-[1px] grow bg-zinc-600" />
             </div>
             <AuthOpenID
-              v-if="enabledAuthProviders.includes('OpenID' as AuthMec)"
+              v-if="enabledAuthProviders.includes('OpenID')"
               :provider-name="oidcProviderName"
             />
           </div>
@@ -56,11 +54,9 @@
 </template>
 
 <script setup lang="ts">
-import type { AuthMec } from "~/prisma/client/enums";
-
 const { t } = useI18n();
 const { enabledAuthProviders, oidcProviderName } =
-  await $dropFetch("/api/v1/auth");
+  await $apiFetch("GET /api/v1/auth");
 
 const route = useRoute();
 const superlevel = route.query.superlevel;

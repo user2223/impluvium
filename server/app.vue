@@ -28,7 +28,7 @@ import { XMarkIcon } from "@heroicons/vue/24/outline";
 await updateUser();
 
 const user = useUser();
-const apiDetails = await $dropFetch("/api/v1");
+const apiDetails = await $apiFetch("GET /api/v1");
 const clientMode = isClientRequest();
 
 const showExternalUrlWarning = ref(false);

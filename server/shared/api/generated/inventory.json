@@ -1,0 +1,1099 @@
+{
+  "handlers": [
+    {
+      "file": "server/server/api/v1/admin/auth/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/auth"
+    },
+    {
+      "file": "server/server/api/v1/admin/auth/invitation/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/admin/auth/invitation"
+    },
+    {
+      "file": "server/server/api/v1/admin/auth/invitation/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/auth/invitation"
+    },
+    {
+      "file": "server/server/api/v1/admin/auth/invitation/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/auth/invitation"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/[id]/banner.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/company/:id/banner"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/[id]/game.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/admin/company/:id/game"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/[id]/game.patch.ts",
+      "kind": "empty",
+      "method": "PATCH",
+      "path": "/api/v1/admin/company/:id/game"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/[id]/game.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/company/:id/game"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/[id]/icon.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/company/:id/icon"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/[id]/index.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/admin/company/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/company/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/[id]/index.patch.ts",
+      "kind": "json",
+      "method": "PATCH",
+      "path": "/api/v1/admin/company/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/company"
+    },
+    {
+      "file": "server/server/api/v1/admin/company/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/company"
+    },
+    {
+      "file": "server/server/api/v1/admin/depot/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/depot"
+    },
+    {
+      "file": "server/server/api/v1/admin/depot/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/depot"
+    },
+    {
+      "file": "server/server/api/v1/admin/depot/upload.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/depot/upload"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/[id]/age-ratings.patch.ts",
+      "kind": "json",
+      "method": "PATCH",
+      "path": "/api/v1/admin/game/:id/age-ratings"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/[id]/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/admin/game/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/game/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/[id]/index.patch.ts",
+      "kind": "json",
+      "method": "PATCH",
+      "path": "/api/v1/admin/game/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/[id]/metadata.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/game/:id/metadata"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/[id]/tags.patch.ts",
+      "kind": "empty",
+      "method": "PATCH",
+      "path": "/api/v1/admin/game/:id/tags"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/[id]/versions/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/admin/game/:id/versions"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/[id]/versions/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/game/:id/versions"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/[id]/versions/index.patch.ts",
+      "kind": "json",
+      "method": "PATCH",
+      "path": "/api/v1/admin/game/:id/versions"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/image/index.delete.ts",
+      "kind": "json-or-empty",
+      "method": "DELETE",
+      "path": "/api/v1/admin/game/image"
+    },
+    {
+      "file": "server/server/api/v1/admin/game/image/index.post.ts",
+      "kind": "json-or-empty",
+      "method": "POST",
+      "path": "/api/v1/admin/game/image"
+    },
+    {
+      "file": "server/server/api/v1/admin/groups/[id]/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/admin/groups/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/groups/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/groups/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/groups/[id]/index.patch.ts",
+      "kind": "json",
+      "method": "PATCH",
+      "path": "/api/v1/admin/groups/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/groups/[id]/members.patch.ts",
+      "kind": "json-or-empty",
+      "method": "PATCH",
+      "path": "/api/v1/admin/groups/:id/members"
+    },
+    {
+      "file": "server/server/api/v1/admin/groups/[id]/ratings.patch.ts",
+      "kind": "json",
+      "method": "PATCH",
+      "path": "/api/v1/admin/groups/:id/ratings"
+    },
+    {
+      "file": "server/server/api/v1/admin/groups/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/groups"
+    },
+    {
+      "file": "server/server/api/v1/admin/groups/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/groups"
+    },
+    {
+      "file": "server/server/api/v1/admin/home/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/home"
+    },
+    {
+      "file": "server/server/api/v1/admin/import/game/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/import/game"
+    },
+    {
+      "file": "server/server/api/v1/admin/import/game/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/import/game"
+    },
+    {
+      "file": "server/server/api/v1/admin/import/game/search.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/import/game/search"
+    },
+    {
+      "file": "server/server/api/v1/admin/import/massversion/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/import/massversion"
+    },
+    {
+      "file": "server/server/api/v1/admin/import/massversion/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/import/massversion"
+    },
+    {
+      "file": "server/server/api/v1/admin/import/version/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/import/version"
+    },
+    {
+      "file": "server/server/api/v1/admin/import/version/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/import/version"
+    },
+    {
+      "file": "server/server/api/v1/admin/import/version/preload.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/import/version/preload"
+    },
+    {
+      "file": "server/server/api/v1/admin/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin"
+    },
+    {
+      "file": "server/server/api/v1/admin/library/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/library"
+    },
+    {
+      "file": "server/server/api/v1/admin/library/libraries.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/library/libraries"
+    },
+    {
+      "file": "server/server/api/v1/admin/library/sources/index.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/admin/library/sources"
+    },
+    {
+      "file": "server/server/api/v1/admin/library/sources/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/library/sources"
+    },
+    {
+      "file": "server/server/api/v1/admin/library/sources/index.patch.ts",
+      "kind": "json",
+      "method": "PATCH",
+      "path": "/api/v1/admin/library/sources"
+    },
+    {
+      "file": "server/server/api/v1/admin/library/sources/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/library/sources"
+    },
+    {
+      "file": "server/server/api/v1/admin/news/[id]/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/admin/news/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/news/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/news/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/news/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/news"
+    },
+    {
+      "file": "server/server/api/v1/admin/news/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/news"
+    },
+    {
+      "file": "server/server/api/v1/admin/search/game.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/search/game"
+    },
+    {
+      "file": "server/server/api/v1/admin/services/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/services"
+    },
+    {
+      "file": "server/server/api/v1/admin/settings/dummy-data.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/settings/dummy-data"
+    },
+    {
+      "file": "server/server/api/v1/admin/settings/index.patch.ts",
+      "kind": "json",
+      "method": "PATCH",
+      "path": "/api/v1/admin/settings"
+    },
+    {
+      "file": "server/server/api/v1/admin/settings/logo.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/settings/logo"
+    },
+    {
+      "file": "server/server/api/v1/admin/system-data/ws.get.ts",
+      "kind": "websocket",
+      "method": "GET",
+      "path": "/api/v1/admin/system-data/ws"
+    },
+    {
+      "file": "server/server/api/v1/admin/tags/[id]/index.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/admin/tags/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/tags/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/tags"
+    },
+    {
+      "file": "server/server/api/v1/admin/tags/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/tags"
+    },
+    {
+      "file": "server/server/api/v1/admin/task/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/task"
+    },
+    {
+      "file": "server/server/api/v1/admin/task/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/task"
+    },
+    {
+      "file": "server/server/api/v1/admin/token/[id]/index.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/admin/token/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/token/acls.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/token/acls"
+    },
+    {
+      "file": "server/server/api/v1/admin/token/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/token"
+    },
+    {
+      "file": "server/server/api/v1/admin/token/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/admin/token"
+    },
+    {
+      "file": "server/server/api/v1/admin/users/[id]/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/admin/users/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/users/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/users/:id"
+    },
+    {
+      "file": "server/server/api/v1/admin/users/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/admin/users"
+    },
+    {
+      "file": "server/server/api/v1/auth/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/auth"
+    },
+    {
+      "file": "server/server/api/v1/auth/mfa/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/auth/mfa"
+    },
+    {
+      "file": "server/server/api/v1/auth/mfa/totp.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/auth/mfa/totp"
+    },
+    {
+      "file": "server/server/api/v1/auth/mfa/webauthn/finish.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/auth/mfa/webauthn/finish"
+    },
+    {
+      "file": "server/server/api/v1/auth/mfa/webauthn/start.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/auth/mfa/webauthn/start"
+    },
+    {
+      "file": "server/server/api/v1/auth/oidc/callback.get.ts",
+      "kind": "redirect",
+      "method": "GET",
+      "path": "/api/v1/auth/oidc/callback"
+    },
+    {
+      "file": "server/server/api/v1/auth/oidc/logout.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/auth/oidc/logout"
+    },
+    {
+      "file": "server/server/api/v1/auth/passkey/finish.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/auth/passkey/finish"
+    },
+    {
+      "file": "server/server/api/v1/auth/passkey/start.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/auth/passkey/start"
+    },
+    {
+      "file": "server/server/api/v1/auth/signin/simple.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/auth/signin/simple"
+    },
+    {
+      "file": "server/server/api/v1/auth/signup/simple.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/auth/signup/simple"
+    },
+    {
+      "file": "server/server/api/v1/auth/signup/simple.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/auth/signup/simple"
+    },
+    {
+      "file": "server/server/api/v1/client/auth/callback/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/client/auth/callback"
+    },
+    {
+      "file": "server/server/api/v1/client/auth/code/index.get.ts",
+      "kind": "text",
+      "method": "GET",
+      "path": "/api/v1/client/auth/code"
+    },
+    {
+      "file": "server/server/api/v1/client/auth/code/index.post.ts",
+      "kind": "empty",
+      "method": "POST",
+      "path": "/api/v1/client/auth/code"
+    },
+    {
+      "file": "server/server/api/v1/client/auth/code/ws.get.ts",
+      "kind": "websocket",
+      "method": "GET",
+      "path": "/api/v1/client/auth/code/ws"
+    },
+    {
+      "file": "server/server/api/v1/client/auth/handshake.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/client/auth/handshake"
+    },
+    {
+      "file": "server/server/api/v1/client/auth/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/auth"
+    },
+    {
+      "file": "server/server/api/v1/client/auth/initiate.post.ts",
+      "kind": "text",
+      "method": "POST",
+      "path": "/api/v1/client/auth/initiate"
+    },
+    {
+      "file": "server/server/api/v1/client/auth/session.post.ts",
+      "kind": "empty",
+      "method": "POST",
+      "path": "/api/v1/client/auth/session"
+    },
+    {
+      "file": "server/server/api/v1/client/capability/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/client/capability"
+    },
+    {
+      "file": "server/server/api/v1/client/collection/[id]/entry.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/client/collection/:id/entry"
+    },
+    {
+      "file": "server/server/api/v1/client/collection/[id]/entry.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/client/collection/:id/entry"
+    },
+    {
+      "file": "server/server/api/v1/client/collection/[id]/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/client/collection/:id"
+    },
+    {
+      "file": "server/server/api/v1/client/collection/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/collection/:id"
+    },
+    {
+      "file": "server/server/api/v1/client/collection/default/entry.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/client/collection/default/entry"
+    },
+    {
+      "file": "server/server/api/v1/client/collection/default/entry.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/client/collection/default/entry"
+    },
+    {
+      "file": "server/server/api/v1/client/collection/default/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/collection/default"
+    },
+    {
+      "file": "server/server/api/v1/client/collection/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/collection"
+    },
+    {
+      "file": "server/server/api/v1/client/collection/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/client/collection"
+    },
+    {
+      "file": "server/server/api/v1/client/depots/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/depots"
+    },
+    {
+      "file": "server/server/api/v1/client/game/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/game/:id"
+    },
+    {
+      "file": "server/server/api/v1/client/game/[id]/version/[versionid]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/game/:id/version/:versionid"
+    },
+    {
+      "file": "server/server/api/v1/client/game/[id]/versions.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/game/:id/versions"
+    },
+    {
+      "file": "server/server/api/v1/client/game/manifest.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/game/manifest"
+    },
+    {
+      "file": "server/server/api/v1/client/news/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/news/:id"
+    },
+    {
+      "file": "server/server/api/v1/client/news/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/news"
+    },
+    {
+      "file": "server/server/api/v1/client/object/[id]/index.get.ts",
+      "kind": "binary",
+      "method": "GET",
+      "path": "/api/v1/client/object/:id"
+    },
+    {
+      "file": "server/server/api/v1/client/playtime/[gameid]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/playtime/:gameid"
+    },
+    {
+      "file": "server/server/api/v1/client/playtime/[gameid]/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/client/playtime/:gameid"
+    },
+    {
+      "file": "server/server/api/v1/client/playtime/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/playtime"
+    },
+    {
+      "file": "server/server/api/v1/client/saves/[gameid]/[slotindex]/index.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/client/saves/:gameid/:slotindex"
+    },
+    {
+      "file": "server/server/api/v1/client/saves/[gameid]/[slotindex]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/saves/:gameid/:slotindex"
+    },
+    {
+      "file": "server/server/api/v1/client/saves/[gameid]/[slotindex]/push.post.ts",
+      "kind": "empty",
+      "method": "POST",
+      "path": "/api/v1/client/saves/:gameid/:slotindex/push"
+    },
+    {
+      "file": "server/server/api/v1/client/saves/[gameid]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/saves/:gameid"
+    },
+    {
+      "file": "server/server/api/v1/client/saves/[gameid]/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/client/saves/:gameid"
+    },
+    {
+      "file": "server/server/api/v1/client/saves/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/saves"
+    },
+    {
+      "file": "server/server/api/v1/client/saves/settings.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/saves/settings"
+    },
+    {
+      "file": "server/server/api/v1/client/user/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/user"
+    },
+    {
+      "file": "server/server/api/v1/client/user/library.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/client/user/library"
+    },
+    {
+      "file": "server/server/api/v1/client/user/webtoken.post.ts",
+      "kind": "text",
+      "method": "POST",
+      "path": "/api/v1/client/user/webtoken"
+    },
+    {
+      "file": "server/server/api/v1/collection/[id]/entry.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/collection/:id/entry"
+    },
+    {
+      "file": "server/server/api/v1/collection/[id]/entry.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/collection/:id/entry"
+    },
+    {
+      "file": "server/server/api/v1/collection/[id]/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/collection/:id"
+    },
+    {
+      "file": "server/server/api/v1/collection/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/collection/:id"
+    },
+    {
+      "file": "server/server/api/v1/collection/default/entry.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/collection/default/entry"
+    },
+    {
+      "file": "server/server/api/v1/collection/default/entry.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/collection/default/entry"
+    },
+    {
+      "file": "server/server/api/v1/collection/default/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/collection/default"
+    },
+    {
+      "file": "server/server/api/v1/collection/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/collection"
+    },
+    {
+      "file": "server/server/api/v1/collection/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/collection"
+    },
+    {
+      "file": "server/server/api/v1/companies/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/companies/:id"
+    },
+    {
+      "file": "server/server/api/v1/emoji/[codepoint]/index.get.ts",
+      "kind": "binary",
+      "method": "GET",
+      "path": "/api/v1/emoji/:codepoint"
+    },
+    {
+      "file": "server/server/api/v1/games/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/games/:id"
+    },
+    {
+      "file": "server/server/api/v1/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1"
+    },
+    {
+      "file": "server/server/api/v1/news/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/news/:id"
+    },
+    {
+      "file": "server/server/api/v1/news/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/news"
+    },
+    {
+      "file": "server/server/api/v1/notifications/[id]/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/notifications/:id"
+    },
+    {
+      "file": "server/server/api/v1/notifications/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/notifications/:id"
+    },
+    {
+      "file": "server/server/api/v1/notifications/[id]/read.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/notifications/:id/read"
+    },
+    {
+      "file": "server/server/api/v1/notifications/clear.post.ts",
+      "kind": "empty",
+      "method": "POST",
+      "path": "/api/v1/notifications/clear"
+    },
+    {
+      "file": "server/server/api/v1/notifications/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/notifications"
+    },
+    {
+      "file": "server/server/api/v1/notifications/readall.post.ts",
+      "kind": "empty",
+      "method": "POST",
+      "path": "/api/v1/notifications/readall"
+    },
+    {
+      "file": "server/server/api/v1/notifications/ws.get.ts",
+      "kind": "websocket",
+      "method": "GET",
+      "path": "/api/v1/notifications/ws"
+    },
+    {
+      "file": "server/server/api/v1/object/[id]/index.delete.ts",
+      "kind": "json",
+      "method": "DELETE",
+      "path": "/api/v1/object/:id"
+    },
+    {
+      "file": "server/server/api/v1/object/[id]/index.get.ts",
+      "kind": "binary-or-empty",
+      "method": "GET",
+      "path": "/api/v1/object/:id"
+    },
+    {
+      "file": "server/server/api/v1/object/[id]/index.head.ts",
+      "kind": "empty",
+      "method": "HEAD",
+      "path": "/api/v1/object/:id"
+    },
+    {
+      "file": "server/server/api/v1/object/[id]/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/object/:id"
+    },
+    {
+      "file": "server/server/api/v1/screenshots/[id]/index.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/screenshots/:id"
+    },
+    {
+      "file": "server/server/api/v1/screenshots/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/screenshots/:id"
+    },
+    {
+      "file": "server/server/api/v1/screenshots/game/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/screenshots/game/:id"
+    },
+    {
+      "file": "server/server/api/v1/screenshots/game/[id]/index.post.ts",
+      "kind": "empty",
+      "method": "POST",
+      "path": "/api/v1/screenshots/game/:id"
+    },
+    {
+      "file": "server/server/api/v1/screenshots/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/screenshots"
+    },
+    {
+      "file": "server/server/api/v1/settings/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/settings"
+    },
+    {
+      "file": "server/server/api/v1/setup.post.ts",
+      "kind": "empty",
+      "method": "POST",
+      "path": "/api/v1/setup"
+    },
+    {
+      "file": "server/server/api/v1/store/featured.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/store/featured"
+    },
+    {
+      "file": "server/server/api/v1/store/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/store"
+    },
+    {
+      "file": "server/server/api/v1/store/tags.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/store/tags"
+    },
+    {
+      "file": "server/server/api/v1/tags/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/tags/:id"
+    },
+    {
+      "file": "server/server/api/v1/task/index.get.ts",
+      "kind": "websocket",
+      "method": "GET",
+      "path": "/api/v1/task"
+    },
+    {
+      "file": "server/server/api/v1/token.get.ts",
+      "kind": "json-or-empty",
+      "method": "GET",
+      "path": "/api/v1/token"
+    },
+    {
+      "file": "server/server/api/v1/user/[id]/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/user/:id"
+    },
+    {
+      "file": "server/server/api/v1/user/auth/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/user/auth"
+    },
+    {
+      "file": "server/server/api/v1/user/client/[id]/index.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/user/client/:id"
+    },
+    {
+      "file": "server/server/api/v1/user/client/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/user/client"
+    },
+    {
+      "file": "server/server/api/v1/user/index.get.ts",
+      "kind": "json-or-empty",
+      "method": "GET",
+      "path": "/api/v1/user"
+    },
+    {
+      "file": "server/server/api/v1/user/mfa/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/user/mfa"
+    },
+    {
+      "file": "server/server/api/v1/user/mfa/totp/finish.post.ts",
+      "kind": "empty",
+      "method": "POST",
+      "path": "/api/v1/user/mfa/totp/finish"
+    },
+    {
+      "file": "server/server/api/v1/user/mfa/totp/start.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/user/mfa/totp/start"
+    },
+    {
+      "file": "server/server/api/v1/user/mfa/webauthn/finish.post.ts",
+      "kind": "empty",
+      "method": "POST",
+      "path": "/api/v1/user/mfa/webauthn/finish"
+    },
+    {
+      "file": "server/server/api/v1/user/mfa/webauthn/index.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/user/mfa/webauthn"
+    },
+    {
+      "file": "server/server/api/v1/user/mfa/webauthn/start.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/user/mfa/webauthn/start"
+    },
+    {
+      "file": "server/server/api/v1/user/superlevel.ts",
+      "kind": "json",
+      "method": "*",
+      "path": "/api/v1/user/superlevel"
+    },
+    {
+      "file": "server/server/api/v1/user/token/[id]/index.delete.ts",
+      "kind": "empty",
+      "method": "DELETE",
+      "path": "/api/v1/user/token/:id"
+    },
+    {
+      "file": "server/server/api/v1/user/token/acls.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/user/token/acls"
+    },
+    {
+      "file": "server/server/api/v1/user/token/index.get.ts",
+      "kind": "json",
+      "method": "GET",
+      "path": "/api/v1/user/token"
+    },
+    {
+      "file": "server/server/api/v1/user/token/index.post.ts",
+      "kind": "json",
+      "method": "POST",
+      "path": "/api/v1/user/token"
+    }
+  ],
+  "redirectRules": [
+    {
+      "kind": "redirect",
+      "path": "/auth/callback/oidc",
+      "target": "/api/v1/auth/oidc/callback"
+    }
+  ],
+  "serverRoutes": [
+    {
+      "file": "server/server/routes/auth/oidc.get.ts",
+      "kind": "redirect",
+      "method": "GET",
+      "path": "/auth/oidc"
+    },
+    {
+      "file": "server/server/routes/auth/signout.get.ts",
+      "kind": "redirect",
+      "method": "GET",
+      "path": "/auth/signout"
+    }
+  ]
+}

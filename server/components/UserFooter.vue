@@ -115,7 +115,7 @@ import { IconsDiscordLogo, IconsGithubLogo } from "#components";
 
 const { t } = useI18n();
 
-const versionInfo = await $dropFetch("/api/v1");
+const versionInfo = await $apiFetch("GET /api/v1");
 
 const navigation = computed(() => ({
   games: [

@@ -1,0 +1,52 @@
+[
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/auth/invitation",
+    "reason": "The request-only defineEventHandler generic erases the invitation deletion callback's empty-object response to any."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/game/:id/versions",
+    "reason": "The request-only defineEventHandler generic erases the version deletion callback's empty-object response to any."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/game/image",
+    "reason": "The request-only defineEventHandler generic erases the image deletion callback's optional updated-image response to any."
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/library/sources",
+    "reason": "The request-only defineEventHandler generic erases the library deletion callback's void response to any."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/library/sources",
+    "reason": "The request-only defineEventHandler generic erases the library update callback's working-source response to any."
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/settings",
+    "reason": "The request-only defineEventHandler generic erases the settings callback's explicit Promise<Settings> response to any."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/import/game",
+    "reason": "The request-only defineEventHandler generic erases the import callback's task identifier response to any."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/library/sources",
+    "reason": "The request-only defineEventHandler generic erases the library creation callback's working-source response to any."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/signin/simple",
+    "reason": "The request-only defineEventHandler generic erases the sign-in callback's session result and user identifier response to any."
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/signup/simple",
+    "reason": "The request-only defineEventHandler generic erases the registration callback's created-user response to any."
+  }
+]

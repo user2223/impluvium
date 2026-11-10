@@ -55,11 +55,17 @@ export type AdminFetchGameType = Prisma.GameGetPayload<{
   };
 }>;
 
+type AdminFetchGameVersionWithSize = Awaited<
+  ReturnType<typeof getGameVersionSize<AdminFetchGameType["versions"][number]>>
+>;
+
 // Types in the route ensure we actually return the value as defined above
 export default defineEventHandler<
   { body: never },
   Promise<{
-    game: AdminFetchGameType;
+    game: Omit<AdminFetchGameType, "versions"> & {
+      versions: AdminFetchGameVersionWithSize[];
+    };
     unimportedVersions: UnimportedVersionInformation[] | undefined;
   }>
 >(async (h3) => {

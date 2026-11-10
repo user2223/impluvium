@@ -8,5 +8,5 @@
 </template>
 
 <script setup lang="ts">
-const { serverName, mLogoObjectId } = await $dropFetch("/api/v1");
+const { serverName, mLogoObjectId } = await $apiFetch("GET /api/v1");
 </script>

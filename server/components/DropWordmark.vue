@@ -23,5 +23,5 @@
 </template>
 
 <script setup lang="ts">
-const { serverName } = await $dropFetch("/api/v1");
+const { serverName } = await $apiFetch("GET /api/v1");
 </script>

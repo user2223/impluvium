@@ -55,6 +55,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Self-tests of the CI checks
         run: node --test tools/ci/test/*.test.mjs
+      - name: HTTP route inventory
+        run: node tools/ci/check-api-routes.mjs
       - name: Pins (images, actions, tools, locked Cargo commands, frozen installs, Node major, required jobs)
         run: node tools/ci/check-pins.mjs --root .
       - name: Baseline of the base revision
@@ -63,8 +65,8 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
-          # As in the rust job: the allow-list of feature gates may only shrink compared with the revision this
-          # run builds on. A missing base fails the run; only a new branch, a tag push and a manual run have none.
+          # Feature gates and Nitro comparison exclusions may only shrink compared with the base revision.
+          # A missing base fails the run; only a new branch, a tag push and a manual run have none.
           mkdir -p "$RUNNER_TEMP/base"
           case "$EVENT_NAME:$GITHUB_REF" in
             pull_request:*) base="$PR_BASE_SHA" ;;
@@ -111,6 +113,15 @@ jobs:
           else
             echo "tools/env-register.json: new, $base does not use it yet"
           fi
+          if git cat-file -e "$base:tools/web-api/non-comparable.json" 2>/dev/null; then
+            git show "$base:tools/web-api/non-comparable.json" > "$RUNNER_TEMP/base/non-comparable.json"
+            echo "tools/web-api/non-comparable.json: compared with $base"
+          elif grep -q "tools/web-api/non-comparable" "$RUNNER_TEMP/base/ci.yml"; then
+            echo "tools/web-api/non-comparable.json is used by $base but missing there"
+            exit 1
+          else
+            echo "tools/web-api/non-comparable.json: new, $base does not use it yet"
+          fi
       - name: Feature gates (only the listed nightly features, only in the listed crates)
         run: |
           previous=()
@@ -132,6 +143,13 @@ jobs:
             previous=(--previous-register "$RUNNER_TEMP/base/env-register.json")
           fi
           node tools/ci/check-env.mjs --root . "${previous[@]}"
+      - name: Nitro comparison exclusions (may only shrink)
+        run: |
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/non-comparable.json" ]; then
+            previous=(--previous "$RUNNER_TEMP/base/non-comparable.json")
+          fi
+          node tools/web-api/non-comparable.mjs "${previous[@]}"
       - name: Identity document (docs/dev/identity.md matches the identity table and the register)
         run: node tools/ci/identity-doc.mjs --root . --check
       - name: Identity bindings (every renamed place carries the value of the identity table)
@@ -175,6 +193,11 @@ jobs:
         run: corepack enable && pnpm --version
       - name: Install dependencies (server and its Nuxt layer)
         run: pnpm install --frozen-lockfile --filter "{./server}..." --fail-if-no-match
+      - name: HTTP contracts (generated files, independent client types and Nitro comparison)
+        run: |
+          node tools/web-api/generate.mjs --check
+          node tools/web-api/check-types.mjs
+          node --test --test-concurrency=1 tools/web-api/test/*.test.mjs
       - name: Typecheck
         working-directory: server
         run: pnpm run typecheck
