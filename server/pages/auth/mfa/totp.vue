@@ -63,10 +63,7 @@ async function signin(code: string) {
   loading.value = true;
   error.value = undefined;
   try {
-    await $dropFetch("/api/v1/auth/mfa/totp", {
-      method: "POST",
-      body: { code },
-    });
+    await $apiFetch("POST /api/v1/auth/mfa/totp", { body: { code } });
   } catch (e) {
     error.value = (e as FetchError)?.data?.message ?? e;
     loading.value = false;

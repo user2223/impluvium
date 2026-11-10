@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CollectionModel } from "~/prisma/client/models";
+import type { CollectionModel } from "~/shared/api/types";
 import { DialogTitle } from "@headlessui/vue";
 
 const collection = defineModel<CollectionModel | undefined>();
@@ -49,9 +49,8 @@ async function deleteCollection() {
     if (!collection.value) return;
 
     deleteLoading.value = true;
-    await $dropFetch(`/api/v1/collection/:id`, {
-      method: "DELETE",
-      params: {
+    await $apiFetch("DELETE /api/v1/collection/:id", {
+      path: {
         id: collection.value.id,
       },
     });

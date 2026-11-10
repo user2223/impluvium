@@ -1,4 +1,4 @@
-import type { TaskLog } from "~/server/internal/tasks";
+import type { TaskLog } from "~/shared/api/types";
 
 const labelNumberMap = {
   100: "silent",
@@ -11,9 +11,7 @@ const labelNumberMap = {
   0: "off",
 };
 
-export function parseTaskLog(
-  logStr?: string | undefined,
-): typeof TaskLog.infer {
+export function parseTaskLog(logStr?: string | undefined): TaskLog {
   if (!logStr) return { msg: "", time: "", level: "" };
   const log = JSON.parse(logStr);
 

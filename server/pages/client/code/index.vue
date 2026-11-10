@@ -59,7 +59,9 @@ const error = ref<string | undefined>(undefined);
 async function complete(code: string) {
   loading.value = true;
   try {
-    const clientId = await $dropFetch(`/api/v1/client/auth/code?code=${code}`);
+    const clientId = await $apiFetch("GET /api/v1/client/auth/code", {
+      query: { code },
+    });
     router.push(`/client/authorize/${clientId}`);
   } catch (e) {
     if (e instanceof FetchError) {

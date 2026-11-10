@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { DialogTitle } from "@headlessui/vue";
-import type { UserModel } from "~/prisma/client/models";
+import type { UserModel } from "~/shared/api/types";
 
 const user = defineModel<UserModel | undefined>();
 const deleteLoading = ref(false);
@@ -48,8 +48,8 @@ async function deleteUser() {
     if (!user.value) return;
 
     deleteLoading.value = true;
-    await $dropFetch(`/api/v1/admin/users/${user.value.id}`, {
-      method: "DELETE",
+    await $apiFetch("DELETE /api/v1/admin/users/:id", {
+      path: { id: user.value.id },
     });
 
     user.value = undefined;

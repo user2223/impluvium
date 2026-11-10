@@ -211,7 +211,7 @@
 <script lang="ts" setup>
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/vue/24/solid";
 import { PlayIcon } from "@heroicons/vue/24/outline";
-import type { TaskGroup } from "~/server/internal/tasks/group";
+import type { TaskGroup } from "~/shared/api/types";
 
 useHead({
   title: "Tasks",
@@ -224,7 +224,7 @@ definePageMeta({
 const { t } = useI18n();
 
 const { runningTasks, historicalTasks, dailyTasks, weeklyTasks, other } =
-  await $dropFetch("/api/v1/admin/task");
+  await $apiFetch("GET /api/v1/admin/task");
 
 const liveRunningTasks = ref(
   await Promise.all(runningTasks.map((e) => useTask(e))),
@@ -264,8 +264,7 @@ const scheduledTasks: {
 };
 
 async function startTask(taskGroup: string) {
-  const task = await $dropFetch("/api/v1/admin/task", {
-    method: "POST",
+  const task = await $apiFetch("POST /api/v1/admin/task", {
     body: { taskGroup },
     failTitle: "Failed to start task",
   });

@@ -1,10 +1,4 @@
 import type {
-  ExtractedRouteMethod,
-  NitroFetchOptions,
-  NitroFetchRequest,
-  TypedInternalResponse,
-} from "nitropack/types";
-import type {
   $Fetch as TransportFetch,
   FetchError,
   FetchOptions,
@@ -25,29 +19,6 @@ import {
   transferBodyIdentity,
   type TransferEntry,
 } from "~/shared/api/request";
-
-interface DropFetch<
-  DefaultT = unknown,
-  DefaultR extends NitroFetchRequest = NitroFetchRequest,
-> {
-  <
-    T = DefaultT,
-    R extends NitroFetchRequest = DefaultR,
-    O extends NitroFetchOptions<R> = NitroFetchOptions<R>,
-  >(
-    request: R,
-    opts?: O & { failTitle?: string; params?: { [key: string]: string } },
-  ): Promise<
-    // sometimes there is an error, other times there isn't
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    TypedInternalResponse<
-      R,
-      T,
-      NitroFetchOptions<R> extends O ? "get" : ExtractedRouteMethod<R, O>
-    >
-  >;
-}
 
 type TransportOptions = FetchOptions & { failTitle?: string };
 
@@ -152,38 +123,6 @@ async function shareServerRead(
       if (!reads.size) pendingReads.delete(app);
     }
   }
-}
-
-// Keep Nitro inference at the legacy interface, outside the transport body.
-export const $dropFetch = legacyDropFetch as unknown as DropFetch;
-
-async function legacyDropFetch(
-  rawRequest: NitroFetchRequest,
-  opts?: TransportOptions & { params?: Record<string, string> },
-): Promise<unknown> {
-  const parameters = new Map<string, string>(
-    Object.entries(opts?.params ?? {}),
-  );
-  const requestParts = rawRequest.toString().split("/");
-  requestParts.forEach((part, index) => {
-    if (!part.startsWith(":")) {
-      return;
-    }
-    const partName = part.slice(1);
-    const replacement = parameters.get(partName);
-    if (!replacement) {
-      return;
-    }
-    requestParts[index] = replacement;
-
-    parameters.delete(partName);
-  });
-  const request = requestParts.join("/");
-
-  return dropTransport(request, {
-    ...opts,
-    params: Object.fromEntries(parameters),
-  });
 }
 
 export const $apiFetch: ApiFetch = (key, ...args) => {

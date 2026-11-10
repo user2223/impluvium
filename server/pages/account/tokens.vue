@@ -152,8 +152,8 @@ import { DateTime, type DurationLike } from "luxon";
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/vue/20/solid";
 import { parseTokenCreatePayload } from "~/utils/browser-validation";
 
-const tokens = ref(await $dropFetch("/api/v1/user/token"));
-const acls = await $dropFetch("/api/v1/user/token/acls");
+const tokens = ref(await $apiFetch("GET /api/v1/user/token"));
+const acls = await $apiFetch("GET /api/v1/user/token/acls");
 
 const createOpen = ref(false);
 const createLoading = ref(false);
@@ -186,12 +186,13 @@ async function createToken(
 ) {
   createLoading.value = true;
   try {
-    const result = await $dropFetch("/api/v1/user/token", {
-      method: "POST",
+    const result = await $apiFetch("POST /api/v1/user/token", {
       body: {
         name,
         acls,
-        expiry: expiry ? DateTime.now().plus(expiry) : undefined,
+        expiry: expiry
+          ? (DateTime.now().plus(expiry).toISO() ?? undefined)
+          : undefined,
       },
       failTitle: "Failed to create API token.",
     });
@@ -208,9 +209,8 @@ async function revokeToken(index: number) {
   const token = tokens.value[index];
   if (!token) return;
 
-  await $dropFetch("/api/v1/user/token/:id", {
-    method: "DELETE",
-    params: {
+  await $apiFetch("DELETE /api/v1/user/token/:id", {
+    path: {
       id: token.id,
     },
     failTitle: "Failed to revoke token.",

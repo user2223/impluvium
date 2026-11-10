@@ -279,13 +279,13 @@
 </template>
 
 <script setup lang="ts">
-import type { AuthMec } from "~/prisma/client/enums";
+import type { ApiResponse } from "~/shared/api/types";
 import {
   getAvailableRatings,
   getBannedRatingsForMaxAge,
   inferMaxAgeFromBannedRatings,
 } from "~/utils/ageRatings";
-import { AgeRatingOrganization } from "~/prisma/client/enums";
+import { AgeRatingOrganization } from "~/shared/api/generated/enums";
 
 useHead({ title: "Edit Group" });
 definePageMeta({ layout: "admin" });
@@ -293,25 +293,7 @@ definePageMeta({ layout: "admin" });
 const route = useRoute();
 const groupId = route.params.id as string;
 
-interface GroupMember {
-  id: string;
-  username: string;
-  displayName: string;
-}
-
-interface BannedRating {
-  id: string;
-  organization: string;
-  rating: string;
-}
-
-interface GroupDetail {
-  id: string;
-  name: string;
-  description: string;
-  users: GroupMember[];
-  bannedAgeRatings: BannedRating[];
-}
+type GroupDetail = ApiResponse<"GET /api/v1/admin/groups/:id">;
 
 const group = ref<GroupDetail | null>(null);
 const editName = ref("");
@@ -349,9 +331,9 @@ watch(newRatingOrg, () => {
 
 // Fetch group
 const fetchGroup = async () => {
-  group.value = await $dropFetch<GroupDetail>(
-    `/api/v1/admin/groups/${groupId}`,
-  );
+  group.value = await $apiFetch("GET /api/v1/admin/groups/:id", {
+    path: { id: groupId },
+  });
   editName.value = group.value.name;
   editDescription.value = group.value.description;
 
@@ -361,22 +343,17 @@ const fetchGroup = async () => {
 };
 
 // Fetch all users for member add dropdown
-interface UserListItem {
-  id: string;
-  username: string;
-  displayName: string;
-}
+type UserListItem = ApiResponse<"GET /api/v1/admin/users">[number];
 const allUsers = ref<UserListItem[]>([]);
 const fetchAllUsers = async () => {
-  allUsers.value = await $dropFetch<UserListItem[]>("/api/v1/admin/users");
+  allUsers.value = await $apiFetch("GET /api/v1/admin/users");
 };
 
 // Check OIDC
 const checkOidc = async () => {
   try {
-    const auth =
-      await $dropFetch<Record<string, unknown>>("/api/v1/admin/auth");
-    oidcEnabled.value = !!auth["OpenID" as AuthMec];
+    const auth = await $apiFetch("GET /api/v1/admin/auth");
+    oidcEnabled.value = !!auth.OpenID;
   } catch {
     oidcEnabled.value = false;
   }
@@ -393,8 +370,8 @@ const availableUsers = computed(() => {
 });
 
 const saveDetails = async () => {
-  await $dropFetch(`/api/v1/admin/groups/${groupId}`, {
-    method: "PATCH",
+  await $apiFetch("PATCH /api/v1/admin/groups/:id", {
+    path: { id: groupId },
     body: { name: editName.value, description: editDescription.value },
   });
   await fetchGroup();
@@ -406,8 +383,8 @@ const addMember = async () => {
     ...group.value.users.map((u) => u.id),
     selectedUserId.value,
   ];
-  await $dropFetch(`/api/v1/admin/groups/${groupId}/members`, {
-    method: "PATCH",
+  await $apiFetch("PATCH /api/v1/admin/groups/:id/members", {
+    path: { id: groupId },
     body: { userIds: newUserIds },
   });
   selectedUserId.value = "";
@@ -419,8 +396,8 @@ const removeMember = async (userId: string) => {
   const newUserIds = group.value.users
     .filter((u) => u.id !== userId)
     .map((u) => u.id);
-  await $dropFetch(`/api/v1/admin/groups/${groupId}/members`, {
-    method: "PATCH",
+  await $apiFetch("PATCH /api/v1/admin/groups/:id/members", {
+    path: { id: groupId },
     body: { userIds: newUserIds },
   });
   await fetchGroup();
@@ -429,8 +406,8 @@ const removeMember = async (userId: string) => {
 const applySlider = async () => {
   if (!group.value) return;
   const bannedRatings = getBannedRatingsForMaxAge(sliderAge.value);
-  await $dropFetch(`/api/v1/admin/groups/${groupId}/ratings`, {
-    method: "PATCH",
+  await $apiFetch("PATCH /api/v1/admin/groups/:id/ratings", {
+    path: { id: groupId },
     body: { bannedRatings },
   });
   await fetchGroup();
@@ -445,8 +422,8 @@ const addRating = async () => {
     })),
     { organization: newRatingOrg.value, rating: newRatingValue.value },
   ];
-  await $dropFetch(`/api/v1/admin/groups/${groupId}/ratings`, {
-    method: "PATCH",
+  await $apiFetch("PATCH /api/v1/admin/groups/:id/ratings", {
+    path: { id: groupId },
     body: { bannedRatings: newRatings },
   });
   showAddRating.value = false;
@@ -460,8 +437,8 @@ const removeRating = async (idx: number) => {
   const newRatings = group.value.bannedAgeRatings
     .filter((_, i) => i !== idx)
     .map((br) => ({ organization: br.organization, rating: br.rating }));
-  await $dropFetch(`/api/v1/admin/groups/${groupId}/ratings`, {
-    method: "PATCH",
+  await $apiFetch("PATCH /api/v1/admin/groups/:id/ratings", {
+    path: { id: groupId },
     body: { bannedRatings: newRatings },
   });
   await fetchGroup();

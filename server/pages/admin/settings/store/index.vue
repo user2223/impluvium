@@ -65,8 +65,8 @@ useHead({
   title: t("settings.admin.title"),
 });
 
-const settings = await $dropFetch("/api/v1/settings");
-const { game } = await $dropFetch("/api/v1/admin/settings/dummy-data");
+const settings = await $apiFetch("GET /api/v1/settings");
+const { game } = await $apiFetch("GET /api/v1/admin/settings/dummy-data");
 
 const allowSave = ref(false);
 
@@ -83,8 +83,7 @@ const saving = ref<boolean>(false);
 async function saveSettings() {
   saving.value = true;
   try {
-    await $dropFetch("/api/v1/admin/settings", {
-      method: "PATCH",
+    await $apiFetch("PATCH /api/v1/admin/settings", {
       body: {
         store: {
           showGamePanelTextDecoration: showGamePanelTextDecoration.value,

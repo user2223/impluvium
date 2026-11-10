@@ -1,32 +1,16 @@
 import assert from 'node:assert/strict';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import test from 'node:test';
-import { pathToFileURL } from 'node:url';
-import { compiler } from '../compiler.mjs';
 import { rootDirectory as root } from '../generate.mjs';
+import { loadWrapper } from './wrapper.mjs';
 import { binaryValues, jsonResponses, opaqueResponses, ordinaryBodies, sampleBytes, streamingBodies, unsupportedBody } from '../../ci/fixtures/fetch-values.mjs';
 
 // Exercise the production wrapper with synthetic Nuxt request contexts. No handler
 // is imported or started, and there are no HTTP or database connections.
-async function loadWrapper(server) {
-  await readFile(join(root, 'server/shared/api/generated/routes.ts'), 'utf8');
-  const ts = compiler(root);
-  const source = await readFile(join(root, 'server/composables/request.ts'), 'utf8');
-  let code = ts.transpileModule(source, {
-    compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
-  }).outputText;
-  for (const [alias, file] of [
-    ['~/shared/api/generated/routes', 'server/shared/api/generated/routes.ts'],
-    ['~/shared/api/request', 'server/shared/api/request.ts'],
-  ]) code = code.replaceAll(JSON.stringify(alias), JSON.stringify(pathToFileURL(join(root, file)).href));
-  code = code.replaceAll('import.meta.server', String(server)).replaceAll('import.meta.client', String(!server));
-  return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
-}
 
-test('both wrappers share request-scoped credentials and transfer data through hydration', async () => {
+test('typed access and its lower transport preserve request-scoped credentials through hydration', async () => {
   const contexts = new AsyncLocalStorage();
   const originals = new Map();
   function install(name, value) {
@@ -73,7 +57,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     // Mixed accesses share a key when their parsing modes also match. Legacy
     // MIME auto-detection is deliberately distinct from explicit JSON parsing.
     await Promise.all([a, b].map((context) => contexts.run(context, async () => {
-      const first = await server.$dropFetch('/api/v1', { responseType: 'json' });
+      const first = await server.$transport('/api/v1', { responseType: 'json' });
       const second = await server.$apiFetch('GET /api/v1');
       assert.deepEqual(second, first);
       assert.equal(context.calls.length, 1);
@@ -92,7 +76,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     concurrentRead.fetch = () => readResponse;
     await contexts.run(concurrentRead, async () => {
       const first = server.$apiFetch('GET /api/v1');
-      const second = server.$dropFetch('/api/v1', { responseType: 'json' });
+      const second = server.$transport('/api/v1', { responseType: 'json' });
       finishRead(concurrentRead.response);
       assert.deepEqual(await Promise.all([first, second]), [concurrentRead.response, concurrentRead.response]);
       assert.equal(concurrentRead.calls.length, 1);
@@ -119,7 +103,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     };
     const readBinary = (wrapper, type, typed = false) => typed && type === 'blob'
       ? wrapper.$apiFetch('GET /api/v1/object/:id', { path: { id: 'sample' } })
-      : wrapper.$dropFetch('/api/v1/object/sample', { responseType: type });
+      : wrapper.$transport('/api/v1/object/sample', { responseType: type });
     for (const type of ['blob', 'arrayBuffer', 'stream']) {
       const binary = makeContext(`binary-${type}`, { cookie: `session=sample-${type}` });
       let complete;
@@ -173,7 +157,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
         unsafeMutation.app.isHydrating = hydrating;
         if (!setup) unsafeMutation.instance = undefined;
         await contexts.run(unsafeMutation, async () => {
-          await assert.rejects(wrapper.$dropFetch('/api/v1/collection', {
+          await assert.rejects(wrapper.$transport('/api/v1/collection', {
             method: 'POST', body: { name: 'Sample' }, responseType: type,
           }), /Binary mutation responses cannot be transferred through hydration/);
           assert.equal(unsafeMutation.calls.length, 0);
@@ -184,7 +168,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       action.instance = undefined;
       action.fetch = () => binaryValue(type);
       await contexts.run(action, async () => {
-        const value = await browser.$dropFetch('/api/v1/collection', {
+        const value = await browser.$transport('/api/v1/collection', {
           method: 'POST', body: { name: 'Sample' }, responseType: type,
         });
         assert.equal(await binaryText(type, value), 'sample-binary-response');
@@ -208,8 +192,8 @@ test('both wrappers share request-scoped credentials and transfer data through h
       const result = new Promise((resolve) => { finish = resolve; });
       context.fetch = () => result;
       await contexts.run(context, async () => {
-        const first = server.$dropFetch('/api/v1/object/sample');
-        const second = server.$dropFetch('/api/v1/object/sample');
+        const first = server.$transport('/api/v1/object/sample');
+        const second = server.$transport('/api/v1/object/sample');
         finish(actual);
         const values = await Promise.all([first, second]);
         assert.equal(context.calls.length, 1, name);
@@ -226,14 +210,14 @@ test('both wrappers share request-scoped credentials and transfer data through h
           assert.deepEqual(await valueBytes(values[1]), expected, name);
         }
         assert.equal(context.state.get('api-fetch-transfer').value.length, 0, name);
-        const later = await server.$dropFetch('/api/v1/object/sample');
+        const later = await server.$transport('/api/v1/object/sample');
         assert.equal(later.constructor, actual.constructor, name);
         assert.notEqual(later, values[0], name);
         assert.deepEqual(await valueBytes(later), expected, name);
         assert.equal(context.calls.length, 1, name);
         context.fetch = create;
         // Even an explicit JSON hint cannot turn a parser-returned binary into {}.
-        const hinted = await server.$dropFetch('/api/v1/object/sample', { responseType: 'json' });
+        const hinted = await server.$transport('/api/v1/object/sample', { responseType: 'json' });
         assert.equal(hinted.constructor, actual.constructor, name);
         assert.deepEqual(await valueBytes(hinted), expected, name);
         assert.equal(context.calls.length, 2, name);
@@ -245,7 +229,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       client.fetch = create;
       await contexts.run(client, async () => {
         for (let index = 0; index < 2; index++) {
-          const value = await browser.$dropFetch('/api/v1/object/sample');
+          const value = await browser.$transport('/api/v1/object/sample');
           assert.equal(value.constructor, actual.constructor, name);
           assert.deepEqual(await valueBytes(value), expected, name);
         }
@@ -267,7 +251,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
           if (!setup) context.instance = undefined;
           if (withoutApp) context.app = undefined;
           await contexts.run(context, async () => {
-            await assert.rejects(wrapper.$dropFetch('/api/v1/screenshots/game/sample', {
+            await assert.rejects(wrapper.$transport('/api/v1/screenshots/game/sample', {
               method: 'POST', body, duplex: 'half',
             }), message, name);
             if (body instanceof Blob || body instanceof ArrayBuffer || body instanceof Uint8Array) {
@@ -282,7 +266,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
         const event = makeContext(`body-event-${name}`);
         event.instance = undefined;
         await contexts.run(event, async () => {
-          assert.strictEqual(await browser.$dropFetch('/api/v1/screenshots/game/sample', {
+          assert.strictEqual(await browser.$transport('/api/v1/screenshots/game/sample', {
             method: 'POST', body, duplex: 'half',
           }), event.response, name);
           assert.strictEqual(event.calls[0].options.body, body, name);
@@ -309,7 +293,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       const body = create();
       const context = makeContext(`ordinary-body-${name}`);
       context.fetch = () => ({ id: context.calls.length });
-      const invoke = (wrapper) => wrapper.$dropFetch('/api/v1/collection', { method: 'POST', body, headers });
+      const invoke = (wrapper) => wrapper.$transport('/api/v1/collection', { method: 'POST', body, headers });
       await contexts.run(context, async () => {
         assert.deepEqual(await invoke(server), { id: 1 }, name);
         assert.deepEqual(await invoke(server), { id: 2 }, name);
@@ -331,7 +315,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       const context = makeContext('json-response');
       context.response = value;
       await contexts.run(context, async () => {
-        assert.strictEqual(await server.$dropFetch('/api/v1', { responseType: 'json' }), value);
+        assert.strictEqual(await server.$transport('/api/v1', { responseType: 'json' }), value);
         assert.deepEqual(await server.$apiFetch('GET /api/v1'), value);
         assert.equal(context.calls.length, 1);
       });
@@ -339,7 +323,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       client.state = structuredClone(context.state);
       client.app.isHydrating = true;
       await contexts.run(client, async () => {
-        assert.deepEqual(await browser.$dropFetch('/api/v1', { responseType: 'json' }), value);
+        assert.deepEqual(await browser.$transport('/api/v1', { responseType: 'json' }), value);
         assert.deepEqual(await browser.$apiFetch('GET /api/v1'), value);
         assert.equal(client.calls.length, 0);
         await finishHydration(client);
@@ -351,8 +335,8 @@ test('both wrappers share request-scoped credentials and transfer data through h
       const produced = [];
       context.fetch = () => { const value = create(); produced.push(value); return value; };
       await contexts.run(context, async () => {
-        const first = server.$dropFetch('/api/v1/custom-parser');
-        const second = server.$dropFetch('/api/v1/custom-parser');
+        const first = server.$transport('/api/v1/custom-parser');
+        const second = server.$transport('/api/v1/custom-parser');
         const values = await Promise.all([first, second]);
         assert.equal(context.calls.length, 2, name);
         assert.strictEqual(values[0], produced[0], name);
@@ -372,7 +356,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       const context = makeContext(`late-mutation-${name}`);
       context.response = actual;
       await contexts.run(context, async () => {
-        assert.strictEqual(await server.$dropFetch('/api/v1/collection', { method: 'POST', body: { name: 'A' } }), actual, name);
+        assert.strictEqual(await server.$transport('/api/v1/collection', { method: 'POST', body: { name: 'A' } }), actual, name);
         assert.equal(context.calls.length, 1, name);
         const [entry] = context.state.get('api-fetch-transfer').value;
         assert.equal(entry.blocked, blocked, name);
@@ -384,13 +368,13 @@ test('both wrappers share request-scoped credentials and transfer data through h
       client.app.isHydrating = true;
       await contexts.run(client, async () => {
         for (let index = 0; index < 2; index++) {
-          await assert.rejects(browser.$dropFetch('/api/v1/collection', { method: 'POST', body: { name: 'A' } }), /Mutation response cannot be replayed during hydration/, name);
+          await assert.rejects(browser.$transport('/api/v1/collection', { method: 'POST', body: { name: 'A' } }), /Mutation response cannot be replayed during hydration/, name);
         }
         assert.equal(client.calls.length, 0, name);
         await finishHydration(client);
         client.instance = undefined;
         client.response = actual;
-        assert.strictEqual(await browser.$dropFetch('/api/v1/collection', { method: 'POST', body: { name: 'A' } }), actual, name);
+        assert.strictEqual(await browser.$transport('/api/v1/collection', { method: 'POST', body: { name: 'A' } }), actual, name);
         assert.equal(client.calls.length, 1, name);
       });
       // The opaque proxy fixture throws on prototype inspection; only real streams need cleanup.
@@ -431,8 +415,8 @@ test('both wrappers share request-scoped credentials and transfer data through h
         else for (const value of values) assert.ok(value instanceof Date, fixture.name);
       };
       await contexts.run(context, async () => {
-        const first = server.$dropFetch('/api/v1/ofetch-shapes', fixture.options);
-        const second = server.$dropFetch('/api/v1/ofetch-shapes', fixture.options);
+        const first = server.$transport('/api/v1/ofetch-shapes', fixture.options);
+        const second = server.$transport('/api/v1/ofetch-shapes', fixture.options);
         await verify(await Promise.all([first, second]));
         assert.equal(context.calls.length, fixture.options ? 2 : 1, fixture.name);
         assert.equal(context.state.get('api-fetch-transfer').value.length, fixture.transfer ? 1 : 0, fixture.name);
@@ -444,8 +428,8 @@ test('both wrappers share request-scoped credentials and transfer data through h
       client.fetch = ofetch;
       await contexts.run(client, async () => {
         await verify(await Promise.all([
-          browser.$dropFetch('/api/v1/ofetch-shapes', fixture.options),
-          browser.$dropFetch('/api/v1/ofetch-shapes', fixture.options),
+          browser.$transport('/api/v1/ofetch-shapes', fixture.options),
+          browser.$transport('/api/v1/ofetch-shapes', fixture.options),
         ]));
         assert.equal(client.calls.length, fixture.transfer ? 0 : 2, fixture.name);
         assert.equal(nativeCalls - serverCalls, fixture.transfer ? 0 : 2, fixture.name);
@@ -469,7 +453,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
           const context = makeContext('distinct-response-modes');
           context.instance = undefined;
           context.fetch = ofetch;
-          const read = (wrapper, mode) => wrapper.$dropFetch('/api/v1/object/sample', mode ? { responseType: mode } : undefined);
+          const read = (wrapper, mode) => wrapper.$transport('/api/v1/object/sample', mode ? { responseType: mode } : undefined);
           const verify = async (mode, value) => {
             if (mode === 'json') assert.strictEqual(value, true);
             else if (contentType === 'text/plain') assert.strictEqual(value, 'true');
@@ -515,11 +499,11 @@ test('both wrappers share request-scoped credentials and transfer data through h
       const context = makeContext('custom-fetch-behavior');
       context.fetch = () => ({ invocation: context.calls.length });
       await contexts.run(context, async () => {
-        assert.deepEqual(await server.$dropFetch('/api/v1'), { invocation: 1 });
-        assert.deepEqual(await server.$dropFetch('/api/v1', options), { invocation: 2 });
-        assert.deepEqual(await server.$dropFetch('/api/v1', options), { invocation: 3 });
+        assert.deepEqual(await server.$transport('/api/v1'), { invocation: 1 });
+        assert.deepEqual(await server.$transport('/api/v1', options), { invocation: 2 });
+        assert.deepEqual(await server.$transport('/api/v1', options), { invocation: 3 });
         assert.equal(context.state.get('api-fetch-transfer').value.length, 1);
-        await assert.rejects(server.$dropFetch('/api/v1/collection', {
+        await assert.rejects(server.$transport('/api/v1/collection', {
           ...options, method: 'POST', body: { name: 'A' },
         }), /Custom fetch callbacks or dispatchers cannot be replayed during hydration/);
         assert.equal(context.calls.length, 3);
@@ -527,7 +511,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       const event = makeContext('custom-fetch-behavior-event');
       event.instance = undefined;
       await contexts.run(event, async () => {
-        assert.strictEqual(await browser.$dropFetch('/api/v1/collection', {
+        assert.strictEqual(await browser.$transport('/api/v1/collection', {
           ...options, method: 'POST', body: { name: 'A' },
         }), event.response);
         assert.equal(event.calls.length, 1);
@@ -540,7 +524,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     ]) {
       const context = makeContext(token, { authorization: `Bearer ${token}` });
       await contexts.run(context, async () => {
-        await server.$dropFetch(url, { responseType: 'json' });
+        await server.$transport(url, { responseType: 'json' });
         await server.$apiFetch(key);
         assert.equal(context.calls.length, 1);
         assert.equal(context.calls[0].options.headers.get('authorization'), `Bearer ${token}`);
@@ -560,7 +544,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
         const invoke = (wrapper, typed, credential) => {
           const options = { body: { name: 'A' }, headers: credential === undefined ? undefined : { [header]: credential } };
           return typed ? wrapper.$apiFetch('POST /api/v1/collection', options)
-            : wrapper.$dropFetch('/api/v1/collection', { ...options, method: 'POST', responseType: 'json' });
+            : wrapper.$transport('/api/v1/collection', { ...options, method: 'POST', responseType: 'json' });
         };
         await contexts.run(context, async () => {
           assert.deepEqual(await invoke(server, ssrTyped, value), { id: 1 });
@@ -599,7 +583,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       assert.equal(a.calls[1].options.headers.get('cookie'), 'session=sample-a');
       assert.ok(!JSON.stringify([...a.state]).includes('Bearer sample-override'));
       // The existing user composable repeats the incoming headers explicitly.
-      await server.$dropFetch('/api/v1/user', { headers: a.incoming });
+      await server.$transport('/api/v1/user', { headers: a.incoming });
     });
     const hydrated = makeContext('browser');
     hydrated.state = structuredClone(a.state);
@@ -607,11 +591,11 @@ test('both wrappers share request-scoped credentials and transfer data through h
     await contexts.run(hydrated, async () => {
       assert.deepEqual(await browser.$apiFetch('GET /api/v1'), a.response);
       // Layout and page consumers can read the same GET through either access.
-      const separateCopy = await browser.$dropFetch('/api/v1', { responseType: 'json' });
+      const separateCopy = await browser.$transport('/api/v1', { responseType: 'json' });
       separateCopy.label = 'changed-by-one-consumer';
       hydrated.instance = undefined;
       assert.deepEqual(await browser.$apiFetch('GET /api/v1'), a.response);
-      assert.deepEqual(await browser.$dropFetch('/api/v1/user'), a.response);
+      assert.deepEqual(await browser.$transport('/api/v1/user'), a.response);
       assert.equal(hydrated.calls.length, 0);
       assert.ok(hydrated.state.get('api-fetch-transfer').value.length > 0);
       assert.equal(hydrated.hooks.get('app:suspense:resolve').length, 1);
@@ -627,7 +611,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     head.response = undefined;
     await contexts.run(head, async () => {
       assert.equal(await server.$apiFetch('HEAD /api/v1/object/:id', { path: { id: 'sample' } }), undefined);
-      assert.equal(await server.$dropFetch('/api/v1/object/sample', { method: 'HEAD', responseType: 'json' }), undefined);
+      assert.equal(await server.$transport('/api/v1/object/sample', { method: 'HEAD', responseType: 'json' }), undefined);
       assert.equal(head.calls.length, 1);
     });
     const headClient = makeContext('head-browser');
@@ -636,7 +620,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     await contexts.run(headClient, async () => {
       for (let index = 0; index < 2; index++) {
         assert.equal(await browser.$apiFetch('HEAD /api/v1/object/:id', { path: { id: 'sample' } }), undefined);
-        assert.equal(await browser.$dropFetch('/api/v1/object/sample', { method: 'HEAD', responseType: 'json' }), undefined);
+        assert.equal(await browser.$transport('/api/v1/object/sample', { method: 'HEAD', responseType: 'json' }), undefined);
       }
       assert.equal(headClient.calls.length, 0);
       await finishHydration(headClient);
@@ -647,11 +631,11 @@ test('both wrappers share request-scoped credentials and transfer data through h
     // replace its server-generated secret, so both interfaces must replay the
     // transferred response exactly once, including when setup mixes interfaces.
     for (const [ssrAccess, browserAccess] of [
-      ['$dropFetch', '$dropFetch'], ['$apiFetch', '$apiFetch'],
-      ['$dropFetch', '$apiFetch'], ['$apiFetch', '$dropFetch'],
+      ['$transport', '$transport'], ['$apiFetch', '$apiFetch'],
+      ['$transport', '$apiFetch'], ['$apiFetch', '$transport'],
     ]) {
-      const start = (wrapper, access) => access === '$dropFetch'
-        ? wrapper.$dropFetch('/api/v1/user/mfa/totp/start', { method: 'POST', responseType: 'json' })
+      const start = (wrapper, access) => access === '$transport'
+        ? wrapper.$transport('/api/v1/user/mfa/totp/start', { method: 'POST', responseType: 'json' })
         : wrapper.$apiFetch('POST /api/v1/user/mfa/totp/start');
       const setup = makeContext('setup', { cookie: 'session=sample-totp' });
       setup.response = { secret: 'sample-original-secret', url: 'otpauth://sample-original' };
@@ -694,7 +678,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     postedClient.app.isHydrating = true;
     await contexts.run(postedClient, async () => {
       for (const name of [...names].reverse()) {
-        assert.deepEqual(await browser.$dropFetch('/api/v1/collection', { method: 'POST', body: { name }, responseType: 'json' }), { name });
+        assert.deepEqual(await browser.$transport('/api/v1/collection', { method: 'POST', body: { name }, responseType: 'json' }), { name });
       }
       assert.equal(postedClient.calls.length, 0);
     });
@@ -718,7 +702,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
               ? wrapper.$apiFetch('POST /api/v1/admin/company/:id/banner', { path: { id: 'sample' }, body })
               : wrapper.$apiFetch('POST /api/v1/auth/oidc/logout', { body });
           }
-          return wrapper.$dropFetch(url, { method: 'POST', body, responseType: responseKind === 'text' ? 'text' : 'json' });
+          return wrapper.$transport(url, { method: 'POST', body, responseType: responseKind === 'text' ? 'text' : 'json' });
         };
         const expected = responseKind === 'json' ? [{ id: 'first-upload' }, { id: 'second-upload' }]
           : responseKind === 'text' ? ['first-upload', 'second-upload'] : [undefined, undefined];
@@ -751,13 +735,13 @@ test('both wrappers share request-scoped credentials and transfer data through h
       }
     }
 
-    const createCollection = (wrapper, access) => access === '$dropFetch'
-      ? wrapper.$dropFetch('/api/v1/collection', { method: 'POST', body: { name: 'A' }, responseType: 'json' })
+    const createCollection = (wrapper, access) => access === '$transport'
+      ? wrapper.$transport('/api/v1/collection', { method: 'POST', body: { name: 'A' }, responseType: 'json' })
       : wrapper.$apiFetch('POST /api/v1/collection', { body: { name: 'A' } });
     let queueNumber = 0;
     for (const [firstAccess, secondAccess] of [
-      ['$dropFetch', '$dropFetch'], ['$apiFetch', '$apiFetch'],
-      ['$dropFetch', '$apiFetch'], ['$apiFetch', '$dropFetch'],
+      ['$transport', '$transport'], ['$apiFetch', '$apiFetch'],
+      ['$transport', '$apiFetch'], ['$apiFetch', '$transport'],
     ]) {
       const label = `queue-${++queueNumber}`;
       const queued = makeContext(label, { cookie: `session=${label}` });
@@ -795,7 +779,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     overlapping.fetch = () => new Promise((resolve) => { completions.push(resolve); });
     await contexts.run(overlapping, async () => {
       const first = createCollection(server, '$apiFetch');
-      const second = createCollection(server, '$dropFetch');
+      const second = createCollection(server, '$transport');
       assert.equal(overlapping.calls.length, 2);
       completions[1]({ id: 'second' });
       assert.deepEqual(await second, { id: 'second' });
@@ -807,7 +791,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     overlappingClient.state = structuredClone(overlapping.state);
     overlappingClient.app.isHydrating = true;
     await contexts.run(overlappingClient, async () => {
-      assert.deepEqual(await createCollection(browser, '$dropFetch'), { id: 'first' });
+      assert.deepEqual(await createCollection(browser, '$transport'), { id: 'first' });
       assert.deepEqual(await createCollection(browser, '$apiFetch'), { id: 'second' });
       assert.equal(overlappingClient.calls.length, 0);
       await finishHydration(overlappingClient);
@@ -819,7 +803,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       return { id: 'after-failure' };
     };
     await contexts.run(failedSlot, async () => {
-      await assert.rejects(createCollection(server, '$dropFetch'), /Synthetic mutation failure/);
+      await assert.rejects(createCollection(server, '$transport'), /Synthetic mutation failure/);
       assert.deepEqual(await createCollection(server, '$apiFetch'), { id: 'after-failure' });
       assert.deepEqual(failedSlot.state.get('api-fetch-transfer').value.map((entry) => entry.ready), [false, true]);
     });
@@ -829,7 +813,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
     await contexts.run(failedSlotClient, async () => {
       // A missing response cannot shift the next invocation's successful slot.
       assert.deepEqual(await createCollection(browser, '$apiFetch'), failedSlotClient.response);
-      assert.deepEqual(await createCollection(browser, '$dropFetch'), { id: 'after-failure' });
+      assert.deepEqual(await createCollection(browser, '$transport'), { id: 'after-failure' });
       assert.equal(failedSlotClient.calls.length, 1);
       await finishHydration(failedSlotClient);
     });
@@ -839,7 +823,7 @@ test('both wrappers share request-scoped credentials and transfer data through h
       failedRead.error = new Error('Synthetic read failure');
       await assert.rejects(server.$apiFetch('GET /api/v1'), /Synthetic read failure/);
       failedRead.error = undefined;
-      assert.deepEqual(await server.$dropFetch('/api/v1', { responseType: 'json' }), failedRead.response);
+      assert.deepEqual(await server.$transport('/api/v1', { responseType: 'json' }), failedRead.response);
       assert.deepEqual(await server.$apiFetch('GET /api/v1'), failedRead.response);
       assert.equal(failedRead.calls.length, 2);
     });
@@ -847,8 +831,8 @@ test('both wrappers share request-scoped credentials and transfer data through h
     const action = makeContext('outside-setup');
     action.instance = undefined;
     await contexts.run(action, async () => {
-      await server.$dropFetch('/api/v1/user/mfa/totp/start', { method: 'POST' });
-      await server.$dropFetch('/api/v1/user/mfa/totp/start', { method: 'POST' });
+      await server.$transport('/api/v1/user/mfa/totp/start', { method: 'POST' });
+      await server.$transport('/api/v1/user/mfa/totp/start', { method: 'POST' });
       assert.equal(action.calls.length, 2);
       assert.equal(action.state.get('api-fetch-transfer').value.length, 2);
     });
@@ -857,29 +841,32 @@ test('both wrappers share request-scoped credentials and transfer data through h
       const context = makeContext('falsy');
       context.response = value;
       await contexts.run(context, async () => {
-        await server.$dropFetch('/api/v1', { responseType: 'json' });
+        await server.$transport('/api/v1', { responseType: 'json' });
         assert.equal(await server.$apiFetch('GET /api/v1'), value);
         assert.equal(context.calls.length, 1);
       });
     }
-    const legacy = makeContext('legacy', { cookie: 'session=sample-legacy' });
-    await contexts.run(legacy, async () => {
+    const typed = makeContext('typed-options', { cookie: 'session=sample-options' });
+    await contexts.run(typed, async () => {
       const options = {
-        method: 'PATCH',
-        params: { id: 'sample-game', filter: 'sample-filter' },
-        query: { sort: 'name' },
+        path: { id: 'sample-game' },
         body: { mName: 'Sample' },
-        headers: { Authorization: 'Bearer sample-legacy' },
+        headers: { Authorization: 'Bearer sample-options' },
       };
-      assert.deepEqual(await server.$dropFetch('/api/v1/admin/game/:id', options), legacy.response);
-      assert.equal(legacy.calls[0].url, '/api/v1/admin/game/sample-game');
-      assert.equal(legacy.calls[0].options.method, 'PATCH');
-      assert.deepEqual(legacy.calls[0].options.params, { filter: 'sample-filter' });
-      assert.deepEqual(legacy.calls[0].options.query, { sort: 'name' });
-      assert.deepEqual(legacy.calls[0].options.body, { mName: 'Sample' });
-      assert.equal(legacy.calls[0].options.headers.get('cookie'), 'session=sample-legacy');
-      assert.equal(legacy.calls[0].options.headers.get('authorization'), 'Bearer sample-legacy');
-      assert.deepEqual(options.params, { id: 'sample-game', filter: 'sample-filter' });
+      assert.deepEqual(await server.$apiFetch('PATCH /api/v1/admin/game/:id', options), typed.response);
+      assert.equal(typed.calls[0].url, '/api/v1/admin/game/sample-game');
+      assert.equal(typed.calls[0].options.method, 'PATCH');
+      assert.deepEqual(typed.calls[0].options.body, { mName: 'Sample' });
+      assert.equal(typed.calls[0].options.headers.get('cookie'), 'session=sample-options');
+      assert.equal(typed.calls[0].options.headers.get('authorization'), 'Bearer sample-options');
+      assert.deepEqual(options.path, { id: 'sample-game' });
+      assert.deepEqual(options.body, { mName: 'Sample' });
+      assert.deepEqual(options.headers, { Authorization: 'Bearer sample-options' });
+      assert.equal(Object.hasOwn(options, 'method'), false);
+      const query = { q: 'Sample & other', type: 'Game' };
+      await server.$apiFetch('GET /api/v1/admin/search/game', { query });
+      assert.deepEqual(typed.calls[1].options.query, query);
+      assert.deepEqual(query, { q: 'Sample & other', type: 'Game' });
     });
     const path = { id: 'sample/with %?#ü' };
     await contexts.run(a, async () => {

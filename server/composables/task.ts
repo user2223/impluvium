@@ -1,4 +1,4 @@
-import type { TaskMessage } from "~/server/internal/tasks";
+import type { TaskMessage } from "~/shared/api/types";
 import { WebSocketHandler } from "./ws";
 
 const websocketHandler = new WebSocketHandler("/api/v1/task");

@@ -215,15 +215,21 @@
     />
     <ModalUploadFile
       v-model="uploadLogoOpen"
-      :endpoint="`/api/v1/admin/company/${company.id}/icon`"
+      :target="{
+        key: 'POST /api/v1/admin/company/:id/icon',
+        path: { id: company.id },
+      }"
       accept="image/*"
-      @upload="updateLogo"
+      @company-upload="updateLogo"
     />
     <ModalUploadFile
       v-model="uploadBannerOpen"
-      :endpoint="`/api/v1/admin/company/${company.id}/banner`"
+      :target="{
+        key: 'POST /api/v1/admin/company/:id/banner',
+        path: { id: company.id },
+      }"
       accept="image/*"
-      @upload="updateBanner"
+      @company-upload="updateBanner"
     />
   </div>
 </template>
@@ -231,8 +237,7 @@
 <script setup lang="ts">
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import { ArrowUpTrayIcon, PencilIcon, PlusIcon } from "@heroicons/vue/24/solid";
-import type { SerializeObject } from "nitropack";
-import type { GameModel } from "~/prisma/client/models";
+import type { GameModel } from "~/shared/api/types";
 
 definePageMeta({
   layout: "admin",
@@ -240,8 +245,8 @@ definePageMeta({
 
 const route = useRoute();
 const companyId = route.params.id!.toString();
-const result = await $dropFetch("/api/v1/admin/company/:id", {
-  params: { id: companyId },
+const result = await $apiFetch("GET /api/v1/admin/company/:id", {
+  path: { id: companyId },
 });
 const company = ref(result.company);
 const games = ref(result.games);
@@ -260,7 +265,7 @@ const searchQuery = ref("");
 
 const filteredGames = computed(() =>
   games.value.filter(
-    (e: SerializeObject<GameModel>) =>
+    (e: GameModel) =>
       e.mName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       e.mShortDescription.includes(searchQuery.value.toLowerCase()),
   ),
@@ -274,9 +279,8 @@ function buildToggleProxy(param: "developed" | "published") {
     )
       return await removeGame(id);
 
-    await $dropFetch("/api/v1/admin/company/:id/game", {
-      method: "PATCH",
-      params: {
+    await $apiFetch("PATCH /api/v1/admin/company/:id/game", {
+      path: {
         id: company.value.id,
       },
       body: {
@@ -311,14 +315,13 @@ const published = buildToggleProxy("published");
 const developed = buildToggleProxy("developed");
 
 async function removeGame(gameId: string) {
-  await $dropFetch("/api/v1/admin/company/:id/game", {
-    params: {
+  await $apiFetch("DELETE /api/v1/admin/company/:id/game", {
+    path: {
       id: company.value.id,
     },
     body: {
       id: gameId,
     },
-    method: "DELETE",
     failTitle: "Failed to remove game",
   });
   const gameIndex = games.value.findIndex((e) => e.id == gameId);
@@ -370,9 +373,8 @@ function buildFieldEditModal(
             break;
           }
           case "submit": {
-            const result = await $dropFetch("/api/v1/admin/company/:id", {
-              method: "PATCH",
-              params: { id: company.value.id },
+            const result = await $apiFetch("PATCH /api/v1/admin/company/:id", {
+              path: { id: company.value.id },
               body: { [field]: s! },
               failTitle: "Failed to update company details",
             });

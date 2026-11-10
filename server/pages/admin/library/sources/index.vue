@@ -229,8 +229,8 @@ import {
 import { BackwardIcon } from "@heroicons/vue/24/outline";
 import { FetchError } from "ofetch";
 import type { Component } from "vue";
-import type { LibraryBackend } from "~/prisma/client/enums";
-import type { WorkingLibrarySource } from "~/server/api/v1/admin/library/sources/index.get";
+import type { LibraryBackend } from "~/shared/api/generated/enums";
+import type { JsonObject } from "~/shared/api/generated/dtos";
 
 definePageMeta({
   layout: "admin",
@@ -247,8 +247,10 @@ const { token = undefined } = defineProps<{ token?: string }>();
 
 const headers = token ? { Authorization: token } : undefined;
 
-const sources = ref(
-  await $dropFetch<WorkingLibrarySource[]>("/api/v1/admin/library/sources", {
+// Keep recursive JSON options out of Vue's deep UnwrapRef mapping.
+// Replace the list after mutations so its consumers still update.
+const sources = shallowRef(
+  await $apiFetch("GET /api/v1/admin/library/sources", {
     headers,
   }),
 );
@@ -259,7 +261,7 @@ const createMode = computed(() => editIndex.value === undefined);
 const actionSourceOpen = ref(false);
 const currentSourceOption = ref<LibraryBackend>("Filesystem");
 const sourceName = ref("");
-const sourceConfig = ref<object>({});
+const sourceConfig = ref<JsonObject>({});
 
 const modalError = ref<undefined | string>();
 const modalLoading = ref(false);
@@ -295,23 +297,29 @@ const optionsMetadataIter = Object.entries(optionsMetadata);
 async function performActionSource() {
   const createMode = editIndex.value === undefined;
 
-  const source = await $dropFetch<WorkingLibrarySource>(
-    "/api/v1/admin/library/sources",
-    {
-      body: {
-        id: createMode ? undefined : sources.value[editIndex.value!].id,
-        name: sourceName.value,
-        backend: createMode ? currentSourceOption.value : undefined,
-        options: sourceConfig.value,
-      },
-      method: createMode ? "POST" : "PATCH",
-      headers,
-    },
-  );
+  const source = createMode
+    ? await $apiFetch("POST /api/v1/admin/library/sources", {
+        body: {
+          name: sourceName.value,
+          backend: currentSourceOption.value,
+          options: sourceConfig.value,
+        },
+        headers,
+      })
+    : await $apiFetch("PATCH /api/v1/admin/library/sources", {
+        body: {
+          id: sources.value[editIndex.value!].id,
+          name: sourceName.value,
+          options: sourceConfig.value,
+        },
+        headers,
+      });
   if (createMode) {
-    sources.value.push(source);
+    sources.value = [...sources.value, source];
   } else {
-    sources.value[editIndex.value!] = source;
+    sources.value = sources.value.map((existing, index) =>
+      index === editIndex.value ? source : existing,
+    );
   }
 }
 
@@ -341,7 +349,11 @@ function edit(index: number) {
   if (!source) return;
 
   sourceName.value = source.name;
-  sourceConfig.value = source.options! as object;
+  const options = source.options;
+  sourceConfig.value =
+    options && typeof options === "object" && !Array.isArray(options)
+      ? options
+      : {};
 
   editIndex.value = index;
   actionSourceOpen.value = true;
@@ -362,8 +374,7 @@ function deleteSource(index: number) {
       if (event !== "confirm") return close();
 
       try {
-        await $dropFetch("/api/v1/admin/library/sources", {
-          method: "DELETE",
+        await $apiFetch("DELETE /api/v1/admin/library/sources", {
           body: { id: source.id },
           headers,
         });
@@ -383,7 +394,11 @@ function deleteSource(index: number) {
       }
 
       const currentIndex = sources.value.findIndex((s) => s.id === source.id);
-      if (currentIndex !== -1) sources.value.splice(currentIndex, 1);
+      if (currentIndex !== -1) {
+        sources.value = sources.value.filter(
+          (_, index) => index !== currentIndex,
+        );
+      }
       close();
     },
   );

@@ -113,11 +113,11 @@ import { CheckIcon } from "@heroicons/vue/24/outline";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore pending https://github.com/nitrojs/nitro/issues/2758
-const clients = ref(await $dropFetch("/api/v1/user/client"));
+const clients = ref(await $apiFetch("GET /api/v1/user/client"));
 const { t } = useI18n();
 
 async function revokeClient(id: string) {
-  await $dropFetch(`/api/v1/user/client/${id}`, { method: "DELETE" });
+  await $apiFetch("DELETE /api/v1/user/client/:id", { path: { id } });
 }
 
 // clients.value.push({

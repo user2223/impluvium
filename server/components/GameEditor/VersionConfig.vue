@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AdminFetchGameType } from "~/server/api/v1/admin/game/[id]/index.get";
+import type { AdminFetchGameType } from "~/shared/api/types";
 
 const props = defineProps<{
   config:

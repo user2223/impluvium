@@ -137,16 +137,16 @@ const { token } = defineProps<{ token: string }>();
 
 const invitationLoading = ref(false);
 
-const enabledAuth = await $dropFetch("/api/v1/admin/auth", {
+const enabledAuth = await $apiFetch("GET /api/v1/admin/auth", {
   headers: { Authorization: token },
 });
 
 async function registerAsAdmin() {
   invitationLoading.value = true;
   const expiryDate = DateTime.now().plus({ year: 5000 }).toJSON();
+  if (!expiryDate) throw new Error("Invalid invitation expiry");
 
-  const invitation = await $dropFetch("/api/v1/admin/auth/invitation", {
-    method: "POST",
+  const invitation = await $apiFetch("POST /api/v1/admin/auth/invitation", {
     body: { isAdmin: true, expires: expiryDate },
     headers: { Authorization: token },
     failTitle: "Failed to create admin invitation",

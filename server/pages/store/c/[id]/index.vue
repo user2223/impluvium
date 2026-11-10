@@ -54,9 +54,11 @@
 
 <script setup lang="ts">
 const route = useRoute();
-const companyId = route.params.id;
+const companyId = route.params.id.toString();
 
-const { company } = await $dropFetch(`/api/v1/companies/${companyId}`);
+const { company } = await $apiFetch("GET /api/v1/companies/:id", {
+  path: { id: companyId },
+});
 
 useHead({
   title: company.mName,

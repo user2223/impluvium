@@ -38,9 +38,11 @@
 
 <script setup lang="ts">
 const route = useRoute();
-const tagId = route.params.id;
+const tagId = route.params.id.toString();
 
-const { tag } = await $dropFetch(`/api/v1/tags/${tagId}`);
+const { tag } = await $apiFetch("GET /api/v1/tags/:id", {
+  path: { id: tagId },
+});
 
 useHead({
   title: tag.name,

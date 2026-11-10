@@ -56,8 +56,8 @@ async function deleteArticle() {
     if (!article.value || !news.value) return;
 
     deleteLoading.value = true;
-    await $dropFetch(`/api/v1/admin/news/${article.value.id}`, {
-      method: "DELETE",
+    await $apiFetch("DELETE /api/v1/admin/news/:id", {
+      path: { id: article.value.id },
     });
 
     const index = news.value.findIndex((e) => e.id == article.value?.id);

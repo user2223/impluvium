@@ -364,9 +364,8 @@ import {
   PlusIcon,
 } from "@heroicons/vue/20/solid";
 import { FetchError } from "ofetch";
-import { GameType } from "~/prisma/client/enums";
-import type { ImportVersion } from "~/server/api/v1/admin/import/version/index.post";
-import type { VersionGuess } from "~/server/internal/library";
+import { GameType } from "~/shared/api/generated/enums";
+import type { ImportVersion, VersionGuess } from "~/shared/api/types";
 
 definePageMeta({
   layout: "admin",
@@ -376,19 +375,17 @@ const router = useRouter();
 const { t } = useI18n();
 const route = useRoute();
 const gameId = route.params.id.toString();
-const { versions, type } = await $dropFetch(
-  `/api/v1/admin/import/version?id=${encodeURIComponent(gameId)}`,
-);
+const { versions, type } = await $apiFetch("GET /api/v1/admin/import/version", {
+  query: { id: gameId },
+});
 const currentlySelectedVersion = ref(-1);
-const versionSettings = ref<Omit<typeof ImportVersion.infer, "version" | "id">>(
-  {
-    delta: false,
-    onlySetup: type === GameType.Dependency,
-    launches: [],
-    setups: [],
-    requiredContent: [],
-  },
-);
+const versionSettings = ref<Omit<ImportVersion, "version" | "id">>({
+  delta: false,
+  onlySetup: type === GameType.Dependency,
+  launches: [],
+  setups: [],
+  requiredContent: [],
+});
 
 const versionGuesses = ref<Array<VersionGuess>>();
 
@@ -400,14 +397,17 @@ async function updateCurrentlySelectedVersion(value: number) {
   currentlySelectedVersion.value = value;
   const version = versions[currentlySelectedVersion.value];
   try {
-    const results = await $dropFetch(`/api/v1/admin/import/version/preload`, {
-      failTitle: "Failed to fetch version information",
-      query: {
-        id: gameId,
-        type: version.type,
-        version: version.identifier,
+    const results = await $apiFetch(
+      "GET /api/v1/admin/import/version/preload",
+      {
+        failTitle: "Failed to fetch version information",
+        query: {
+          id: gameId,
+          type: version.type,
+          version: version.identifier,
+        },
       },
-    });
+    );
     versionGuesses.value = results as typeof versionGuesses.value;
   } catch {
     currentlySelectedVersion.value = -1;
@@ -419,8 +419,7 @@ async function startImport() {
 
   if (!versionSettings.value) return;
   try {
-    const taskId = await $dropFetch("/api/v1/admin/import/version", {
-      method: "POST",
+    const taskId = await $apiFetch("POST /api/v1/admin/import/version", {
       body: {
         ...versionSettings.value,
         id: gameId,

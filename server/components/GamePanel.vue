@@ -58,8 +58,6 @@
 </template>
 
 <script setup lang="ts">
-import type { SerializeObject } from "nitropack";
-
 const { t } = useI18n();
 const {
   game,
@@ -69,12 +67,12 @@ const {
   defaultPlaceholder = false,
 } = defineProps<{
   game:
-    | SerializeObject<{
+    | {
         id: string;
         mCoverObjectId: string;
         mName: string;
         mShortDescription: string;
-      }>
+      }
     | undefined
     | null;
   href?: string;

@@ -14,9 +14,9 @@
 </template>
 
 <script setup lang="ts">
-import type { TaskLog } from "~/server/internal/tasks";
+import type { TaskLog } from "~/shared/api/types";
 
-defineProps<{ log: typeof TaskLog.infer; short?: boolean }>();
+defineProps<{ log: TaskLog; short?: boolean }>();
 
 const colours: { [key: string]: string } = {
   info: "text-blue-400",

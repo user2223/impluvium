@@ -203,20 +203,20 @@ const { t } = useI18n();
 
 const route = useRoute();
 const router = useRouter();
-const invitationId = route.query.id?.toString();
+const invitationId = route.query.id?.toString() ?? "";
 if (!invitationId)
   throw createError({
     statusCode: 400,
     statusMessage: t("errors.inviteRequired"),
   });
 
-const invitation = await $dropFetch(
-  `/api/v1/auth/signup/simple?id=${encodeURIComponent(invitationId)}`,
-);
+const invitation = await $apiFetch("GET /api/v1/auth/signup/simple", {
+  query: { id: invitationId },
+});
 
-const email = ref(invitation?.email);
+const email = ref(invitation?.email ?? "");
 const displayName = ref("");
-const username = ref(invitation?.username);
+const username = ref(invitation?.username ?? "");
 const password = ref("");
 const confirmPassword = ref(undefined);
 
@@ -231,8 +231,7 @@ const loading = ref(false);
 const error = ref<string | undefined>(undefined);
 
 async function register() {
-  await $dropFetch("/api/v1/auth/signup/simple", {
-    method: "POST",
+  await $apiFetch("POST /api/v1/auth/signup/simple", {
     body: {
       invitation: invitationId,
       username: username.value,

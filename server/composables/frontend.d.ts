@@ -2,7 +2,7 @@ import type {
   ComponentCustomOptions as _ComponentCustomOptions,
   ComponentCustomProperties as _ComponentCustomProperties,
 } from "vue";
-import type { Platform } from "~/prisma/client/enums";
+import type { Platform } from "~/shared/api/generated/enums";
 
 declare module "@vue/runtime-core" {
   interface ComponentCustomProperties extends _ComponentCustomProperties {

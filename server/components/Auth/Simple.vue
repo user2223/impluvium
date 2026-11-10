@@ -100,9 +100,7 @@ const loading = ref(false);
 async function passkeyAutofill() {
   let silentWebauthnOptions;
   try {
-    silentWebauthnOptions = await $dropFetch("/api/v1/auth/passkey/start", {
-      method: "POST",
-    });
+    silentWebauthnOptions = await $apiFetch("POST /api/v1/auth/passkey/start");
   } catch {
     return;
   }
@@ -114,10 +112,7 @@ async function passkeyAutofill() {
 
   loading.value = true;
 
-  await $dropFetch("/api/v1/auth/passkey/finish", {
-    method: "POST",
-    body: result,
-  });
+  await $apiFetch("POST /api/v1/auth/passkey/finish", { body: result });
 
   await completeSignin();
 }
@@ -157,8 +152,7 @@ async function signin_wrapper() {
 }
 
 async function signin() {
-  const { result } = await $dropFetch("/api/v1/auth/signin/simple", {
-    method: "POST",
+  const { result } = await $apiFetch("POST /api/v1/auth/signin/simple", {
     body: {
       username: username.value,
       password: password.value,

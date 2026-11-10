@@ -90,18 +90,12 @@
 
 <script setup lang="ts">
 import { DocumentIcon } from "@heroicons/vue/24/outline";
-import type { ArticleModel } from "~/prisma/client/models";
-import type { SerializeObject } from "nitropack/types";
+import type { ArticleModel } from "~/shared/api/types";
 
 const { t } = useI18n();
 
 const { articles } = defineProps<{
-  articles: SerializeObject<
-    ArticleModel & {
-      tags: Array<{ name: string; id: string }>;
-      author: { displayName: string };
-    }
-  >[];
+  articles: ArticleModel[];
 }>();
 
 useHead({

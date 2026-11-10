@@ -92,7 +92,7 @@
 <script setup lang="ts">
 import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/24/outline";
 
-const recent = await $dropFetch("/api/v1/store/featured");
+const recent = await $apiFetch("GET /api/v1/store/featured");
 
 const user = useUser();
 

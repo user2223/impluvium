@@ -116,6 +116,12 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import type {
+  CompanyUpload,
+  GameUpload,
+  LogoUpload,
+  UploadTarget,
+} from "~/shared/api/upload";
 import {
   Dialog,
   DialogPanel,
@@ -141,12 +147,16 @@ const currentFileList = computed(() => {
   return list;
 });
 const props = defineProps<{
-  endpoint: string;
+  target: UploadTarget;
   accept: string;
   multiple?: boolean;
   options?: { [key: string]: string };
 }>();
-const emit = defineEmits(["upload"]);
+const emit = defineEmits<{
+  "game-upload": [response: GameUpload];
+  "company-upload": [response: CompanyUpload];
+  "logo-upload": [response: LogoUpload];
+}>();
 
 const uploadLoading = ref(false);
 const uploadError = ref<string | undefined>();
@@ -164,13 +174,38 @@ async function uploadFile() {
     }
   }
 
-  const result = await $dropFetch(props.endpoint, {
-    method: "POST",
-    body: form,
-  });
-  open.value = false;
-  file.value = undefined;
-  emit("upload", result);
+  const target = props.target;
+  switch (target.key) {
+    case "POST /api/v1/admin/game/image": {
+      const result = await $apiFetch(target.key, { body: form });
+      open.value = false;
+      file.value = undefined;
+      emit("game-upload", result);
+      break;
+    }
+    case "POST /api/v1/admin/company/:id/icon":
+    case "POST /api/v1/admin/company/:id/banner": {
+      const result = await $apiFetch(target.key, {
+        path: target.path,
+        body: form,
+      });
+      open.value = false;
+      file.value = undefined;
+      emit("company-upload", result);
+      break;
+    }
+    case "POST /api/v1/admin/settings/logo": {
+      const result = await $apiFetch(target.key, { body: form });
+      open.value = false;
+      file.value = undefined;
+      emit("logo-upload", result);
+      break;
+    }
+    default: {
+      const invalid: never = target;
+      throw new Error(`Unsupported upload target: ${String(invalid)}`);
+    }
+  }
 }
 
 function uploadFile_wrapper() {

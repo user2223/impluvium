@@ -78,9 +78,9 @@
 
       <ModalUploadFile
         v-model="uploadLogoOpen"
-        :endpoint="`/api/v1/admin/settings/logo`"
+        :target="{ key: 'POST /api/v1/admin/settings/logo' }"
         accept="image/*"
-        @upload="updateLogo"
+        @logo-upload="updateLogo"
       />
 
       <LoadingButton
@@ -97,7 +97,7 @@
 
 <script setup lang="ts">
 import { FetchError } from "ofetch";
-import type { Settings } from "~/server/internal/utils/types";
+import type { Settings } from "~/shared/api/types";
 
 const { t } = useI18n();
 
@@ -109,7 +109,7 @@ useHead({
   title: t("settings.admin.title"),
 });
 
-const settings = ref<Settings>(await $dropFetch("/api/v1/settings"));
+const settings = ref<Settings>(await $apiFetch("GET /api/v1/settings"));
 
 const allowSave = ref<boolean>(false);
 const uploadLogoOpen = ref<boolean>(false);
@@ -133,8 +133,7 @@ const saving = ref<boolean>(false);
 async function saveSettings() {
   saving.value = true;
   try {
-    settings.value = await $dropFetch("/api/v1/admin/settings", {
-      method: "PATCH",
+    settings.value = await $apiFetch("PATCH /api/v1/admin/settings", {
       body: {
         generalSettings: {
           serverName: settings.value.generalSettings.serverName,

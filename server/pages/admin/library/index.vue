@@ -552,7 +552,7 @@ import {
   FunnelIcon,
 } from "@heroicons/vue/20/solid";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
-import type { AdminLibraryGame } from "~/server/api/v1/admin/library/index.get";
+import type { ApiQuery, AdminLibraryGame } from "~/shared/api/types";
 import {
   Disclosure,
   DisclosureButton,
@@ -573,8 +573,8 @@ useHead({
   title: t("library.admin.title"),
 });
 
-const { unimportedGames, hasLibraries } = await $dropFetch(
-  "/api/v1/admin/library/libraries",
+const { unimportedGames, hasLibraries } = await $apiFetch(
+  "GET /api/v1/admin/library/libraries",
 );
 
 const route = useRoute();
@@ -619,7 +619,9 @@ const pageItems = computed((): (number | "...")[] => {
   ];
 });
 
-const games = ref<AdminLibraryGame[]>([]);
+// shallowRef: the library options are recursive JSON, which Vue's deep ref unwrapping cannot type.
+// The list is only ever replaced as a whole, so shallow reactivity is enough.
+const games = shallowRef<AdminLibraryGame[]>([]);
 const gamesLoading = ref(false);
 
 const searchQuery = ref("");
@@ -667,8 +669,8 @@ const libraryGames = computed(() =>
 );
 
 async function deleteGame(id: string) {
-  await $dropFetch(`/api/v1/admin/game/${id}`, {
-    method: "DELETE",
+  await $apiFetch("DELETE /api/v1/admin/game/:id", {
+    path: { id },
     failTitle: "Failed to delete game",
   });
   const index = libraryGames.value.findIndex((e) => e.id === id);
@@ -682,9 +684,8 @@ async function featureGame(id: string) {
   const game = libraryGames.value[gameIndex];
   gameFeatureLoading.value[game.id] = true;
 
-  await $dropFetch(`/api/v1/admin/game/:id`, {
-    method: "PATCH",
-    params: {
+  await $apiFetch("PATCH /api/v1/admin/game/:id", {
+    path: {
       id: game.id,
     },
     body: { featured: !game.featured },
@@ -758,7 +759,11 @@ const filterScaffold = computed(
     },
 );
 
-const sorts: Array<StoreSortOption> = [
+type SortOption = {
+  name: string;
+  param: NonNullable<ApiQuery<"GET /api/v1/admin/library">["sort"]>;
+};
+const sorts: SortOption[] = [
   {
     name: "Default",
     param: "default",
@@ -780,7 +785,7 @@ const sorts: Array<StoreSortOption> = [
 const currentSort = ref(sorts[0].param);
 const sortOrder = ref<"asc" | "desc">("desc");
 
-function handleSortClick(option: StoreSortOption, event: MouseEvent) {
+function handleSortClick(option: SortOption, event: MouseEvent) {
   event.stopPropagation();
   if (currentSort.value === option.param) {
     sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
@@ -792,10 +797,10 @@ function handleSortClick(option: StoreSortOption, event: MouseEvent) {
 
 async function fetchPage() {
   gamesLoading.value = true;
-  const { results, count } = await $dropFetch("/api/v1/admin/library", {
+  const { results, count } = await $apiFetch("GET /api/v1/admin/library", {
     query: {
-      skip: currentIndex.value * pageSize,
-      limit: pageSize,
+      skip: String(currentIndex.value * pageSize),
+      limit: String(pageSize),
       sort: currentSort.value,
       order: sortOrder.value,
       filters: Object.entries(currentFilters.value)

@@ -142,8 +142,8 @@
 <script setup lang="ts">
 import { XCircleIcon } from "@heroicons/vue/24/outline";
 import type { EmulatorLaunchObject } from "~/composables/frontend";
-import type { Platform } from "~/prisma/client/enums";
-import type { GameMetadataSearchResult } from "~/server/internal/metadata/types";
+import type { Platform } from "~/shared/api/generated/enums";
+import type { GameMetadataSearchResult } from "~/shared/api/types";
 
 const props = defineProps<{ filterPlatform?: Platform }>();
 
@@ -178,7 +178,7 @@ const emit = defineEmits<{
 }>();
 
 async function search(query: string) {
-  return await $dropFetch("/api/v1/admin/search/game", {
+  return await $apiFetch("GET /api/v1/admin/search/game", {
     query: { q: query, type: "Emulator" },
   });
 }
@@ -196,8 +196,8 @@ function updateGame(value: GameMetadataSearchResult | undefined) {
 }
 
 async function fetchVersions() {
-  const newVersions = await $dropFetch("/api/v1/admin/game/:id/versions", {
-    params: { id: game.value!.id },
+  const newVersions = await $apiFetch("GET /api/v1/admin/game/:id/versions", {
+    path: { id: game.value!.id },
     failTitle: "Failed to fetch versions for launch picker",
   });
   versions.value = Object.fromEntries(newVersions.map((v) => [v.versionId, v]));

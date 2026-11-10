@@ -99,7 +99,7 @@ import {
 } from "@headlessui/vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/24/outline";
 
-import type { GameMetadataSearchResult } from "~/server/internal/metadata/types";
+import type { GameMetadataSearchResult } from "~/shared/api/types";
 
 const props = defineProps<{
   search: (query: string) => Promise<Array<GameMetadataSearchResult>>;

@@ -195,12 +195,16 @@ jobs:
         run: pnpm install --frozen-lockfile --filter "{./server}..." --fail-if-no-match
       - name: HTTP contracts (generated files, independent client types and Nitro comparison)
         run: |
+          node tools/web-api/check-consumers.mjs
           node tools/web-api/generate.mjs --check
           node tools/web-api/check-types.mjs
           node --test --test-concurrency=1 tools/web-api/test/*.test.mjs
       - name: Typecheck
         working-directory: server
         run: pnpm run typecheck
+      - name: UI typecheck (empty server tree, no generated Nitro route types)
+        working-directory: server
+        run: pnpm run typecheck:ui
       - name: Lint
         working-directory: server
         run: pnpm run lint

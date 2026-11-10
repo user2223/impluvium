@@ -35,23 +35,24 @@
 </template>
 
 <script setup lang="ts">
-import type { GameModel } from "~/prisma/client/models";
-import type { SerializeObject } from "nitropack";
+import type { ApiResponse } from "~/shared/api/types";
+
+type CarouselGame = ApiResponse<"GET /api/v1/store/featured">[number];
 
 const props = defineProps<{
-  items: Array<SerializeObject<GameModel>>;
+  items: Array<CarouselGame>;
   min?: number;
   width?: number;
 }>();
 
 const {
   store: { showGamePanelTextDecoration },
-} = await $dropFetch(`/api/v1/settings`);
+} = await $apiFetch("GET /api/v1/settings");
 
 const currentComponent = ref<HTMLDivElement>();
 
 const min = computed(() => Math.max(props.min ?? 8, props.items.length));
-const games: Ref<Array<SerializeObject<GameModel> | undefined>> = computed(() =>
+const games: Ref<Array<CarouselGame | undefined>> = computed(() =>
   Array(min.value)
     .fill(0)
     .map((_, i) => props.items[i]),

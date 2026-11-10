@@ -80,6 +80,20 @@ async function checkIndependentClient() {
     }
   }
   assertClean(ts, program);
+  // Change a DTO in memory and compile the real layout again. A consumer must
+  // fail, and restoring the DTO must restore the clean result as well.
+  const dtosPath = join(root, generatedDirectory, 'dtos.ts');
+  const dtos = await readFile(dtosPath, 'utf8');
+  const changed = dtos.replace(/(external: string;[\s\S]*?mLogoObjectId:) null \| string;/, '$1 number;');
+  if (changed === dtos) throw new Error('The DTO mutation control did not change the server-info contract.');
+  virtual.set(dtosPath, changed);
+  const mutated = ts.createProgram({ rootNames: program.getRootFileNames(), options, host });
+  const mutationErrors = ts.getPreEmitDiagnostics(mutated);
+  if (!mutationErrors.some((diagnostic) => diagnostic.file?.fileName.endsWith('/layouts/default.api-contract.ts'))) {
+    throw new Error('Changing the logo DTO did not break its actual layout consumer.');
+  }
+  virtual.delete(dtosPath);
+  assertClean(ts, ts.createProgram({ rootNames: program.getRootFileNames(), options, host }));
   // Recheck the same calls without suppression directives. This proves that
   // each negative case is rejected by the generated contracts themselves.
   const fixture = join(root, 'tools/ci/fixtures/web-api-types.ts');
@@ -110,6 +124,9 @@ async function checkNitro() {
   let source = [
     'import type { InternalApi } from "nitropack/types";',
     'import type { ApiRouteMap } from "./shared/api/generated/routes";',
+    'import type { TaskMessage, TaskLog, SystemData } from "./shared/api/types";',
+    'import type { TaskMessage as ServerTaskMessage, TaskLog as ServerTaskLog } from "./server/internal/tasks";',
+    'import type { SystemData as ServerSystemData } from "./server/internal/system-data";',
     comparisonTypes,
   ].join('\n') + '\n';
   let line = source.split('\n').length - 1;
@@ -120,6 +137,16 @@ async function checkNitro() {
     for (let offset = 0; offset < count; offset++) routeLines.set(line + offset, key);
     source += `${statement}\n`;
     line += count;
+  }
+  // Socket payloads are independent UI contracts too. Check both directions
+  // against their existing JSON-safe server types in this backend-only path.
+  for (const [name, serverType] of [
+    ['TaskMessage', 'ServerTaskMessage'], ['TaskLog', 'typeof ServerTaskLog.infer'], ['SystemData', 'ServerSystemData'],
+  ]) {
+    append(`type Wire${name} = ${serverType};`, `Socket ${name}`);
+    append(`type Forward${name} = ${name} extends Wire${name} ? true : false;`, `Socket ${name}`);
+    append(`type Backward${name} = Wire${name} extends ${name} ? true : false;`, `Socket ${name}`);
+    append(`const forward${name}: Forward${name} = true; const backward${name}: Backward${name} = true;`, `Socket ${name}`);
   }
   for (const [index, route] of [...inventory.handlers, ...inventory.serverRoutes].entries()) {
     const method = route.method === '*' ? 'default' : route.method.toLowerCase();
@@ -164,7 +191,7 @@ async function checkNitro() {
 
 try {
   // Do not turn a missing map into misleading unused-directive diagnostics.
-  for (const file of ['dtos.ts', 'routes.ts', 'inventory.json']) {
+  for (const file of ['dtos.ts', 'enums.ts', 'routes.ts', 'inventory.json']) {
     await readFile(join(root, generatedDirectory, file), 'utf8');
   }
   await checkIndependentClient();

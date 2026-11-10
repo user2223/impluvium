@@ -1,6 +1,28 @@
 import type { ApiFetch } from "../../../server/shared/api/client";
+import type { UploadTarget } from "../../../server/shared/api/upload";
 
 declare const fetchApi: ApiFetch;
+
+const companyUpload: UploadTarget = { key: "POST /api/v1/admin/company/:id/icon", path: { id: "sample" } };
+const gameUpload: UploadTarget = { key: "POST /api/v1/admin/game/image" };
+void companyUpload;
+void gameUpload;
+// @ts-expect-error Upload targets must have a multipart route contract.
+const wrongUpload: UploadTarget = { key: "POST /api/v1/collection" };
+// @ts-expect-error Company uploads require their path parameter separately.
+const missingUploadPath: UploadTarget = { key: "POST /api/v1/admin/company/:id/banner" };
+// @ts-expect-error Upload paths cannot be composed URL strings.
+const composedUpload: UploadTarget = { key: "POST /api/v1/admin/company/sample/icon" };
+void wrongUpload;
+void missingUploadPath;
+void composedUpload;
+
+fetchApi("POST /api/v1/admin/company/:id/icon", { path: { id: "sample" }, body: new FormData() });
+fetchApi("DELETE /api/v1/admin/company/:id", { path: { id: "sample" } });
+// @ts-expect-error Multipart routes reject JSON bodies.
+fetchApi("POST /api/v1/admin/company/:id/icon", { path: { id: "sample" }, body: { image: "sample" } });
+// @ts-expect-error PATCH wire dates must be serialized before sending.
+fetchApi("PATCH /api/v1/admin/game/:id", { path: { id: "sample" }, body: { mReleased: new Date() } });
 
 async function representativeConsumers() {
   const info = await fetchApi("GET /api/v1");
@@ -39,6 +61,36 @@ async function libraryResponses() {
   collections[0]?.entries[0]?.game.playtime;
 }
 void libraryResponses;
+
+async function metadataImport() {
+  const results = await fetchApi("GET /api/v1/admin/import/game/search", {
+    query: { q: "Sample" },
+  });
+  for (const result of results) {
+    result.sourceId.trim();
+    result.sourceName.trim();
+  }
+  await fetchApi("POST /api/v1/admin/import/game", {
+    body: { library: "sample-library", path: "sample-game", type: "Game", metadata: results[0] },
+  });
+  await fetchApi("POST /api/v1/admin/import/game", {
+    body: { library: "sample-library", path: "sample-game", type: "Game" },
+  });
+  const storedGames = await fetchApi("GET /api/v1/admin/search/game", {
+    query: { q: "Sample" },
+  });
+  // @ts-expect-error Stored-game search results lack the metadata provider ID required for import.
+  fetchApi("POST /api/v1/admin/import/game", { body: { library: "sample-library", path: "sample-game", type: "Game", metadata: storedGames[0] } });
+}
+void metadataImport;
+
+fetchApi("POST /api/v1/auth/signup/simple", { body: { invitation: "sample-invite", username: "sample-user", password: "sample-password", email: "user@example.invalid" } });
+// @ts-expect-error The invitation ID must be present in the registration request.
+fetchApi("POST /api/v1/auth/signup/simple", { body: { invitation: undefined, username: "sample-user", password: "sample-password", email: "user@example.invalid" } });
+// @ts-expect-error Nullable invitation fields must be converted into editable strings before registration.
+fetchApi("POST /api/v1/auth/signup/simple", { body: { invitation: "sample-invite", username: null, password: "sample-password", email: "user@example.invalid" } });
+// @ts-expect-error A registration email cannot be null.
+fetchApi("POST /api/v1/auth/signup/simple", { body: { invitation: "sample-invite", username: "sample-user", password: "sample-password", email: null } });
 
 fetchApi("PATCH /api/v1/admin/game/:id/versions", {
   path: { id: "sample-game" },

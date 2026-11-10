@@ -117,13 +117,15 @@ const inCollections = computed(() =>
 async function toggleLibrary() {
   isLibraryLoading.value = true;
   try {
-    await $dropFetch("/api/v1/collection/default/entry", {
-      method: inLibrary.value ? "DELETE" : "POST",
-      body: {
-        id: props.gameId,
+    await $apiFetch(
+      inLibrary.value
+        ? "DELETE /api/v1/collection/default/entry"
+        : "POST /api/v1/collection/default/entry",
+      {
+        body: { id: props.gameId },
+        failTitle: t("errors.library.add.title"),
       },
-      failTitle: t("errors.library.add.title"),
-    });
+    );
     await refreshLibrary();
   } finally {
     isLibraryLoading.value = false;
@@ -136,14 +138,16 @@ async function toggleCollection(id: string) {
     if (!collection) return;
     const index = collection.entries.findIndex((e) => e.gameId == props.gameId);
 
-    await $dropFetch(`/api/v1/collection/:id/entry`, {
-      method: index == -1 ? "POST" : "DELETE",
-      params: { id },
-      body: {
-        id: props.gameId,
+    await $apiFetch(
+      index == -1
+        ? "POST /api/v1/collection/:id/entry"
+        : "DELETE /api/v1/collection/:id/entry",
+      {
+        path: { id },
+        body: { id: props.gameId },
+        failTitle: t("errors.library.add.title"),
       },
-      failTitle: t("errors.library.add.title"),
-    });
+    );
 
     await refreshCollection(id);
   } finally {

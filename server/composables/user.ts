@@ -1,4 +1,4 @@
-import type { UserModel } from "~/prisma/client/models";
+import type { UserModel } from "~/shared/api/types";
 
 // undefined = haven't check
 // null = check, no user
@@ -9,7 +9,7 @@ export const updateUser = async () => {
   const user = useUser();
   if (user.value === null) return;
 
-  user.value = await $dropFetch<UserModel | null>("/api/v1/user", {
+  user.value = await $apiFetch("GET /api/v1/user", {
     // Forward headers manually when called outside a component
     headers: import.meta.server
       ? useRequestHeaders(["cookie", "authorization"])
@@ -22,6 +22,6 @@ export async function completeSignin() {
   const router = useRouter();
 
   const user = useUser();
-  user.value = await $dropFetch<UserModel | null>("/api/v1/user");
+  user.value = await $apiFetch("GET /api/v1/user");
   router.push(route.query.redirect?.toString() ?? "/");
 }

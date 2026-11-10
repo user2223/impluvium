@@ -29,6 +29,12 @@ export const binaryBodies = new Set([
   'client/saves/[gameid]/[slotindex]/push.post',
 ]);
 
+// Export every member of the enums used by browser consumers, including members
+// that are not currently selected by a particular view.
+export const browserEnums = [
+  'AgeRatingOrganization', 'AuthMec', 'GameType', 'LibraryBackend', 'MFAMec', 'Platform',
+];
+
 export const formBodies = new Set([
   'admin/company/[id]/banner.post',
   'admin/company/[id]/icon.post',

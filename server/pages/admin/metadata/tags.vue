@@ -38,8 +38,7 @@
 
 <script setup lang="ts">
 import { TrashIcon } from "@heroicons/vue/24/outline";
-import type { SerializeObject } from "nitropack";
-import type { GameTagModel } from "~/prisma/client/models";
+import type { GameTagModel } from "~/shared/api/types";
 
 definePageMeta({
   layout: "admin",
@@ -47,9 +46,7 @@ definePageMeta({
 
 const createModalOpen = ref(false);
 
-const tags = ref(
-  await $dropFetch<Array<SerializeObject<GameTagModel>>>("/api/v1/admin/tags"),
-);
+const tags = ref(await $apiFetch("GET /api/v1/admin/tags"));
 
 function sort() {
   tags.value.sort((a, b) =>
@@ -66,8 +63,8 @@ async function onTagCreate(tag: GameTagModel) {
 
 async function deleteTag(tagIdx: number) {
   const tag = tags.value[tagIdx];
-  await $dropFetch(`/api/v1/admin/tags/${tag.id}`, {
-    method: "DELETE",
+  await $apiFetch("DELETE /api/v1/admin/tags/:id", {
+    path: { id: tag.id },
     failTitle: "Failed to delete tag",
   });
   tags.value.splice(tagIdx, 1);

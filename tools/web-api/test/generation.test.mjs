@@ -5,6 +5,16 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { compareOutputs, generate } from '../generate.mjs';
 import { problemCollector } from '../compiler.mjs';
+import { AgeRatingOrganization, AuthMec, GameType, LibraryBackend, MFAMec, Platform } from '../../../server/shared/api/generated/enums.ts';
+
+test('browser enum objects contain every existing runtime member', () => {
+  assert.deepEqual(Object.values(AgeRatingOrganization), ['ESRB', 'PEGI', 'CERO', 'USK', 'GRAC', 'ClassInd', 'ACB']);
+  assert.deepEqual(Object.values(AuthMec), ['Simple', 'OpenID']);
+  assert.deepEqual(Object.values(GameType), ['Game', 'Emulator', 'Dependency']);
+  assert.deepEqual(Object.values(LibraryBackend), ['Filesystem', 'FlatFilesystem']);
+  assert.deepEqual(Object.values(MFAMec), ['WebAuthn', 'TOTP']);
+  assert.deepEqual(Object.values(Platform), ['Windows', 'Linux', 'macOS']);
+});
 
 test('generation collects independent route and field failures before rejecting the result', () => {
   const problems = problemCollector();
@@ -28,7 +38,7 @@ test('static contract generation is reproducible and detects changed, missing an
   const first = await generate();
   const second = await generate();
   assert.deepEqual([...first], [...second]);
-  assert.deepEqual([...first.keys()].sort(), ['dtos.ts', 'inventory.json', 'routes.ts']);
+  assert.deepEqual([...first.keys()].sort(), ['dtos.ts', 'enums.ts', 'inventory.json', 'routes.ts']);
   const directory = await mkdtemp(join(tmpdir(), 'http-contracts-'));
   try {
     for (const [name, value] of first) await writeFile(join(directory, name), value);

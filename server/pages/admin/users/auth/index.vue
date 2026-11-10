@@ -116,7 +116,7 @@ import { IconsSimpleAuthenticationLogo, IconsSSOLogo } from "#components";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { EllipsisHorizontalIcon } from "@heroicons/vue/20/solid";
 import { CheckIcon, XMarkIcon } from "@heroicons/vue/24/solid";
-import type { AuthMec } from "~/prisma/client/enums";
+import type { AuthMec } from "~/shared/api/generated/enums";
 import type { Component } from "vue";
 
 useHead({
@@ -129,7 +129,7 @@ definePageMeta({
 
 const { t } = useI18n();
 
-const enabledMechanisms = await $dropFetch("/api/v1/admin/auth");
+const enabledMechanisms = await $apiFetch("GET /api/v1/admin/auth");
 
 const authenticationMechanisms: Array<{
   name: string;

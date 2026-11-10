@@ -171,10 +171,9 @@
 </template>
 
 <script setup lang="ts">
-import type { SerializeObject } from "nitropack";
 import type { H3Error } from "h3";
 import { ExclamationCircleIcon, Bars3Icon } from "@heroicons/vue/24/outline";
-import type { AdminFetchGameType } from "~/server/api/v1/admin/game/[id]/index.get";
+import type { AdminFetchGameType } from "~/shared/api/types";
 
 // TODO implement UI for this page
 
@@ -188,7 +187,7 @@ const canImport = computed(
   () => hasDeleted.value || props.unimportedVersions.length > 0,
 );
 
-const game = defineModel<SerializeObject<AdminFetchGameType>>({
+const game = defineModel<AdminFetchGameType>({
   required: true,
 });
 if (!game.value)
@@ -199,14 +198,13 @@ if (!game.value)
 
 async function updateVersionOrder() {
   try {
-    const newVersionOrder = await $dropFetch(
-      "/api/v1/admin/game/:id/versions",
+    const newVersionOrder = await $apiFetch(
+      "PATCH /api/v1/admin/game/:id/versions",
       {
-        method: "PATCH",
         body: {
           versions: game.value.versions.map((e) => e.versionId),
         },
-        params: {
+        path: {
           id: game.value.id,
         },
       },
@@ -232,12 +230,11 @@ async function updateVersionOrder() {
 
 async function deleteVersion(versionId: string) {
   try {
-    await $dropFetch("/api/v1/admin/game/:id/versions", {
-      method: "DELETE",
+    await $apiFetch("DELETE /api/v1/admin/game/:id/versions", {
       body: {
         version: versionId,
       },
-      params: {
+      path: {
         id: game.value.id,
       },
     });

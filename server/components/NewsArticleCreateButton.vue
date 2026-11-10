@@ -397,8 +397,7 @@ async function createArticle() {
     formData.append("content", newArticle.value.content);
     formData.append("tags", JSON.stringify(newArticle.value.tags));
 
-    const createdArticle = await $dropFetch("/api/v1/admin/news", {
-      method: "POST",
+    const createdArticle = await $apiFetch("POST /api/v1/admin/news", {
       body: formData,
     });
 

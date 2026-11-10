@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { DialogTitle } from "@headlessui/vue";
-import type { GameTagModel } from "~/prisma/client/models";
+import type { GameTagModel } from "~/shared/api/types";
 
 const emit = defineEmits<{
   created: [tag: GameTagModel];
@@ -62,8 +62,7 @@ async function createTag() {
   createTagLoading.value = true;
 
   // Create the collection
-  const tag = await $dropFetch("/api/v1/admin/tags", {
-    method: "POST",
+  const tag = await $apiFetch("POST /api/v1/admin/tags", {
     body: { name: tagName.value },
     failTitle: "Failed to create tag",
   });

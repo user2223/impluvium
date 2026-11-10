@@ -374,27 +374,29 @@ import {
   PlusIcon,
   Squares2X2Icon,
 } from "@heroicons/vue/20/solid";
-import type { SerializeObject } from "nitropack";
-import type { GameModel, GameTagModel } from "~/prisma/client/models";
-import { Platform } from "~/prisma/client/enums";
+import type { ApiQuery, GameModel } from "~/shared/api/types";
+import { Platform } from "~/shared/api/generated/enums";
 const {
   store: { showGamePanelTextDecoration },
-} = await $dropFetch(`/api/v1/settings`);
+} = await $apiFetch("GET /api/v1/settings");
 
 const mobileFiltersOpen = ref(false);
 
 const props = defineProps<{
-  params?: { [key: string]: string };
+  params?: ApiQuery<"GET /api/v1/store">;
   extraOptions?: Array<StoreFilterOption>;
   prefilled?: {
     [key: string]: { [key: string]: string | { [key: string]: boolean } };
   };
 }>();
 
-const tags =
-  await $dropFetch<Array<SerializeObject<GameTagModel>>>("/api/v1/store/tags");
+const tags = await $apiFetch("GET /api/v1/store/tags");
 
-const sorts: Array<StoreSortOption> = [
+type SortOption = {
+  name: string;
+  param: NonNullable<ApiQuery<"GET /api/v1/store">["sort"]>;
+};
+const sorts: SortOption[] = [
   {
     name: "Default",
     param: "default",
@@ -443,29 +445,24 @@ const optionValues = ref<{
 );
 Object.assign(optionValues.value, props.prefilled);
 
-const filterQuery = computed(() => {
-  const query = Object.entries(optionValues.value)
-    .filter(
-      ([_, v]) =>
-        v &&
-        (typeof v !== "object" || Object.values(v).filter((e) => e).length > 0),
-    )
-    .map(([n, v]) => {
-      if (typeof v === "string") return [`${n}=${v}`];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const enabledOptions = Object.entries(v as any).filter(([_, e]) => e);
-      return `${n}=${enabledOptions.map(([k, _]) => k).join(",")}`;
-    })
-    .join("&");
-  const extraFilters = props.params
-    ? Object.entries(props.params)
-        .map(([k, v]) => `${k}=${v}`)
-        .join("&")
-    : props.params;
-  return `${query}${extraFilters ? (query ? "&" : "") + extraFilters : ""}`;
+const filterQuery = computed<ApiQuery<"GET /api/v1/store">>(() => {
+  const query: ApiQuery<"GET /api/v1/store"> = { ...props.params };
+  // Only these API fields are exposed by the store's filter controls.
+  for (const name of ["tags", "platform", "companyActions"] as const) {
+    const value = optionValues.value[name];
+    if (typeof value === "string" && value) {
+      query[name] = value;
+    } else if (value && typeof value === "object") {
+      const enabled = Object.entries(value)
+        .filter(([, selected]) => selected)
+        .map(([key]) => key);
+      if (enabled.length) query[name] = enabled.join(",");
+    }
+  }
+  return query;
 });
 
-const games = ref<Array<SerializeObject<GameModel>>>();
+const games = ref<Array<GameModel>>();
 const loading = ref(false);
 
 const productGrid = useTemplateRef<HTMLElement>("product-grid");
@@ -482,15 +479,21 @@ const { reset } = useInfiniteScroll(
 );
 
 const canLoadMore = ref(true);
-async function updateGames(query: string, resetGames: boolean) {
+async function updateGames(
+  query: ApiQuery<"GET /api/v1/store">,
+  resetGames: boolean,
+) {
   loading.value = true;
   games.value ??= [];
-  const newValues = await $dropFetch<{
-    results: Array<SerializeObject<GameModel>>;
-    count: number;
-  }>(
-    `/api/v1/store?take=50&skip=${resetGames ? 0 : games.value?.length || 0}&sort=${currentSort.value}&order=${sortOrder.value}${query ? "&" + query : ""}`,
-  );
+  const newValues = await $apiFetch("GET /api/v1/store", {
+    query: {
+      ...query,
+      take: "50",
+      skip: String(resetGames ? 0 : games.value?.length || 0),
+      sort: currentSort.value,
+      order: sortOrder.value,
+    },
+  });
   if (resetGames) {
     games.value = newValues.results;
     if (import.meta.client) await reset();
@@ -512,7 +515,7 @@ watch(sortOrder, (_) => {
 
 await updateGames(filterQuery.value, true);
 
-function handleSortClick(option: StoreSortOption, event: MouseEvent) {
+function handleSortClick(option: SortOption, event: MouseEvent) {
   event.stopPropagation();
   if (currentSort.value === option.param) {
     sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";

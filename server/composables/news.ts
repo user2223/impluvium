@@ -1,18 +1,10 @@
-import type { ArticleModel } from "~/prisma/client/models";
-import type { SerializeObject } from "nitropack";
+import type { ApiQuery, ApiResponse } from "~/shared/api/types";
 
 export const useNews = () =>
-  useState<
-    | Array<
-        SerializeObject<
-          ArticleModel & {
-            tags: Array<{ id: string; name: string }>;
-            author: { displayName: string; id: string } | null;
-          }
-        >
-      >
-    | undefined
-  >("news", () => undefined);
+  useState<ApiResponse<"GET /api/v1/news"> | undefined>(
+    "news",
+    () => undefined,
+  );
 
 export const fetchNews = async (options?: {
   limit?: number;
@@ -21,21 +13,15 @@ export const fetchNews = async (options?: {
   tags?: string[];
   search?: string;
 }) => {
-  const query = new URLSearchParams();
-
-  if (options?.limit) query.set("limit", options.limit.toString());
-  if (options?.skip) query.set("skip", options.skip.toString());
-  if (options?.orderBy) query.set("order", options.orderBy);
-  if (options?.tags?.length) query.set("tags", options.tags.join(","));
-  if (options?.search) query.set("search", options.search);
+  const query: ApiQuery<"GET /api/v1/news"> = {};
+  if (options?.limit) query.limit = options.limit.toString();
+  if (options?.skip) query.skip = options.skip.toString();
+  if (options?.orderBy) query.order = options.orderBy;
+  if (options?.tags?.length) query.tags = options.tags;
+  if (options?.search) query.search = options.search;
 
   const news = useNews();
-
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore forget why this ignor exists
-  const newValue = await $dropFetch(`/api/v1/news?${query.toString()}`);
-
+  const newValue = await $apiFetch("GET /api/v1/news", { query });
   news.value = newValue;
-
   return newValue;
 };

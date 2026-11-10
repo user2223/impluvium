@@ -190,8 +190,9 @@ const { t } = useI18n();
 
 const systemData = useSystemData();
 
-const { version, gameCount, sources, userStats } =
-  await $dropFetch("/api/v1/admin/home");
+const { version, gameCount, sources, userStats } = await $apiFetch(
+  "GET /api/v1/admin/home",
+);
 
 const pieChartData = [
   {

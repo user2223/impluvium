@@ -110,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CompanyModel } from "~/prisma/client/models";
+import type { CompanyModel } from "~/shared/api/types";
 
 const open = defineModel<boolean>({ required: true });
 
@@ -129,8 +129,7 @@ const companyValid = computed(
 async function createCompany() {
   loading.value = true;
   try {
-    const newCompany = await $dropFetch("/api/v1/admin/company", {
-      method: "POST",
+    const newCompany = await $apiFetch("POST /api/v1/admin/company", {
       body: {
         name: companyName.value,
         description: companyDescription.value,

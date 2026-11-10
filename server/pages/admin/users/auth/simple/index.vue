@@ -394,8 +394,7 @@ import {
 } from "@headlessui/vue";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import { TrashIcon, XCircleIcon } from "@heroicons/vue/24/solid";
-import type { InvitationModel } from "~/prisma/client/models";
-import type { SerializeObject } from "nitropack";
+
 import type { DurationLike } from "luxon";
 import { DateTime } from "luxon";
 
@@ -409,9 +408,7 @@ useHead({
   title: "Simple authentication",
 });
 
-const data = await $dropFetch<
-  Array<SerializeObject<InvitationModel & { inviteUrl: string }>>
->("/api/v1/admin/auth/invitation");
+const data = await $apiFetch("GET /api/v1/admin/auth/invitation");
 const invitations = ref(data ?? []);
 
 // Makes username undefined if it's empty
@@ -475,9 +472,9 @@ const error = ref<undefined | string>();
 
 async function invite() {
   const expiryDate = DateTime.now().plus(expiry[expiryKey.value]).toJSON();
+  if (!expiryDate) throw new Error("Invalid invitation expiry");
 
-  const newInvitation = await $dropFetch("/api/v1/admin/auth/invitation", {
-    method: "POST",
+  const newInvitation = await $apiFetch("POST /api/v1/admin/auth/invitation", {
     body: {
       username: username.value,
       email: email.value,
@@ -511,8 +508,7 @@ function invite_wrapper() {
 }
 
 async function deleteInvitation(id: string) {
-  await $dropFetch("/api/v1/admin/auth/invitation", {
-    method: "DELETE",
+  await $apiFetch("DELETE /api/v1/admin/auth/invitation", {
     body: {
       id: id,
     },

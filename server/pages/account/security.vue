@@ -241,15 +241,13 @@ import {
   CheckCircleIcon,
 } from "@heroicons/vue/20/solid";
 import { CheckIcon, ClockIcon, KeyIcon } from "@heroicons/vue/24/outline";
-const superlevel = await $dropFetch("/api/v1/user/superlevel");
-//const auth = await $dropFetch("/api/v1/user/auth");
-const mfa = await $dropFetch("/api/v1/user/mfa");
+const superlevel = await $apiFetch("GET /api/v1/user/superlevel");
+const mfa = await $apiFetch("GET /api/v1/user/mfa");
 
 const webAuthnOpen = ref(false);
 
 async function deletePasskey(id: string) {
-  await $dropFetch("/api/v1/user/mfa/webauthn", {
-    method: "DELETE",
+  await $apiFetch("DELETE /api/v1/user/mfa/webauthn", {
     body: { id },
     failTitle: "Failed to delete passkey",
   });

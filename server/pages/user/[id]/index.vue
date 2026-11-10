@@ -48,16 +48,16 @@
 <script setup lang="ts">
 import { useObject } from "~/composables/objects";
 import { useUser } from "~/composables/user";
-import type { UserModel } from "~/prisma/client/models";
+import type { UserProfile } from "~/shared/api/types";
 
 const route = useRoute();
 const id = (route.params.id ?? "") as string;
 
 const loading = ref(true);
-let profile: UserModel | null = null;
+let profile: UserProfile | null = null;
 
 try {
-  profile = await $dropFetch(`/api/v1/user/${id}`);
+  profile = await $apiFetch("GET /api/v1/user/:id", { path: { id } });
 } catch {
   profile = null;
 } finally {

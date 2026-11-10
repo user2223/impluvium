@@ -54,9 +54,9 @@ import {
   ClockIcon,
   KeyIcon,
 } from "@heroicons/vue/24/outline";
-import { MFAMec } from "~/prisma/client/enums";
+import { MFAMec } from "~/shared/api/generated/enums";
 
-const mfa = await $dropFetch("/api/v1/auth/mfa");
+const mfa = await $apiFetch("GET /api/v1/auth/mfa");
 const route = useRoute();
 const router = useRouter();
 

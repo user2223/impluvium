@@ -142,8 +142,8 @@
 </template>
 
 <script setup lang="ts">
-import type { WorkingLibrarySource } from "~/server/api/v1/admin/library/sources/index.get";
-import type { LibraryBackend } from "~/prisma/client/enums";
+import type { WorkingLibrarySource } from "~/shared/api/types";
+import type { LibraryBackend } from "~/shared/api/generated/enums";
 import { BackwardIcon, CheckIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { DropLogo } from "#components";
 import { formatBytes } from "~/utils/format-bytes";

@@ -133,7 +133,9 @@ const { t } = useI18n();
 const route = useRoute();
 const id = route.params.id.toString();
 
-const { game: rawGame } = await $dropFetch(`/api/v1/games/${id}`);
+const { game: rawGame } = await $apiFetch("GET /api/v1/games/:id", {
+  path: { id },
+});
 const game = computed(() => {
   if (!rawGame) {
     throw createError({ statusCode: 404, message: t("library.notFound") });

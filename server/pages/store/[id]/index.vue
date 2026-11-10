@@ -294,8 +294,11 @@ const gameId = route.params.id.toString();
 
 const user = useUser();
 
-const { game, rating, sizes, platforms } = await $dropFetch(
-  `/api/v1/games/${gameId}`,
+const { game, rating, sizes, platforms } = await $apiFetch(
+  "GET /api/v1/games/:id",
+  {
+    path: { id: gameId },
+  },
 );
 
 const isClient = isClientRequest();

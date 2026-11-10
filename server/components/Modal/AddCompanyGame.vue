@@ -103,12 +103,10 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import type { GameModel } from "~/prisma/client/models";
+import type { GameMetadataSearchResult, GameModel } from "~/shared/api/types";
 import { DialogTitle } from "@headlessui/vue";
 import { FetchError } from "ofetch";
-import type { SerializeObject } from "nitropack";
 import { XCircleIcon } from "@heroicons/vue/24/solid";
-import type { GameMetadataSearchResult } from "~/server/internal/metadata/types";
 
 const props = defineProps<{
   companyId: string;
@@ -116,11 +114,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  created: [
-    game: SerializeObject<GameModel>,
-    published: boolean,
-    developed: boolean,
-  ];
+  created: [game: GameModel, published: boolean, developed: boolean];
 }>();
 
 const { t } = useI18n();
@@ -138,9 +132,8 @@ async function addGame() {
   addGameLoading.value = true;
 
   try {
-    const game = await $dropFetch("/api/v1/admin/company/:id/game", {
-      method: "POST",
-      params: { id: props.companyId },
+    const game = await $apiFetch("POST /api/v1/admin/company/:id/game", {
+      path: { id: props.companyId },
       body: {
         id: currentGame.value.id,
         developed: developed.value,
@@ -164,8 +157,8 @@ async function addGame() {
 }
 
 async function search(query: string) {
-  return await $dropFetch("/api/v1/admin/search/game?type=Game", {
-    query: { q: query },
+  return await $apiFetch("GET /api/v1/admin/search/game", {
+    query: { q: query, type: "Game" },
   });
 }
 </script>

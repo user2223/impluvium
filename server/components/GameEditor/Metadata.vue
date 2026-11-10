@@ -387,9 +387,9 @@
       v-model="showUploadModal"
       :options="{ id: game.id }"
       accept="image/*"
-      endpoint="/api/v1/admin/game/image"
+      :target="{ key: 'POST /api/v1/admin/game/image' }"
       :multiple="true"
-      @upload="(result: GameModel) => uploadAfterImageUpload(result)"
+      @game-upload="uploadAfterImageUpload"
     />
     <ModalTemplate v-model="showAddCarouselModal">
       <template #default>
@@ -555,8 +555,12 @@
 </template>
 
 <script setup lang="ts">
-import type { GameModel } from "~/prisma/client/models";
-import { AgeRatingOrganization } from "~/prisma/client/enums";
+import type {
+  AdminFetchGameType,
+  ApiBody,
+  GameModel,
+} from "~/shared/api/types";
+import { AgeRatingOrganization } from "~/shared/api/generated/enums";
 import { getAvailableRatings } from "~/utils/ageRatings";
 import { micromark } from "micromark";
 import {
@@ -565,9 +569,7 @@ import {
   PencilIcon,
   PhotoIcon,
 } from "@heroicons/vue/24/solid";
-import type { SerializeObject } from "nitropack";
 import type { H3Error } from "h3";
-import type { AdminFetchGameType } from "~/server/api/v1/admin/game/[id]/index.get";
 
 const showUploadModal = ref(false);
 const showAddCarouselModal = ref(false);
@@ -575,7 +577,7 @@ const showAddImageDescriptionModal = ref(false);
 const showEditCoreMetadata = ref(false);
 const mobileShowFinalDescription = ref(true);
 
-const game = defineModel<SerializeObject<AdminFetchGameType>>({
+const game = defineModel<AdminFetchGameType>({
   required: true,
 });
 if (!game.value)
@@ -587,7 +589,7 @@ if (!game.value)
 const currentTags = ref<{ [key: string]: boolean }>(
   Object.fromEntries(game.value.tags.map((e) => [e.id, true])),
 );
-const rawTags = await $dropFetch("/api/v1/admin/tags");
+const rawTags = await $apiFetch("GET /api/v1/admin/tags");
 const tags = ref(
   rawTags.map((e) => ({ name: e.name, param: e.id }) satisfies StoreSortOption),
 );
@@ -595,9 +597,8 @@ const tags = ref(
 watch(
   currentTags,
   async (v) => {
-    await $dropFetch(`/api/v1/admin/game/:id/tags`, {
-      method: "PATCH",
-      params: {
+    await $apiFetch("PATCH /api/v1/admin/game/:id/tags", {
+      path: {
         id: game.value.id,
       },
       body: {
@@ -639,9 +640,8 @@ watch(newAgeRatingOrg, () => {
 });
 
 async function saveAgeRatings() {
-  await $dropFetch(`/api/v1/admin/game/:id/age-ratings`, {
-    method: "PATCH",
-    params: { id: game.value.id },
+  await $apiFetch("PATCH /api/v1/admin/game/:id/age-ratings", {
+    path: { id: game.value.id },
     body: { ageRatings: ageRatings.value },
     failTitle: "Failed to update age ratings",
   });
@@ -676,13 +676,12 @@ watch(releaseDate, async (newDate) => {
   if (newDate) {
     const parsed = new Date(newDate);
     if (!isNaN(parsed.getTime())) {
-      body.mReleased = parsed;
+      body.mReleased = parsed.toISOString();
     }
   }
 
-  await $dropFetch(`/api/v1/admin/game/:id`, {
-    method: "PATCH",
-    params: {
+  await $apiFetch("PATCH /api/v1/admin/game/:id", {
+    path: {
       id: game.value.id,
     },
     body,
@@ -734,13 +733,10 @@ async function coreMetadataUpdate() {
   formData.append("name", coreMetadataName.value);
   formData.append("description", coreMetadataDescription.value);
 
-  const result = await $dropFetch(
-    `/api/v1/admin/game/${game.value.id}/metadata`,
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
+  const result = await $apiFetch("POST /api/v1/admin/game/:id/metadata", {
+    path: { id: game.value.id },
+    body: formData,
+  });
   return result;
 }
 
@@ -789,7 +785,7 @@ const descriptionSaving = ref<DescriptionSavingState>(
 
 let savingTimeout: undefined | NodeJS.Timeout;
 
-type PatchGameBody = Partial<GameModel>;
+type PatchGameBody = ApiBody<"PATCH /api/v1/admin/game/:id">;
 
 watch(descriptionHTML, (_v) => {
   descriptionSaving.value = DescriptionSavingState.Waiting;
@@ -797,9 +793,8 @@ watch(descriptionHTML, (_v) => {
   savingTimeout = setTimeout(async () => {
     try {
       descriptionSaving.value = DescriptionSavingState.Loading;
-      await $dropFetch(`/api/v1/admin/game/:id`, {
-        method: "PATCH",
-        params: {
+      await $apiFetch("PATCH /api/v1/admin/game/:id", {
+        path: {
           id: game.value.id,
         },
         body: {
@@ -843,15 +838,17 @@ function insertImageAtCursor(id: string) {
 async function updateBannerImage(id: string) {
   try {
     if (game.value.mBannerObjectId == id) return;
-    const { mBannerObjectId } = await $dropFetch(`/api/v1/admin/game/:id`, {
-      method: "PATCH",
-      params: {
-        id: game.value.id,
+    const { mBannerObjectId } = await $apiFetch(
+      "PATCH /api/v1/admin/game/:id",
+      {
+        path: {
+          id: game.value.id,
+        },
+        body: {
+          mBannerObjectId: id,
+        } satisfies PatchGameBody,
       },
-      body: {
-        mBannerObjectId: id,
-      } satisfies PatchGameBody,
-    });
+    );
     game.value.mBannerObjectId = mBannerObjectId;
   } catch (e) {
     createModal(
@@ -871,9 +868,8 @@ async function updateBannerImage(id: string) {
 async function updateCoverImage(id: string) {
   try {
     if (game.value.mCoverObjectId == id) return;
-    const { mCoverObjectId } = await $dropFetch(`/api/v1/admin/game/:id`, {
-      method: "PATCH",
-      params: {
+    const { mCoverObjectId } = await $apiFetch("PATCH /api/v1/admin/game/:id", {
+      path: {
         id: game.value.id,
       },
       body: {
@@ -898,16 +894,16 @@ async function updateCoverImage(id: string) {
 
 async function deleteImage(id: string) {
   try {
-    const { mBannerObjectId, mImageLibraryObjectIds } = await $dropFetch(
-      "/api/v1/admin/game/image",
-      {
-        method: "DELETE",
-        body: {
-          gameId: game.value.id,
-          imageId: id,
-        },
+    const result = await $apiFetch("DELETE /api/v1/admin/game/image", {
+      body: {
+        gameId: game.value.id,
+        imageId: id,
       },
-    );
+    });
+    if (!result) {
+      throw new Error("The server returned no game after deleting the image");
+    }
+    const { mBannerObjectId, mImageLibraryObjectIds } = result;
     game.value.mImageLibraryObjectIds = mImageLibraryObjectIds;
     game.value.mBannerObjectId = mBannerObjectId;
   } catch (e) {
@@ -925,8 +921,11 @@ async function deleteImage(id: string) {
   }
 }
 
-async function uploadAfterImageUpload(result: GameModel) {
+async function uploadAfterImageUpload(result: GameModel | undefined) {
   if (!game.value) return;
+  if (!result) {
+    throw new Error("The server returned no game after uploading the image");
+  }
   game.value.mImageLibraryObjectIds = result.mImageLibraryObjectIds;
 }
 
@@ -945,9 +944,8 @@ function removeImageFromCarousel(id: string) {
 
 async function updateImageCarousel() {
   try {
-    await $dropFetch(`/api/v1/admin/game/:id`, {
-      method: "PATCH",
-      params: {
+    await $apiFetch("PATCH /api/v1/admin/game/:id", {
+      path: {
         id: game.value.id,
       },
       body: {
@@ -970,8 +968,7 @@ async function updateImageCarousel() {
 }
 
 async function createTag(value: string): Promise<string> {
-  const tag = await $dropFetch(`/api/v1/admin/tags`, {
-    method: "POST",
+  const tag = await $apiFetch("POST /api/v1/admin/tags", {
     body: {
       name: value,
     },

@@ -289,7 +289,7 @@ definePageMeta({
 
 const open = ref(true);
 
-const raw = await $dropFetch("/api/v1/admin/import/massversion");
+const raw = await $apiFetch("GET /api/v1/admin/import/massversion");
 
 const massImport = ref(
   raw.map((game) => ({
@@ -339,8 +339,7 @@ const globalState = computed({
 
 const router = useRouter();
 async function triggerImport() {
-  const { taskId } = await $dropFetch("/api/v1/admin/import/massversion", {
-    method: "POST",
+  const { taskId } = await $apiFetch("POST /api/v1/admin/import/massversion", {
     body: {
       versions: massImport.value
         .map((game) =>

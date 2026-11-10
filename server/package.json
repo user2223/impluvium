@@ -14,6 +14,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare && prisma generate && buf generate",
     "typecheck": "nuxt typecheck",
+    "typecheck:ui": "node ../tools/web-api/check-ui.mjs",
     "lint": "pnpm run lint:eslint && pnpm run lint:prettier",
     "lint:eslint": "eslint .",
     "lint:prettier": "prettier . --check",

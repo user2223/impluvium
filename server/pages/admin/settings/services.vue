@@ -68,7 +68,7 @@ definePageMeta({
   layout: "admin",
 });
 
-const services = await $dropFetch("/api/v1/admin/services");
+const services = await $apiFetch("GET /api/v1/admin/services");
 
 const { t } = useI18n();
 

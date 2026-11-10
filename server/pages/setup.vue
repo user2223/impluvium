@@ -164,7 +164,7 @@ if (!token)
   });
 const bearerToken = `Bearer ${token}`;
 
-const allowed = await $dropFetch("/api/v1/admin", {
+const allowed = await $apiFetch("GET /api/v1/admin", {
   headers: { Authorization: bearerToken },
 });
 if (!allowed)
@@ -212,9 +212,8 @@ const finishLoading = ref(false);
 async function finish() {
   currentAction.value = -1;
   finishLoading.value = true;
-  await $dropFetch("/api/v1/setup", {
+  await $apiFetch("POST /api/v1/setup", {
     headers: { Authorization: bearerToken },
-    method: "POST",
   });
   router.push("/auth/signin");
 }

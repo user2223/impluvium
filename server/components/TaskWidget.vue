@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/vue/24/solid";
-import type { TaskMessage } from "~/server/internal/tasks";
+import type { TaskMessage } from "~/shared/api/types";
 
 defineProps<{ task: TaskMessage | undefined; active?: boolean }>();
 </script>

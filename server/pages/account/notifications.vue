@@ -106,8 +106,7 @@
 
 <script setup lang="ts">
 import { CheckIcon, TrashIcon } from "@heroicons/vue/24/outline";
-import type { NotificationModel } from "~/prisma/client/models";
-import type { SerializeObject } from "nitropack";
+import type { NotificationModel } from "~/shared/api/types";
 
 definePageMeta({
   layout: "default",
@@ -124,7 +123,7 @@ const notifications = useNotifications();
 
 // Mark a notification as read
 async function markAsRead(id: string) {
-  await $dropFetch(`/api/v1/notifications/${id}/read`, { method: "POST" });
+  await $apiFetch("POST /api/v1/notifications/:id/read", { path: { id } });
   const notification = notifications.value.find((n) => n.id === id);
   if (notification) {
     notification.read = true;
@@ -133,8 +132,7 @@ async function markAsRead(id: string) {
 
 // Mark all notifications as read
 async function markAllAsRead() {
-  await $dropFetch("/api/v1/notifications/readall", {
-    method: "POST",
+  await $apiFetch("POST /api/v1/notifications/readall", {
     failTitle: "Failed to read all notifications",
   });
   notifications.value.forEach((notification) => {
@@ -143,8 +141,7 @@ async function markAllAsRead() {
 }
 
 async function clearNotifications() {
-  await $dropFetch("/api/v1/notifications/clear", {
-    method: "POST",
+  await $apiFetch("POST /api/v1/notifications/clear", {
     failTitle: "Failed to clear notifications",
   });
   notifications.value = [];
@@ -152,9 +149,9 @@ async function clearNotifications() {
 
 // Delete a notification
 async function deleteNotification(id: string) {
-  await $dropFetch(`/api/v1/notifications/${id}`, { method: "DELETE" });
+  await $apiFetch("DELETE /api/v1/notifications/:id", { path: { id } });
   const index = notifications.value.findIndex(
-    (n: SerializeObject<NotificationModel>) => n.id === id,
+    (n: NotificationModel) => n.id === id,
   );
   if (index !== -1) {
     notifications.value.splice(index, 1);

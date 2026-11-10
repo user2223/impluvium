@@ -207,7 +207,6 @@ import type { NavigationItem } from "~/composables/types";
 import { useCurrentNavigationIndex } from "~/composables/current-page-engine";
 import { ArrowLeftIcon, BellIcon } from "@heroicons/vue/16/solid";
 import { XMarkIcon } from "@heroicons/vue/24/solid";
-import type { Settings } from "~/server/internal/utils/types";
 
 const navigation: Array<NavigationItem & { icon: Component }> = [
   {
@@ -269,7 +268,7 @@ router.afterEach(() => {
 
 const {
   generalSettings: { serverName, mLogoObjectId },
-} = await $dropFetch<Settings>("/api/v1/settings");
+} = await $apiFetch("GET /api/v1/settings");
 
 const favicon = mLogoObjectId ? useObject(mLogoObjectId) : "/favicon.ico";
 useFavicon(favicon, { rel: "icon" });

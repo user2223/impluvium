@@ -1,4 +1,4 @@
-import { AgeRatingOrganization } from "~/prisma/client/enums";
+import { AgeRatingOrganization } from "~/shared/api/generated/enums";
 
 /**
  * This file will live as the known ratings that come from various sources. Each source reports a bit differently, the goal

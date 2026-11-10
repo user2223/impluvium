@@ -99,8 +99,7 @@ async function attemptPasskey() {
       fatal: true,
     });
 
-  const optionsJSON = await $dropFetch("/api/v1/user/mfa/webauthn/start", {
-    method: "POST",
+  const optionsJSON = await $apiFetch("POST /api/v1/user/mfa/webauthn/start", {
     body: {
       name: name.value,
     },
@@ -122,10 +121,7 @@ async function attemptPasskey() {
       message: "WebAuthn request cancelled.",
     });
 
-  await $dropFetch("/api/v1/user/mfa/webauthn/finish", {
-    method: "POST",
-    body: attResp,
-  });
+  await $apiFetch("POST /api/v1/user/mfa/webauthn/finish", { body: attResp });
 
   router.push("/mfa/setup/successful");
 }

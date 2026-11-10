@@ -336,7 +336,7 @@
 
 <script setup lang="ts">
 import { useUsers } from "~/composables/users";
-import type { UserModel } from "~/prisma/client/models";
+import type { ApiResponse, UserModel } from "~/shared/api/types";
 
 useHead({
   title: "Users",
@@ -357,12 +357,7 @@ const userToDelete = ref();
 const setUserToDelete = (user: UserModel) => (userToDelete.value = user);
 
 // Groups
-interface GroupListItem {
-  id: string;
-  name: string;
-  description: string;
-  _count: { users: number; bannedAgeRatings: number };
-}
+type GroupListItem = ApiResponse<"GET /api/v1/admin/groups">[number];
 
 const groups = ref<GroupListItem[]>([]);
 const showCreateGroup = ref(false);
@@ -371,14 +366,13 @@ const newGroupDescription = ref("");
 const groupToDelete = ref<GroupListItem | undefined>();
 
 const fetchGroups = async () => {
-  groups.value = await $dropFetch<GroupListItem[]>("/api/v1/admin/groups");
+  groups.value = await $apiFetch("GET /api/v1/admin/groups");
 };
 
 await fetchGroups();
 
 const createGroup = async () => {
-  await $dropFetch("/api/v1/admin/groups", {
-    method: "POST",
+  await $apiFetch("POST /api/v1/admin/groups", {
     body: { name: newGroupName.value, description: newGroupDescription.value },
   });
   showCreateGroup.value = false;
@@ -389,8 +383,8 @@ const createGroup = async () => {
 
 const deleteGroup = async () => {
   if (!groupToDelete.value) return;
-  await $dropFetch(`/api/v1/admin/groups/${groupToDelete.value.id}`, {
-    method: "DELETE",
+  await $apiFetch("DELETE /api/v1/admin/groups/:id", {
+    path: { id: groupToDelete.value.id },
   });
   groupToDelete.value = undefined;
   await fetchGroups();

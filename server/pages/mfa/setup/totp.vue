@@ -62,9 +62,7 @@ useHead({
   title: "Set up TOTP",
 });
 
-const totpSecrets = await $dropFetch("/api/v1/user/mfa/totp/start", {
-  method: "POST",
-});
+const totpSecrets = await $apiFetch("POST /api/v1/user/mfa/totp/start");
 
 const error = ref<string | undefined>();
 const router = useRouter();
@@ -77,10 +75,7 @@ onMounted(async () => {
 
 async function complete(code: string) {
   try {
-    await $dropFetch("/api/v1/user/mfa/totp/finish", {
-      method: "POST",
-      body: { code },
-    });
+    await $apiFetch("POST /api/v1/user/mfa/totp/finish", { body: { code } });
     router.push("/mfa/setup/successful");
   } catch (e) {
     error.value =

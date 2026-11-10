@@ -235,15 +235,14 @@ import {
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import { InformationCircleIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import type { EmulatorLaunchObject } from "~/composables/frontend";
-import type { GameType, Platform } from "~/prisma/client/enums";
+import type { GameType, Platform } from "~/shared/api/generated/enums";
 
-import type { ImportVersion } from "~/server/api/v1/admin/import/version/index.post";
-import type { VersionGuess } from "~/server/internal/library";
+import type { ImportVersion, VersionGuess } from "~/shared/api/types";
 
 const launchProcessQuery = ref("");
 
 const launchConfiguration = defineModel<
-  Omit<(typeof ImportVersion.infer)["launches"][number], "name"> & {
+  Omit<ImportVersion["launches"][number], "name"> & {
     name?: string;
   }
 >({ required: true });

@@ -160,9 +160,11 @@ import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/vue/24/solid";
 import type { FetchError } from "ofetch";
 
 const route = useRoute();
-const clientId = route.params.id;
+const clientId = route.params.id.toString();
 
-const clientData = await $dropFetch(`/api/v1/client/auth?id=${clientId}`);
+const clientData = await $apiFetch("GET /api/v1/client/auth", {
+  query: { id: clientId },
+});
 
 const completed = ref(false);
 const error = ref();
@@ -171,20 +173,16 @@ const authToken = ref<string | undefined>();
 async function authorize() {
   switch (clientData.mode) {
     case "callback": {
-      const { redirect, token } = await $dropFetch(
-        `/api/v1/client/auth/callback`,
-        {
-          method: "POST",
-          body: { id: clientId },
-        },
+      const { redirect, token } = await $apiFetch(
+        "POST /api/v1/client/auth/callback",
+        { body: { id: clientId } },
       );
       authToken.value = token;
       window.location.replace(redirect);
       return;
     }
     case "code": {
-      await $dropFetch("/api/v1/client/auth/code", {
-        method: "POST",
+      await $apiFetch("POST /api/v1/client/auth/code", {
         body: { id: clientId },
       });
       return;

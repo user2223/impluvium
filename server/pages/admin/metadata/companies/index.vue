@@ -106,7 +106,7 @@
 
 <script setup lang="ts">
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
-import type { CompanyModel } from "~/prisma/client/models";
+import type { CompanyModel } from "~/shared/api/types";
 
 const { t } = useI18n();
 
@@ -122,7 +122,7 @@ const createCompanyOpen = ref(false);
 
 const searchQuery = ref("");
 
-const rawCompanies = await $dropFetch("/api/v1/admin/company");
+const rawCompanies = await $apiFetch("GET /api/v1/admin/company");
 const companies = ref(rawCompanies);
 
 const filteredCompanies = computed(() =>
@@ -137,9 +137,8 @@ const filteredCompanies = computed(() =>
 );
 
 async function deleteCompany(id: string) {
-  await $dropFetch(`/api/v1/admin/company/:id`, {
-    method: "DELETE",
-    params: { id },
+  await $apiFetch("DELETE /api/v1/admin/company/:id", {
+    path: { id },
     failTitle: "Failed to delete company",
   });
 

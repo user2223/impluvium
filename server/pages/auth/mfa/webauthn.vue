@@ -52,9 +52,7 @@ const success = ref(false);
 const error = ref<undefined | string>(undefined);
 
 async function tryAuth() {
-  const optionsJSON = await $dropFetch("/api/v1/auth/mfa/webauthn/start", {
-    method: "POST",
-  });
+  const optionsJSON = await $apiFetch("POST /api/v1/auth/mfa/webauthn/start");
 
   let asseResp;
   try {
@@ -71,10 +69,7 @@ async function tryAuth() {
       message: "Passkey sign-in cancelled.",
     });
 
-  await $dropFetch("/api/v1/auth/mfa/webauthn/finish", {
-    method: "POST",
-    body: asseResp,
-  });
+  await $apiFetch("POST /api/v1/auth/mfa/webauthn/finish", { body: asseResp });
 
   await completeSignin();
 }

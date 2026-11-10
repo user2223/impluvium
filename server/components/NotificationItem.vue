@@ -43,17 +43,15 @@
 
 <script setup lang="ts">
 import { XMarkIcon } from "@heroicons/vue/24/solid";
-import type { SerializeObject } from "nitropack";
-import type { NotificationModel } from "~/prisma/client/models";
+import type { NotificationModel } from "~/shared/api/types";
 
 const props = defineProps<{
-  notification: SerializeObject<NotificationModel>;
+  notification: NotificationModel;
 }>();
 
 async function deleteMe() {
-  await $dropFetch(`/api/v1/notifications/:id`, {
-    method: "DELETE",
-    params: {
+  await $apiFetch("DELETE /api/v1/notifications/:id", {
+    path: {
       id: props.notification.id,
     },
   });

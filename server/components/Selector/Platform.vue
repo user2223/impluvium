@@ -82,7 +82,7 @@ import {
   ListboxOptions,
 } from "@headlessui/vue";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/20/solid";
-import { Platform } from "~/prisma/client/enums";
+import { Platform } from "~/shared/api/generated/enums";
 
 const model = defineModel<Platform | undefined>();
 

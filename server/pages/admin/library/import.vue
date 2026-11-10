@@ -345,8 +345,8 @@ import { XCircleIcon } from "@heroicons/vue/16/solid";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import { FetchError } from "ofetch";
-import type { GameType } from "~/prisma/client/enums";
-import type { GameMetadataSearchResult } from "~/server/internal/metadata/types";
+import type { GameType } from "~/shared/api/generated/enums";
+import type { ApiResponse } from "~/shared/api/types";
 
 definePageMeta({
   layout: "admin",
@@ -354,7 +354,7 @@ definePageMeta({
 
 const { t } = useI18n();
 
-const rawGames = await $dropFetch("/api/v1/admin/import/game");
+const rawGames = await $apiFetch("GET /api/v1/admin/import/game");
 const games = ref(rawGames);
 const currentlySelectedGame = ref(-1);
 const gameSearchResultsLoading = ref(false);
@@ -400,9 +400,9 @@ async function searchGame() {
   gameSearchResultsError.value = undefined;
   gameSearchLoading.value = true;
   try {
-    const results = await $dropFetch(
-      `/api/v1/admin/import/game/search?q=${encodeURIComponent(gameSearchTerm.value)}`,
-    );
+    const results = await $apiFetch("GET /api/v1/admin/import/game/search", {
+      query: { q: gameSearchTerm.value },
+    });
     metadataResults.value = results;
     gameSearchLoading.value = false;
   } catch (e) {
@@ -428,7 +428,8 @@ function updateSelectedGame_wrapper(value: number) {
     });
 }
 
-const metadataResults = ref<Array<GameMetadataSearchResult> | undefined>();
+const metadataResults =
+  ref<ApiResponse<"GET /api/v1/admin/import/game/search">>();
 const currentlySelectedMetadata = ref(-1);
 
 const router = useRouter();
@@ -445,8 +446,7 @@ async function importGame(useMetadata: boolean) {
       : undefined;
   const option = games.value.unimportedGames[currentlySelectedGame.value];
 
-  const { taskId } = await $dropFetch("/api/v1/admin/import/game", {
-    method: "POST",
+  const { taskId } = await $apiFetch("POST /api/v1/admin/import/game", {
     body: {
       path: option.game,
       library: option.library.id,
