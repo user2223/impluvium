@@ -117,6 +117,22 @@ export type GlobalACL =
   | `${typeof userACLPrefix}${(typeof userACLs)[number]}`;
 
 class ACLManager {
+  private async getValidAPIToken(
+    authorizationToken: string,
+    modes?: APITokenMode[],
+  ) {
+    const token = await prisma.aPIToken.findUnique({
+      where: {
+        token: authorizationToken,
+        ...(modes ? { mode: { in: modes } } : {}),
+      },
+    });
+    if (!token) return null;
+    if (token.expiresAt !== null && token.expiresAt.getTime() <= Date.now())
+      return null;
+    return token;
+  }
+
   private getAuthorizationToken(request: MinimumRequestObject) {
     const [type, token] =
       request.headers.get("Authorization")?.split(" ") ?? [];
@@ -144,12 +160,10 @@ class ACLManager {
 
     const authorizationToken = this.getAuthorizationToken(request);
     if (!authorizationToken) return undefined;
-    const token = await prisma.aPIToken.findUnique({
-      where: {
-        token: authorizationToken,
-        mode: { in: [APITokenMode.User, APITokenMode.Client] },
-      },
-    });
+    const token = await this.getValidAPIToken(authorizationToken, [
+      APITokenMode.User,
+      APITokenMode.Client,
+    ]);
     if (!token) return undefined;
     if (!token.userId)
       throw new Error(
@@ -212,9 +226,7 @@ class ACLManager {
 
     const authorizationToken = this.getAuthorizationToken(request);
     if (!authorizationToken) return false;
-    const token = await prisma.aPIToken.findUnique({
-      where: { token: authorizationToken },
-    });
+    const token = await this.getValidAPIToken(authorizationToken);
     if (!token) return false;
     if (token.mode != APITokenMode.System) return false;
 
@@ -258,9 +270,7 @@ class ACLManager {
     if (!userSession || !userSession.authenticated) {
       const authorizationToken = this.getAuthorizationToken(request);
       if (!authorizationToken) return undefined;
-      const token = await prisma.aPIToken.findUnique({
-        where: { token: authorizationToken },
-      });
+      const token = await this.getValidAPIToken(authorizationToken);
       if (!token) return undefined;
       return token.acls as GlobalACL[];
     }
