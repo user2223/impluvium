@@ -279,6 +279,7 @@ class TaskHandler {
     taskId: string,
     peer: PeerImpl,
     request: MinimumRequestObject,
+    isCurrent: () => boolean,
   ) {
     const task =
       this.taskPool.get(taskId) ??
@@ -286,6 +287,7 @@ class TaskHandler {
         where: { id: taskId },
         orderBy: { started: "desc" },
       }));
+    if (!isCurrent()) return;
     if (!task) {
       peer.send(
         `error/${taskId}/Unknown task/impluvium couldn't find the task you're looking for.`,
@@ -296,6 +298,7 @@ class TaskHandler {
     // cast acls due to prisma types being less strict
     const allowed = await aclManager.hasACL(request, task.acls as GlobalACL[]);
     if (!allowed) {
+      if (!isCurrent()) return;
       // logger.warn("user does not have necessary ACLs");
       peer.send(
         `error/${taskId}/Unknown task/impluvium couldn't find the task you're looking for.`,
@@ -303,6 +306,7 @@ class TaskHandler {
       return;
     }
 
+    if (!isCurrent()) return;
     this.clientRegistry.set(clientId, peer);
     if ("clients" in task) {
       task.clients.set(clientId, true); // Uniquely insert client to avoid sending duplicate traffic
@@ -319,6 +323,7 @@ class TaskHandler {
       progress: task.progress,
       actions: task.actions as TaskActionLink[],
     };
+    if (!isCurrent()) return;
     peer.send(JSON.stringify(catchupMessage));
   }
 
@@ -328,10 +333,10 @@ class TaskHandler {
     client.send(`disconnect/${taskId}`);
   }
 
-  disconnectAll(id: string) {
-    for (const taskId of this.taskPool.keys()) {
-      this.taskPool.get(taskId)?.clients.delete(id);
-      this.sendDisconnectEvent(id, taskId);
+  disconnectAll(id: string, notify = true) {
+    for (const [taskId, task] of this.taskPool) {
+      if (!task.clients.delete(id)) continue;
+      if (notify) this.sendDisconnectEvent(id, taskId);
     }
 
     this.clientRegistry.delete(id);
@@ -339,9 +344,8 @@ class TaskHandler {
 
   disconnect(id: string, taskId: string) {
     const task = this.taskPool.get(taskId);
-    if (!task) return false;
+    if (!task || !task.clients.delete(id)) return false;
 
-    task.clients.delete(id);
     this.sendDisconnectEvent(id, taskId);
 
     const allClientIds = this.taskPool

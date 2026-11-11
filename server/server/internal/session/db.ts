@@ -1,17 +1,21 @@
 import { DateTime } from "luxon";
 
 import prisma from "../db/database";
-import type { SessionProvider, SessionWithToken } from "./types";
+import type { Session, SessionProvider, SessionWithToken } from "./types";
 import cacheHandler from "../cache";
 import type { SessionWhereInput, JsonFilter } from "~/prisma/client/models";
 import type { InputJsonValue } from "@prisma/client/runtime/client";
 
 export default function createDBSessionHandler(): SessionProvider {
-  const cache = cacheHandler.createCache<SessionWithToken>("DBSession");
+  const cache = cacheHandler.createCache<SessionWithToken>("DBSession:v2");
+  const normalizeSession = (row: { data: unknown; token: string }) => ({
+    ...(row.data as Session),
+    token: row.token,
+  });
 
   return {
     async setSession(token, session) {
-      await cache.set(token, { ...session, token });
+      await cache.set(token, normalizeSession({ data: session, token }));
 
       const result = await prisma.session.upsert({
         where: {
@@ -32,8 +36,7 @@ export default function createDBSessionHandler(): SessionProvider {
         },
       });
 
-      // need to cast to Session since prisma returns different json types
-      return result.data as unknown as SessionWithToken;
+      return normalizeSession(result);
     },
     async updateSession(token, data) {
       return (await this.setSession(token, data)) !== undefined;
@@ -49,14 +52,9 @@ export default function createDBSessionHandler(): SessionProvider {
       });
       if (result === null) return undefined;
 
-      // add to cache
-      // need to cast to Session since prisma returns a more specific type
-      await cache.set(token, result as SessionWithToken);
-
-      // i hate casting
-      // need to cast to unknown since result.data can be an N deep json object technically
-      // ts doesn't like that be cast down to the more constraining session type
-      return result.data as unknown as T;
+      const session = normalizeSession(result);
+      await cache.set(token, session);
+      return session as T;
     },
     async removeSession(token) {
       await cache.remove(token);
@@ -138,8 +136,7 @@ export default function createDBSessionHandler(): SessionProvider {
       });
       const results: SessionWithToken[] = [];
       for (const session of sessions) {
-        // need to cast to Session since prisma returns different json types
-        results.push(session.data as unknown as SessionWithToken);
+        results.push(normalizeSession(session));
       }
 
       return results;

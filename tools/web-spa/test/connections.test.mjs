@@ -7,6 +7,7 @@ import { advanceSessionContext, confirmSessionContext } from '../../../server/co
 import { startNotificationConnection, useNotifications, useNotificationConnection } from '../../../server/composables/notifications.ts';
 import { startTaskConnection, useTask, useTaskReady, useTaskConnection } from '../../../server/composables/task.ts';
 import { startSystemConnection, useSystemData, useSystemConnection } from '../../../server/composables/admin-home.ts';
+import { taskSocketFixture } from './server-fixture.mjs';
 
 async function connectionFixture(run, protocol = 'https:', userAgent = 'Mozilla/5.0') {
   const originals = new Map();
@@ -226,6 +227,48 @@ test('channels follow sessions, reconnect with capped backoff and stop on auth f
     const next = useTask('new-task');
     newTask.message(JSON.stringify({ id: 'new-task', log: ['new'], progress: 10 }));
     assert.deepEqual(next.value.log, ['new']);
+  });
+});
+
+test('the task server authentication frame stops the task consumer until a new signin', async () => {
+  const server = await taskSocketFixture();
+  await connectionFixture(async ({ sockets, timers, scheduledTimers, disposers }) => {
+    disposers.push(startTaskConnection());
+    const session = { id: 'sample-admin', admin: true };
+    confirmSessionContext(session);
+    let socket = sockets.at(-1);
+    socket.open();
+    let peer = server.peer(new Headers(), (frame) => socket.message(frame));
+    await server.route.open(peer);
+    assert.equal(useTaskConnection().value, 'unauthenticated');
+    assert.equal(useTaskReady().value, false);
+    assert.equal(timers.size, 0);
+    assert.deepEqual(scheduledTimers, []);
+    confirmSessionContext(session);
+    assert.equal(sockets.length, 1, 'Session confirmation cannot restart a blocked channel');
+
+    advanceSessionContext();
+    server.signIn();
+    confirmSessionContext(session);
+    assert.equal(sockets.length, 2, 'A new signin restarts the task channel');
+    socket = sockets.at(-1);
+    socket.open();
+    peer = server.peer(new Headers(), (frame) => socket.message(frame));
+    await server.route.open(peer);
+    const task = useTask('sample-task');
+    await server.route.message(peer, { text: () => socket.sent.at(-1) });
+    assert.equal(task.value.error.title, 'Unknown task');
+    assert.equal(useTaskConnection().value, 'connected', 'A task ACL denial is not an authentication failure');
+
+    server.state.session = undefined;
+    await server.route.message(peer, { text: () => 'connect/sample-task' });
+    assert.equal(useTaskConnection().value, 'unauthenticated');
+    assert.equal(useTaskReady().value, false);
+    assert.equal(timers.size, 0);
+    assert.deepEqual(scheduledTimers, [], 'Authentication failure must schedule zero reconnects');
+    confirmSessionContext(session);
+    assert.equal(sockets.length, 2);
+    await server.route.close(peer);
   });
 });
 

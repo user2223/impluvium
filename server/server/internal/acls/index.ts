@@ -141,6 +141,23 @@ class ACLManager {
     return token;
   }
 
+  /** Check credentials independently of the permissions they grant. */
+  async isAuthenticated(request: MinimumRequestObject) {
+    const session = await sessionHandler.getSession(request);
+    if (session?.authenticated) {
+      return session.authenticated.level >= session.authenticated.requiredLevel;
+    }
+
+    const authorizationToken = this.getAuthorizationToken(request);
+    if (!authorizationToken) return false;
+    const token = await prisma.aPIToken.findUnique({
+      where: { token: authorizationToken },
+    });
+    return (
+      !!token && (!token.expiresAt || token.expiresAt.getTime() > Date.now())
+    );
+  }
+
   /**
    * Get userId and require one of the specified acls
    * @param request

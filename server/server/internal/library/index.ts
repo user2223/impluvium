@@ -583,7 +583,7 @@ class LibraryManager {
           logger.info("Successfully created version!");
 
           notificationSystem.systemPush({
-            nonce: `version-create-${gameId}-${version}`,
+            nonce: `version-create-${gameId}-${version.type}-${version.identifier}`,
             title: `'${game.mName}' ('${version.name}') finished importing.`,
             description: `impluvium finished importing version ${version.name} for ${game.mName}.`,
             actions: [`View|/admin/library/${gameId}`],
