@@ -1,0 +1,61 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Device management for the signed-in user. Normative rules: spec/api.md.
+
+syntax = "proto3";
+
+package impluvium.v2;
+
+import "google/protobuf/timestamp.proto";
+
+// Lists and revokes the devices of the calling user.
+service DeviceService {
+  // Lists devices, paginated.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  // Revokes exactly one device.
+  rpc RevokeDevice(RevokeDeviceRequest) returns (RevokeDeviceResponse);
+}
+
+message ListDevicesRequest {
+  // 0 means 50; values above 200 are clamped to 200.
+  uint32 page_size = 1;
+  // Empty for the first page; otherwise a next_page_token, at most 1024 bytes.
+  string page_token = 2;
+}
+
+message ListDevicesResponse {
+  // At most 200.
+  repeated Device devices = 1;
+  // Empty at the end of the list; otherwise at most 1024 bytes.
+  string next_page_token = 2;
+}
+
+// A paired device as shown to its user.
+message Device {
+  // Canonical lowercase UUID text.
+  string device_id = 1;
+  // 1 to 128 bytes.
+  string name = 2;
+  // 1 to 32 bytes.
+  string platform = 3;
+  // 1 to 32 bytes.
+  string arch = 4;
+  // 1 to 64 bytes.
+  string client_version = 5;
+  // Required.
+  google.protobuf.Timestamp created_at = 6;
+  // Last successful session; absent if never used.
+  google.protobuf.Timestamp last_seen_at = 7;
+  // Present if and only if the device is revoked.
+  google.protobuf.Timestamp revoked_at = 8;
+  // True for the device that made this call.
+  bool current = 9;
+}
+
+message RevokeDeviceRequest {
+  // Canonical lowercase UUID text.
+  string device_id = 1;
+}
+
+message RevokeDeviceResponse {}

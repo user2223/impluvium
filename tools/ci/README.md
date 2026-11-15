@@ -215,8 +215,10 @@ permits an empty selection and never skips manifest coverage or licence checks.
 Metadata must cover every engine workspace in one document (merge the packages, workspace members and
 resolved nodes of separate captures if necessary). The capture's workspace
 root may be `engine/`; `--root` must still name the repository root, at the
-same filesystem location used during capture. The engine boundary is intended
-to remain 0BSD with permissively licensed dependencies all the way down.
+same filesystem location used during capture. The project's own material
+under `engine/` is 0BSD; third-party material listed in
+`engine/protocol/NOTICE` keeps its own license. Dependencies must remain
+permissively licensed throughout the dependency graph.
 
 Both diagnostic ratchets use a nonempty package-name-to-count baseline:
 

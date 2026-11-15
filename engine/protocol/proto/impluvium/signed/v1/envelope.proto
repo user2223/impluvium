@@ -1,0 +1,42 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Signed envelope shared by every signed document of the protocol.
+// Normative rules: spec/envelope.md and spec/keys.md.
+
+syntax = "proto3";
+
+package impluvium.signed.v1;
+
+// A signed document. The signatures cover the DSSE pre-authentication
+// encoding PAE(payload_type, payload) of the exact bytes received; the
+// payload is never re-encoded before verification.
+message Envelope {
+  // Media type of the payload, one of the registered payload types
+  // (spec/envelope.md, "Payload types"). 1 to 128 bytes, printable ASCII.
+  string payload_type = 1;
+  // The exact signed payload bytes. Size limit depends on the payload type.
+  bytes payload = 2;
+  // 1 to 8 signatures, each with a distinct key_id.
+  repeated Signature signatures = 3;
+}
+
+// One Ed25519 signature over PAE(payload_type, payload).
+message Signature {
+  // Exactly 8 bytes: the first 8 bytes of SHA-256 over the 32-byte
+  // Ed25519 public key. A hint for key selection, never a trust anchor.
+  bytes key_id = 1;
+  // Exactly 64 bytes: the Ed25519 signature (R || S).
+  bytes sig = 2;
+}
+
+// Purpose of a signing key. A key is trusted for exactly one role.
+enum KeyRole {
+  KEY_ROLE_UNSPECIFIED = 0;
+  // Signs manifests and release descriptors.
+  KEY_ROLE_CONTENT = 1;
+  // Signs depot tickets.
+  KEY_ROLE_DEPOT_TICKET = 2;
+  // Held by a paired device; signs session and pairing proofs.
+  KEY_ROLE_DEVICE = 3;
+}

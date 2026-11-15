@@ -1,0 +1,117 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Pairing and sessions. Normative rules: spec/api.md and spec/proofs.md.
+
+syntax = "proto3";
+
+package impluvium.v2;
+
+import "google/protobuf/timestamp.proto";
+
+// Device pairing, session establishment and sign-out.
+service AuthService {
+  // Starts a pairing. Unauthenticated, rate-limited.
+  rpc StartPairing(StartPairingRequest) returns (StartPairingResponse);
+  // Polls a pending pairing. Authenticated by a pairing proof.
+  rpc PollPairing(PollPairingRequest) returns (PollPairingResponse);
+  // Issues a single-use session challenge. Unauthenticated.
+  rpc BeginSession(BeginSessionRequest) returns (BeginSessionResponse);
+  // Exchanges a session proof for an access token.
+  rpc CompleteSession(CompleteSessionRequest) returns (CompleteSessionResponse);
+  // Revokes the calling device. Requires an access token.
+  rpc RevokeSelf(RevokeSelfRequest) returns (RevokeSelfResponse);
+}
+
+message StartPairingRequest {
+  // Display name of the device, 1 to 128 bytes.
+  string device_name = 1;
+  // Operating system label, 1 to 32 bytes, for display.
+  string platform = 2;
+  // CPU architecture label, 1 to 32 bytes, for display.
+  string arch = 3;
+  // 32-byte Ed25519 public key of the device.
+  bytes public_key = 4;
+  // Client version, 1 to 64 bytes, for display.
+  string client_version = 5;
+}
+
+message StartPairingResponse {
+  // 16 random bytes, known only to the requesting device.
+  bytes pairing_id = 1;
+  // Code the user confirms in the browser, "XXXX-XXXX" (9 bytes).
+  string user_code = 2;
+  // Absolute https or http URL of the approval page, 1 to 2048 bytes.
+  string verification_uri = 3;
+  // verification_uri with the code filled in, 1 to 2048 bytes.
+  string verification_uri_complete = 4;
+  // Minimum polling interval in seconds, 1 to 60.
+  uint32 interval_seconds = 5;
+  // Expiry of the pairing, issue time plus 600 seconds.
+  google.protobuf.Timestamp expires_at = 6;
+}
+
+message PollPairingRequest {
+  // pairing_id from StartPairingResponse, 16 bytes.
+  bytes pairing_id = 1;
+  // Binary Envelope with a PairingProof, at most 4096 bytes.
+  bytes proof = 2;
+}
+
+message PollPairingResponse {
+  // Assigned device identifier, canonical lowercase UUID text.
+  string device_id = 1;
+  // Instance identifier, canonical lowercase UUID text.
+  string instance_id = 2;
+  // 32-byte Ed25519 content public key of the instance.
+  bytes content_public_key = 3;
+}
+
+message BeginSessionRequest {
+  // Device identifier, canonical lowercase UUID text.
+  string device_id = 1;
+}
+
+message BeginSessionResponse {
+  // 32 random bytes, single use.
+  bytes challenge = 1;
+  // Issue time plus 60 seconds.
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// Scope of an access token.
+enum SessionScope {
+  SESSION_SCOPE_UNSPECIFIED = 0;
+  // Device API access.
+  SESSION_SCOPE_API = 1;
+  // Reserved. Not issued in this revision.
+  SESSION_SCOPE_WEB = 2;
+}
+
+message CompleteSessionRequest {
+  // Device identifier, canonical lowercase UUID text.
+  string device_id = 1;
+  // The 32-byte challenge from BeginSessionResponse.
+  bytes challenge = 2;
+  // Binary Envelope with a SessionProof, at most 4096 bytes.
+  bytes proof = 3;
+  // Capabilities the client implements. At most 64, each 1 to 128 bytes.
+  repeated string client_capabilities = 4;
+  // MUST be SESSION_SCOPE_API in this revision.
+  SessionScope scope = 5;
+}
+
+message CompleteSessionResponse {
+  // Opaque bearer token: 43 characters, unpadded base64url of 32 bytes.
+  string access_token = 1;
+  // Token expiry.
+  google.protobuf.Timestamp expires_at = 2;
+  // Capabilities accepted for this session. At most 64.
+  repeated string accepted_capabilities = 3;
+  // Scope of the token.
+  SessionScope scope = 4;
+}
+
+message RevokeSelfRequest {}
+
+message RevokeSelfResponse {}

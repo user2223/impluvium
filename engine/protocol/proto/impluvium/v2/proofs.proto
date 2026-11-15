@@ -1,0 +1,29 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Device proofs, signed with the device key.
+// Normative rules: spec/proofs.md.
+
+syntax = "proto3";
+
+package impluvium.v2;
+
+// Payload type "application/vnd.impluvium.session-proof.v1+protobuf".
+// Proves possession of the device key for one session challenge.
+message SessionProof {
+  // instance_id of the server, canonical lowercase UUID text.
+  string instance_id = 1;
+  // device_id assigned at pairing, canonical lowercase UUID text.
+  string device_id = 2;
+  // The 32-byte challenge returned by BeginSession.
+  bytes challenge = 3;
+}
+
+// Payload type "application/vnd.impluvium.pairing-proof.v1+protobuf".
+// Proves possession of the device key for one pending pairing.
+message PairingProof {
+  // instance_id of the server, canonical lowercase UUID text.
+  string instance_id = 1;
+  // The 16-byte pairing_id returned by StartPairing.
+  bytes pairing_id = 2;
+}

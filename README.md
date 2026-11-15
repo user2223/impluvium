@@ -30,7 +30,8 @@ upstream.
 impluvium is licensed under the GNU Affero General Public License, version 3 (see [LICENSE](LICENSE)). Code inherited
 from Drop keeps the terms its authors gave it: some parts are marked AGPL-3.0-or-later, others AGPL-3.0-only. A few
 inherited components carry other licenses; see the license file in their directory. New code is AGPL-3.0-or-later,
-except in the planned `engine/` directory, which will be 0BSD.
+except under `engine/`: the project's own work there is 0BSD, and the third-party material listed in
+`engine/protocol/NOTICE` keeps its own license.
 
 ## Security
 

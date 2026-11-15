@@ -1,0 +1,46 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Typed error detail. Normative rules: spec/errors.md.
+
+syntax = "proto3";
+
+package impluvium.v2;
+
+// Machine-readable error reason. Clients branch on this value, never on
+// message text. Unknown values fall back to the Connect error code.
+enum ErrorReason {
+  ERROR_REASON_UNSPECIFIED = 0;
+  ERROR_REASON_PROTOCOL_UNSUPPORTED = 1;
+  ERROR_REASON_CLIENT_TOO_OLD = 2;
+  ERROR_REASON_SERVER_TOO_OLD = 3;
+  ERROR_REASON_TOKEN_EXPIRED = 4;
+  ERROR_REASON_DEVICE_REVOKED = 5;
+  ERROR_REASON_DEVICE_EXPIRED = 6;
+  ERROR_REASON_MFA_REQUIRED = 7;
+  ERROR_REASON_PAIRING_PENDING = 8;
+  ERROR_REASON_SLOW_DOWN = 9;
+  ERROR_REASON_PAIRING_DENIED = 10;
+  ERROR_REASON_PAIRING_EXPIRED = 11;
+  ERROR_REASON_CHALLENGE_INVALID = 12;
+  ERROR_REASON_TICKET_EXPIRED = 13;
+  ERROR_REASON_TICKET_SCOPE = 14;
+  ERROR_REASON_VERSION_NOT_FOUND = 15;
+  ERROR_REASON_GAME_NOT_FOUND = 16;
+  ERROR_REASON_LIBRARY_CHANGED = 17;
+  ERROR_REASON_PAGE_TOKEN_EXPIRED = 18;
+  ERROR_REASON_RATE_LIMITED = 19;
+  ERROR_REASON_SERVER_STARTING = 20;
+  ERROR_REASON_RESYNC_REQUIRED = 21;
+}
+
+// Error detail carried in Connect error "details" with the type name
+// "impluvium.v2.ErrorInfo". At most one per error.
+message ErrorInfo {
+  ErrorReason reason = 1;
+  // Registered keys only (spec/errors.md). At most 32 entries; key 1 to
+  // 128 bytes, value at most 1024 bytes.
+  map<string, string> metadata = 2;
+  // Seconds to wait before retrying; 0 means no hint. At most 86 400.
+  uint32 retry_after_seconds = 3;
+}

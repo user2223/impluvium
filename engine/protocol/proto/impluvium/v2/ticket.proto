@@ -1,0 +1,29 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Depot ticket claims. Payload type
+// "application/vnd.impluvium.depot-ticket.v1+protobuf".
+// Normative rules: spec/tickets.md.
+
+syntax = "proto3";
+
+package impluvium.v2;
+
+import "google/protobuf/timestamp.proto";
+
+// Claims of a depot ticket, signed with a depot-ticket key.
+message DepotTicketClaims {
+  // Audience: instance_id of the issuing server, canonical lowercase UUID.
+  string aud = 1;
+  // Subject: device_id of the device the ticket was issued to.
+  string sub = 2;
+  // Identifier of the user the ticket was issued for.
+  string user_id = 3;
+  // 1 to 8 manifest_ids (32 bytes each), strictly ascending by bytes:
+  // the requested version and all resolved dependencies.
+  repeated bytes manifest_ids = 4;
+  // Issue time.
+  google.protobuf.Timestamp iat = 5;
+  // Expiry time. 0 < exp - iat <= 3600 seconds.
+  google.protobuf.Timestamp exp = 6;
+}

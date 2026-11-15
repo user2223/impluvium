@@ -1,0 +1,72 @@
+impluvium protocol
+Copyright (C) 2026 the impluvium contributors
+
+Everything below engine/ is the impluvium contributors' own work, licensed
+under the BSD Zero Clause License (SPDX: 0BSD; full text in engine/LICENSE),
+except the third-party material listed at the end of this file, which keeps
+its own license and notice. The rest of this repository is licensed under
+the GNU Affero General Public License, and nothing below engine/ is taken
+from it.
+
+Provenance of the files below engine/protocol/
+----------------------------------------------
+
+- spec/ (normative specification) and proto/ (Protocol Buffers schema)
+  were written from scratch for impluvium. They are not derived from the
+  schema files, generated types or source code inherited elsewhere in this
+  repository. They contain no third-party source code; the only
+  third-party material is the data listed under "Third-party material".
+
+- The schema imports google/protobuf/timestamp.proto, a well-known type
+  that the Protocol Buffers toolchain provides. It is referenced, not
+  copied into this tree.
+
+- The specification implements, and refers to, published constructions
+  and standards without copying their text: the DSSE pre-authentication
+  encoding (secure-systems-lab/dsse, protocol version 1), Ed25519
+  (RFC 8032), HKDF (RFC 5869), SHA-256 (FIPS 180-4), MD5 (RFC 1321, used
+  only to describe how a constant table was produced), BLAKE3, FastCDC
+  (Xia et al., 2020), the Connect protocol, the Protocol Buffers binary
+  and JSON encodings, Server-Sent Events (WHATWG HTML Living Standard),
+  the WHATWG URL Standard, the OAuth 2.0 device authorization grant
+  (RFC 8628), Unicode 16.0.0 character data and the HTTP specifications
+  cited in the chapters.
+
+- Test vectors, generated code, reference tooling and benchmark material
+  that are added later record their own provenance next to them.
+
+Third-party material
+--------------------
+
+spec/manifest.md, section 9 (FastCDC chunking), contains the 256-entry gear
+table and two mask constants of the Rust crate fastcdc, version 5.0.0, module
+v2020 (https://github.com/nlfiedler/fastcdc-rs, crate archive SHA-256
+0431c3132902a1bed6fe77dcfa5d03844e083f263b81288246a2d43dd7d4b2ad). The gear
+table values are the first 8 bytes of the MD5 digests of 64-byte strings
+whose bytes all equal the table index, and can be regenerated from that rule.
+The cut procedure is described in the specification in its own words,
+following the published FastCDC algorithm. The crate is distributed under
+the following license:
+
+  The MIT License (MIT)
+
+  Copyright (c) 2019 Nathan Fiedler
+
+  Permission is hereby granted, free of charge, to any person obtaining a
+  copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to permit
+  persons to whom the Software is furnished to do so, subject to the
+  following conditions:
+
+  The above copyright notice and this permission notice shall be included
+  in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+  NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+  USE OR OTHER DEALINGS IN THE SOFTWARE.

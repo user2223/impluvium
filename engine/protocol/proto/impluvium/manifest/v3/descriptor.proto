@@ -1,0 +1,120 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Release descriptor, version 1. Payload type
+// "application/vnd.impluvium.release.v1+protobuf".
+// Normative rules: spec/descriptor.md.
+
+syntax = "proto3";
+
+package impluvium.manifest.v3;
+
+// Signed, revisioned launch and setup metadata of one game version.
+message ReleaseDescriptor {
+  // Game identifier, canonical lowercase UUID text.
+  string game_id = 1;
+  // Version identifier, canonical lowercase UUID text.
+  string version_id = 2;
+  // Revision of this descriptor for version_id. At least 1, monotonic.
+  uint64 revision = 3;
+  // 32-byte manifest_id of the version's manifest.
+  bytes manifest_id = 4;
+  // Byte length of the manifest payload, 1 to 536 870 912.
+  uint64 manifest_size = 5;
+  // Equal to Manifest.total_size of the referenced manifest.
+  uint64 install_size = 6;
+  // MUST NOT be UNSPECIFIED.
+  ReleaseKind kind = 7;
+  // Version identifiers this version directly requires. At most 8,
+  // no duplicates, never the own version_id.
+  repeated string requires = 8;
+  // At most 128.
+  repeated LaunchOption launch_options = 9;
+  // At most 128.
+  repeated SetupStep setup_steps = 10;
+  // Strictly ascending by bytes, at most 64, each 1 to 128 bytes.
+  repeated string required_features = 11;
+}
+
+// Kind of a release.
+enum ReleaseKind {
+  RELEASE_KIND_UNSPECIFIED = 0;
+  // A game or other launchable content.
+  RELEASE_KIND_GAME = 1;
+  // Content that only runs setup steps and has no launch options.
+  RELEASE_KIND_SETUP_ONLY = 2;
+}
+
+// Target platform of a launch option or setup step.
+enum Platform {
+  PLATFORM_UNSPECIFIED = 0;
+  PLATFORM_LINUX = 1;
+  PLATFORM_WINDOWS = 2;
+  PLATFORM_MACOS = 3;
+}
+
+// One way to start the game.
+message LaunchOption {
+  // Stable key, unique per (game, platform) and never changed.
+  // 1 to 128 bytes of UTF-8 without control characters.
+  string key = 1;
+  // Display name, 1 to 128 bytes of UTF-8 without control characters.
+  string name = 2;
+  // MUST NOT be UNSPECIFIED.
+  Platform platform = 3;
+  // Required. What to execute.
+  Command command = 4;
+  // Optional. Start through an emulator launch option of another game.
+  EmulatorRef emulator = 5;
+  // Namespaced hints. At most 64 entries; key 1 to 128 bytes of visible
+  // ASCII, value at most 4096 bytes. Unknown keys are ignored.
+  map<string, string> hints = 6;
+  // Original command text kept from an import. Display only, never run.
+  // At most 4096 bytes.
+  string legacy_command = 7;
+  // Original launch identifier kept from an import. At most 128 bytes.
+  string legacy_launch_id = 8;
+}
+
+// A structured command. Nothing in it is interpreted by a shell.
+message Command {
+  // Path of a regular file in the manifest (spec/paths.md, base rules).
+  string executable = 1;
+  // Arguments in order. At most 256, each at most 4096 bytes, no NUL.
+  repeated string args = 2;
+  // Working directory inside the content tree; empty means the tree root.
+  string working_dir = 3;
+  // Environment additions. At most 128 entries; key 1 to 128 bytes,
+  // value at most 4096 bytes. For Windows targets no two keys may be equal
+  // when compared without regard to case (spec/descriptor.md).
+  map<string, string> env = 4;
+}
+
+// Reference to the emulator launch option that runs this content.
+message EmulatorRef {
+  // Game identifier of the emulator, canonical lowercase UUID text.
+  string game_id = 1;
+  // Launch key of the emulator for the same platform.
+  string launch_key = 2;
+  // Opaque suggestions kept from an import. At most 32, each 1 to 256
+  // bytes. Never executed.
+  repeated string suggestions = 3;
+}
+
+// One setup step, run before the first launch.
+message SetupStep {
+  // Identifier, unique within the descriptor. 1 to 128 bytes of UTF-8
+  // without control characters.
+  string id = 1;
+  // MUST NOT be UNSPECIFIED.
+  Platform platform = 2;
+  // Required. What to execute.
+  Command command = 3;
+  // True if running the step again is harmless.
+  bool idempotent = 4;
+  // Original command text kept from an import. Display only, never run.
+  // At most 4096 bytes.
+  string legacy_command = 5;
+  // Original setup identifier kept from an import. At most 128 bytes.
+  string legacy_setup_id = 6;
+}

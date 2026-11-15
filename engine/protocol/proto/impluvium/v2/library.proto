@@ -1,0 +1,119 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Library browsing. Normative rules: spec/api.md and spec/events.md.
+
+syntax = "proto3";
+
+package impluvium.v2;
+
+import "impluvium/manifest/v3/descriptor.proto";
+
+// Browsing summaries of the content the calling user may access.
+service LibraryService {
+  // Lists games, paginated.
+  rpc ListLibrary(ListLibraryRequest) returns (ListLibraryResponse);
+  // Returns one game.
+  rpc GetGame(GetGameRequest) returns (GetGameResponse);
+  // Lists the versions of one game, paginated.
+  rpc ListVersions(ListVersionsRequest) returns (ListVersionsResponse);
+  // Returns one version.
+  rpc GetVersion(GetVersionRequest) returns (GetVersionResponse);
+}
+
+message ListLibraryRequest {
+  // 0 means 50; values above 200 are clamped to 200.
+  uint32 page_size = 1;
+  // Empty for the first page; otherwise a next_page_token, at most 1024 bytes.
+  string page_token = 2;
+}
+
+message ListLibraryResponse {
+  // At most 200, in the server's stable order.
+  repeated GameSummary games = 1;
+  // Empty at the end of the list; otherwise at most 1024 bytes.
+  string next_page_token = 2;
+  // 16-byte event epoch in which this page was produced.
+  bytes epoch = 3;
+  // Highest event sequence number of the user in that epoch at the time
+  // this page was produced; 0 if none.
+  uint64 snapshot_seq = 4;
+}
+
+// Browsing summary of a game. Never contains paths or keys.
+message GameSummary {
+  // Canonical lowercase UUID text.
+  string game_id = 1;
+  // Display name, 1 to 256 bytes.
+  string name = 2;
+  // Platforms derived from the current descriptors of the game's versions.
+  // At most 8, no duplicates. Display only.
+  repeated impluvium.manifest.v3.Platform platforms = 3;
+  // Event sequence number of the last change in the current epoch, or 0.
+  uint64 entry_version = 4;
+  // Object identifier of the icon image, canonical lowercase UUID text,
+  // or empty.
+  string icon_object_id = 5;
+  // Object identifier of the cover image, canonical lowercase UUID text,
+  // or empty.
+  string cover_object_id = 6;
+}
+
+message GetGameRequest {
+  // Canonical lowercase UUID text.
+  string game_id = 1;
+}
+
+message GetGameResponse {
+  // Required.
+  GameSummary game = 1;
+}
+
+message ListVersionsRequest {
+  // Canonical lowercase UUID text.
+  string game_id = 1;
+  // 0 means 50; values above 200 are clamped to 200.
+  uint32 page_size = 2;
+  // Empty for the first page; otherwise a next_page_token, at most 1024 bytes.
+  string page_token = 3;
+}
+
+message ListVersionsResponse {
+  // At most 200, in the server's stable order.
+  repeated VersionSummary versions = 1;
+  // Empty at the end of the list; otherwise at most 1024 bytes.
+  string next_page_token = 2;
+}
+
+// Browsing summary of a version. Never contains paths or keys.
+message VersionSummary {
+  // Canonical lowercase UUID text.
+  string version_id = 1;
+  // Canonical lowercase UUID text.
+  string game_id = 2;
+  // Display name, 0 to 256 bytes.
+  string display_name = 3;
+  // Kind from the current descriptor.
+  impluvium.manifest.v3.ReleaseKind kind = 4;
+  // Platforms derived from the current descriptor. At most 8, no
+  // duplicates. Display only.
+  repeated impluvium.manifest.v3.Platform platforms = 5;
+  // Manifest.total_size.
+  uint64 install_size = 6;
+  // Byte length of the manifest payload.
+  uint64 manifest_size = 7;
+  // 32-byte manifest_id.
+  bytes manifest_id = 8;
+  // Revision of the current descriptor, at least 1.
+  uint64 descriptor_revision = 9;
+}
+
+message GetVersionRequest {
+  // Canonical lowercase UUID text.
+  string version_id = 1;
+}
+
+message GetVersionResponse {
+  // Required.
+  VersionSummary version = 1;
+}

@@ -1,0 +1,55 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Download authorization. Normative rules: spec/api.md and spec/tickets.md.
+
+syntax = "proto3";
+
+package impluvium.v2;
+
+// Entitlement check, descriptor, manifest set, depot endpoints and ticket.
+service DownloadService {
+  // Authorizes a download of one version. Requires an access token.
+  rpc OpenDownload(OpenDownloadRequest) returns (OpenDownloadResponse);
+  // Issues a fresh ticket after re-checking entitlement.
+  rpc RefreshTicket(RefreshTicketRequest) returns (RefreshTicketResponse);
+}
+
+message OpenDownloadRequest {
+  // Canonical lowercase UUID text.
+  string version_id = 1;
+}
+
+message OpenDownloadResponse {
+  // Binary Envelope with the current ReleaseDescriptor of the version,
+  // at most 1 048 576 + 16 384 bytes.
+  bytes descriptor = 1;
+  // The resolved manifest set: 1 to 8 manifest_ids of 32 bytes, strictly
+  // ascending by bytes; equal to the manifest_ids of the ticket.
+  repeated bytes manifest_ids = 2;
+  // Binary Envelope with DepotTicketClaims, at most 4096 bytes.
+  bytes ticket = 3;
+  // 1 to 8 depot endpoints offered by the server.
+  repeated DepotEndpoint depot_endpoints = 4;
+}
+
+// A depot base URL offered by the server.
+message DepotEndpoint {
+  // Absolute http or https URL without user information, query or
+  // fragment and without a trailing '/'. At most 2048 bytes.
+  string base_url = 1;
+  // Lower values are preferred.
+  uint32 priority = 2;
+}
+
+message RefreshTicketRequest {
+  // Canonical lowercase UUID text.
+  string version_id = 1;
+}
+
+message RefreshTicketResponse {
+  // Binary Envelope with DepotTicketClaims, at most 4096 bytes.
+  bytes ticket = 1;
+  // The resolved manifest set, as in OpenDownloadResponse.
+  repeated bytes manifest_ids = 2;
+}

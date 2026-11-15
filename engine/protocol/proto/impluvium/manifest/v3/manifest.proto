@@ -1,0 +1,112 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Content manifest, format 3. Payload type
+// "application/vnd.impluvium.manifest.v3+protobuf".
+// Normative rules: spec/manifest.md and spec/paths.md.
+
+syntax = "proto3";
+
+package impluvium.manifest.v3;
+
+import "google/protobuf/timestamp.proto";
+
+// The complete, immutable file tree of one game version.
+message Manifest {
+  // Format number. MUST be 3.
+  uint32 format = 1;
+  // Game identifier, canonical lowercase UUID text (36 bytes).
+  string game_id = 2;
+  // Version identifier, canonical lowercase UUID text (36 bytes).
+  string version_id = 3;
+  // Creation time taken from stable version metadata, never the build time.
+  google.protobuf.Timestamp created_at = 4;
+  // Required. Content hash and chunking parameters.
+  Header header = 5;
+  // Features a consumer must implement to use this manifest. Strictly
+  // ascending by bytes, at most 64 entries, each 1 to 128 bytes.
+  repeated string required_features = 6;
+  // Sum of the sizes of all regular-file entries.
+  uint64 total_size = 7;
+  // All entries, strictly ascending by the bytes of their path.
+  // At most 2 000 000.
+  repeated Entry entries = 8;
+  // Every distinct chunk once, strictly ascending by id bytes.
+  // At most 4 000 000.
+  repeated Chunk chunks = 9;
+}
+
+// Algorithms that define the identity of the content.
+message Header {
+  // Content hash for file hashes and chunk ids. MUST NOT be UNSPECIFIED.
+  HashAlgorithm hash_algorithm = 1;
+  // Required. Producer chunking parameters (informational for consumers).
+  Chunking chunking = 2;
+}
+
+// Content hash algorithm. Both produce 32-byte digests.
+enum HashAlgorithm {
+  HASH_ALGORITHM_UNSPECIFIED = 0;
+  // SHA-256 (FIPS 180-4). The default.
+  HASH_ALGORITHM_SHA256 = 1;
+  // BLAKE3 in hash mode with a 32-byte output.
+  HASH_ALGORITHM_BLAKE3_256 = 2;
+}
+
+// Chunking that the producer used. Consumers never recompute boundaries.
+message Chunking {
+  // MUST NOT be UNSPECIFIED. Unknown non-zero values are accepted.
+  ChunkingAlgorithm algorithm = 1;
+  // Minimum chunk size in bytes used by the producer.
+  uint64 min_size = 2;
+  // Target average chunk size in bytes used by the producer.
+  uint64 avg_size = 3;
+  // Maximum chunk size in bytes used by the producer.
+  uint64 max_size = 4;
+}
+
+// Producer chunking algorithm.
+enum ChunkingAlgorithm {
+  CHUNKING_ALGORITHM_UNSPECIFIED = 0;
+  // FastCDC 2020 with normalized chunking level 1 (spec/manifest.md).
+  CHUNKING_ALGORITHM_FASTCDC_V2020 = 1;
+}
+
+// One element of the file tree.
+message Entry {
+  // Relative path, '/'-separated UTF-8 (spec/paths.md). 1 to 4096 bytes.
+  string path = 1;
+  // MUST NOT be UNSPECIFIED.
+  EntryType type = 2;
+  // File size in bytes for regular files; 0 for other types.
+  uint64 size = 3;
+  // Regular files: 32-byte content hash of the whole file. Empty otherwise.
+  bytes hash = 4;
+  // Permission bits, at most 0o777. 0 for symbolic links.
+  uint32 mode = 5;
+  // Symbolic links: relative target, 1 to 4096 bytes. Empty otherwise.
+  string symlink_target = 6;
+  // Regular files with size > 0: indexes into Manifest.chunks in file
+  // order; the chunk offsets are the prefix sums of the chunk sizes.
+  // Empty for empty files and other types.
+  repeated uint32 chunk_indexes = 7;
+}
+
+// Type of a file tree entry.
+enum EntryType {
+  ENTRY_TYPE_UNSPECIFIED = 0;
+  // A regular file.
+  ENTRY_TYPE_REGULAR = 1;
+  // A symbolic link.
+  ENTRY_TYPE_SYMLINK = 2;
+  // An empty directory. Non-empty directories are implied by paths.
+  ENTRY_TYPE_DIRECTORY = 3;
+}
+
+// A content-addressed byte range that lies within one file.
+message Chunk {
+  // 32-byte content hash of the chunk bytes.
+  bytes id = 1;
+  // Chunk size in bytes, 1 to 16 777 216.
+  uint64 size = 2;
+}

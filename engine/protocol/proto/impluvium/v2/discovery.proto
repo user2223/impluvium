@@ -1,0 +1,58 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Discovery document served by GET {base}/api/info as ProtoJSON.
+// Normative rules: spec/api.md and spec/trust.md.
+
+syntax = "proto3";
+
+package impluvium.v2;
+
+import "impluvium/signed/v1/envelope.proto";
+
+// Unauthenticated server description. The shape is frozen; later
+// revisions only add fields.
+message Discovery {
+  // Discovery document version. MUST be 1.
+  uint32 discovery = 1;
+  // MUST be "impluvium".
+  string product = 2;
+  // Operator-chosen display name, 1 to 128 bytes.
+  string server_name = 3;
+  // Server release, Semantic Versioning 2.0.0 text, 1 to 64 bytes.
+  string server_version = 4;
+  // Instance identifier, canonical lowercase UUID text.
+  string instance_id = 5;
+  // Required. Protocol version of the server.
+  ProtocolVersion protocol = 6;
+  // Supported manifest formats. 1 to 8 values, no duplicates; contains 3.
+  repeated uint32 manifest_formats = 7;
+  // Server capabilities. At most 64, each 1 to 128 bytes.
+  repeated string capabilities = 8;
+  // Capabilities a client must offer in CompleteSession. At most 64.
+  repeated string required_client_capabilities = 9;
+  // Informational fingerprints of the server keys. At most 16.
+  repeated KeyFingerprint key_fingerprints = 10;
+  // Source revision of the server build, 0 to 64 bytes.
+  string commit = 11;
+  // Where the source code of this server is offered, 1 to 2048 bytes.
+  string source_url = 12;
+}
+
+// Protocol major and revisions.
+message ProtocolVersion {
+  // Protocol major. 2 for this specification.
+  uint32 major = 1;
+  // Protocol revision implemented by the server. At least 1.
+  uint32 revision = 2;
+  // Lowest client revision this server accepts. At least 1.
+  uint32 min_client_revision = 3;
+}
+
+// Informational fingerprint of a server public key. Never a trust anchor.
+message KeyFingerprint {
+  // KEY_ROLE_CONTENT or KEY_ROLE_DEPOT_TICKET.
+  impluvium.signed.v1.KeyRole role = 1;
+  // 32 bytes: SHA-256 over the 32-byte Ed25519 public key.
+  bytes sha256 = 2;
+}

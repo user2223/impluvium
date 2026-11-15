@@ -1,0 +1,99 @@
+// SPDX-FileCopyrightText: 2026 the impluvium contributors
+// SPDX-License-Identifier: 0BSD
+
+// Event stream messages, carried as ProtoJSON in Server-Sent Events from
+// GET {base}/api/v2/events. Normative rules: spec/events.md.
+
+syntax = "proto3";
+
+package impluvium.v2;
+
+import "google/protobuf/timestamp.proto";
+import "impluvium/v2/library.proto";
+
+// One event of the stream.
+message ServerEvent {
+  // 16 bytes: the epoch of the server process that produced the event.
+  bytes epoch = 1;
+  // Data events: the user sequence number of the event (at least 1).
+  // Heartbeat: the stream chain position (last data event written to this
+  // stream, or the stream start). Other control events: 0.
+  uint64 seq = 2;
+  // Server time at which the event was produced.
+  google.protobuf.Timestamp time = 3;
+  // Data events: the stream chain position before this event (the previous
+  // data event written to this stream, or the stream start). Control
+  // events: 0.
+  uint64 prev_seq = 4;
+  // Exactly one payload member, named by the SSE event name. In the
+  // ProtoJSON event data the member appears at the top level; an event name
+  // not defined here is an unknown event (spec/events.md, receive validation).
+  oneof payload {
+    Connected connected = 10;
+    Heartbeat heartbeat = 11;
+    ResyncRequired resync_required = 12;
+    SessionEnded session_ended = 13;
+    Superseded superseded = 14;
+    LibraryChanged library_changed = 20;
+  }
+}
+
+// First event of every stream.
+message Connected {
+  // Highest sequence number of the user in this epoch, or 0.
+  uint64 head_seq = 1;
+  // True if the requested resume point was accepted and missed events
+  // follow.
+  bool resumed = 2;
+}
+
+// Periodic liveness and progress signal.
+message Heartbeat {}
+
+// The client must rebuild its state through RPC.
+message ResyncRequired {
+  ResyncReason reason = 1;
+}
+
+// Why a resynchronisation is required.
+enum ResyncReason {
+  RESYNC_REASON_UNSPECIFIED = 0;
+  // The resume point is older than the retained events.
+  RESYNC_REASON_TOO_OLD = 1;
+  // The resume point is ahead of the server's head.
+  RESYNC_REASON_AHEAD = 2;
+  // The resume point belongs to another epoch.
+  RESYNC_REASON_FOREIGN_EPOCH = 3;
+  // The resume point could not be parsed.
+  RESYNC_REASON_MALFORMED = 4;
+  // The server dropped events for this stream; the stream closes.
+  RESYNC_REASON_OVERFLOW = 5;
+  // The caller lost permission for a subscribed topic; the stream closes.
+  RESYNC_REASON_ACCESS_CHANGED = 6;
+}
+
+// Terminal event: the credential that opened the stream ended.
+message SessionEnded {
+  SessionEndReason reason = 1;
+}
+
+// Why a stream's credential ended.
+enum SessionEndReason {
+  SESSION_END_REASON_UNSPECIFIED = 0;
+  SESSION_END_REASON_REVOKED = 1;
+  SESSION_END_REASON_EXPIRED = 2;
+}
+
+// Terminal event: a newer stream with the same supersession key replaced
+// this stream.
+message Superseded {}
+
+// Data event of topic "library": a library entry changed.
+message LibraryChanged {
+  // Canonical lowercase UUID text.
+  string game_id = 1;
+  // True if the entry left the user's library (deletion marker).
+  bool deleted = 2;
+  // Present if and only if deleted is false.
+  GameSummary game = 3;
+}

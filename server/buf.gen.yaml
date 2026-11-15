@@ -6,3 +6,7 @@ plugins:
 
 inputs:
   - directory: ../
+    # The protocol schema below engine/ has its own import root and is not
+    # part of this generation.
+    exclude_paths:
+      - ../engine
