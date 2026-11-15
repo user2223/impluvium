@@ -6,6 +6,8 @@
 #     pnpm install --frozen-lockfile --filter "{./desktop/main}..." --fail-if-no-match
 #   desktop client:
 #     pnpm install --frozen-lockfile --filter "{./desktop}" --filter "{./desktop/main}..." --fail-if-no-match
+#   protocol types and local TypeScript generator:
+#     pnpm install --frozen-lockfile --ignore-scripts --filter "{./engine/protocol/ts}..." --fail-if-no-match
 # Directory filters resolve against the current directory; --fail-if-no-match makes a run from elsewhere fail instead
 # of silently installing nothing. An unfiltered install of the whole workspace is not supported.
 packages:
@@ -14,6 +16,7 @@ packages:
   - "libraries/base/"
   - "desktop/"
   - "desktop/main/"
+  - "engine/protocol/ts/"
 
 onlyBuiltDependencies:
   - "@bufbuild/buf"

@@ -1,0 +1,4 @@
+{
+  "version": 1,
+  "packages": { "impluvium-client": { "tests": { "exact": 1 }, "docTests": { "min": 0 } } }
+}

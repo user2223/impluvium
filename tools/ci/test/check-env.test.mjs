@@ -9,6 +9,15 @@ const args = root => ['--root', root];
 const registerFile = root => path.join(root, 'tools/env-register.json');
 const lib = 'desktop/src-tauri/src/lib.rs';
 const config = 'server/server/config.ts';
+
+test('env: standard cc target suffixes are registered without admitting arbitrary lowercase names', t => {
+  const root = repo(t);
+  register(root, data => { data.entries.push({ ...data.entries[0], name: 'CC_x86_64_pc_windows_gnullvm',
+    standard: true, evidence: 'consumer: the cc crate', fate: { action: 'keep', when: 'Owned by cc.' } }); });
+  invoke('check-env', args(root), 0);
+  register(root, data => { data.entries.at(-1).standard = false; });
+  invoke('check-env', args(root), 2);
+});
 function write(root, file, text) {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
   writeFileSync(path.join(root, file), text);

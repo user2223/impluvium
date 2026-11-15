@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: 0BSD
+
+version: v2
+clean: true
+plugins:
+  - local: protoc-gen-buffa
+    out: ../crates/protocol/src/generated/buffa
+    opt: [views=true, json=true]
+  - local: protoc-gen-buffa-packaging
+    out: ../crates/protocol/src/generated/buffa
+    strategy: all
+  - local: protoc-gen-connect-rust
+    out: ../crates/protocol/src/generated/connect
+    opt: [buffa_module=crate::proto, gate_client_feature=client]
+  - local: protoc-gen-buffa-packaging
+    out: ../crates/protocol/src/generated/connect
+    strategy: all
+    opt: [filter=services]
+  - local: protoc-gen-es
+    out: ts/src/generated
+    opt: [target=ts, import_extension=js]
+inputs:
+  - directory: proto

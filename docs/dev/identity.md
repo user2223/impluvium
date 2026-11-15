@@ -108,6 +108,7 @@ Bindings that tie a value to the place in the code that uses it follow the code 
 | `npm.desktop` | `impluvium-desktop` |
 | `npm.desktop_ui` | `impluvium-desktop-ui` |
 | `npm.ui_base` | `impluvium-ui-base` |
+| `npm.protocol` | `impluvium-protocol` |
 
 ### Legacy values (read by importers only)
 
@@ -168,7 +169,8 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `FORCE_ENABLE_DEPOTS` | runtime | desktop | active | read | no | no | remove: With the removal of the inherited depot download path. | Forces the depot download path on. |
 | `READER_THREADS` | runtime | torrential | active | read | no | no | remove: When the inherited download service and web proxy are replaced. | Number of reader threads of the download service. |
 | `WORKING_DIRECTORY` | runtime | torrential | active | read | no | no | remove: When the inherited download service and web proxy are replaced. | Working directory of the download service. |
-| `CARGO_MANIFEST_DIR` | test | build | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | Set by Cargo; the Rust tests read it through env! to find their data. |
+| `CARGO_MANIFEST_DIR` | build | build | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | Set by Cargo; Rust tests and the protocol generator locate sources through env!, and C invocation records identify their originating manifest. |
+| `CC_ENABLE_DEBUG_OUTPUT` | build | build | active | consumer: the cc crate during protocol build evidence capture | yes | no | keep: Not planned; the name belongs to the tool that reads it. | Set to 1 for fresh protocol evidence builds to retain actual C compiler and archiver commands. |
 | `NODE_BASE_IMAGE` | build | build | active | consumer: container build (ARG in the Dockerfile) | no | no | keep: Not planned; the name belongs to the tool that reads it. | Build argument that selects the pinned Node base image. |
 | `RUST_BUILD_IMAGE` | build | build | active | consumer: container build (ARG in the Dockerfile) | no | no | keep: Not planned; the name belongs to the tool that reads it. | Build argument that selects the pinned Rust build image. |
 | `PNPM_HOME` | build | build | active | consumer: pnpm | yes | no | keep: Not planned; the name belongs to the tool that reads it. | Install location of pnpm inside the build image. |
@@ -192,7 +194,39 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `IMPLUVIUM_IGDB_*` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | IGDB provider settings; one variable per former IGDB_ name. |
 | `IMPLUVIUM_PCGAMINGWIKI_*` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | PCGamingWiki provider settings; one variable per former PCGAMINGWIKI_ name. |
 | `IMPLUVIUM_NO_TRAY` | runtime | desktop | planned | read | no | no | keep: Not planned; this is the target name. | Starts the desktop client without a tray icon. |
-| `CARGO_PKG_VERSION` | build | desktop | active | read | yes | no | keep: Not planned; the name belongs to the tool that sets it. | Set by Cargo; the desktop user-agent helper reads it through env! to report the crate version. |
+| `CARGO_PKG_VERSION` | build | build | active | read | yes | no | keep: Not planned; the name belongs to the tool that sets it. | Set by Cargo; used by the desktop user-agent helper and C invocation records to identify the crate version. |
 | `IMPLUVIUM_VERSION` | build | build | active | read | no | no | keep: Not planned; this is the target name. | Build argument that carries the version shown by the server. |
 | `IMPLUVIUM_GIT_REF` | build | build | active | read | no | no | keep: Not planned; this is the target name. | Build argument that carries the Git revision shown by the server. |
 | `IMPLUVIUM_BUILD_PROFILE` | build | build | active | read | no | no | keep: Not planned; this is the target name. | Selects server (real Nitro server tree) or spa (static export with an empty server tree); outputs use separate directories. |
+| `RUSTFLAGS` | build | build | active | consumer: Cargo and rustc | yes | no | keep: Owned by Cargo. | Ambient Rust flags; rejected by protocol evidence capture in favor of target-specific flags. |
+| `CARGO_ENCODED_RUSTFLAGS` | build | build | active | consumer: Cargo | yes | no | keep: Owned by Cargo. | Encoded ambient Rust flags; rejected by protocol evidence capture. |
+| `CARGO_BUILD_TARGET` | build | build | active | consumer: Cargo | yes | no | keep: Owned by Cargo. | Ambient target override; rejected when capturing an explicit target. |
+| `CARGO_TARGET_DIR` | build | build | active | consumer: Cargo | yes | no | keep: Owned by Cargo. | Ambient output override; protocol capture instead supplies a fresh target directory argument. |
+| `RUSTC` | build | build | active | consumer: Cargo | yes | no | keep: Owned by Cargo. | Resolved Rust compiler recorded for protocol builds. |
+| `RUSTDOC` | build | build | active | consumer: Cargo | yes | no | keep: Owned by Cargo. | Resolved documentation-test compiler recorded for protocol builds. |
+| `CC` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | C compiler selection recorded in build evidence. |
+| `CXX` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | C++ compiler selection recorded in build evidence. |
+| `AR` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Archiver selection recorded in build evidence. |
+| `HOST_CC` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Host C compiler override recorded in build evidence. |
+| `HOST_CXX` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Host C++ compiler override recorded in build evidence. |
+| `HOST_AR` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Host archiver override recorded in build evidence. |
+| `TARGET_CC` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Target C compiler override recorded in build evidence. |
+| `TARGET_CXX` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Target C++ compiler override recorded in build evidence. |
+| `TARGET_AR` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Target archiver override recorded in build evidence. |
+| `CC_x86_64_pc_windows_gnullvm` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Recorded delegation to the verified llvm-mingw C compiler for the Windows target. |
+| `CXX_x86_64_pc_windows_gnullvm` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Recorded delegation to the verified llvm-mingw C++ compiler, reported unused when no C++ command runs. |
+| `AR_x86_64_pc_windows_gnullvm` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Recorded delegation to the verified llvm-mingw archiver for the Windows target. |
+| `CARGO_TARGET_X86_64_PC_WINDOWS_GNULLVM_LINKER` | build | build | active | consumer: Cargo | yes | no | keep: Owned by Cargo. | Recorded linker launcher delegating to the verified Windows compiler driver. |
+| `CARGO_TARGET_X86_64_PC_WINDOWS_GNULLVM_RUSTFLAGS` | build | build | active | consumer: Cargo | yes | no | keep: Owned by Cargo. | Windows target flags, including the required static CRT selection. |
+| `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER` | build | build | active | consumer: Cargo | yes | no | keep: Owned by Cargo. | Recorded native linker launcher, also used for host tools during cross-compilation. |
+| `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS` | build | build | active | consumer: Cargo | yes | no | keep: Owned by Cargo. | Native target flags; rejected if set during protocol evidence capture. |
+| `CC_x86_64_unknown_linux_gnu` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Recorded C compiler delegation for the explicit Linux target. |
+| `CXX_x86_64_unknown_linux_gnu` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Recorded C++ compiler delegation for the explicit Linux target. |
+| `AR_x86_64_unknown_linux_gnu` | build | build | active | consumer: the cc crate | yes | no | keep: Owned by the C build toolchain. | Recorded archiver delegation for the explicit Linux target. |
+| `CARGO_PKG_NAME` | build | build | active | consumer: the compiler invocation recorder | yes | no | keep: Owned by Cargo. | Attributes an actual C command to its originating build-script package. |
+| `OUT_DIR` | build | build | active | consumer: the compiler invocation recorder | yes | no | keep: Owned by Cargo. | Attributes host or target C build context; never used for protocol generation. |
+| `CCACHE` | build | build | active | consumer: protocol build evidence capture | yes | no | keep: Owned by the compiler or platform loader. | Rejected ambient cache wrapper; the verified driver must execute directly. |
+| `COMPILER_PATH` | build | build | active | consumer: protocol build evidence capture | yes | no | keep: Owned by the compiler or platform loader. | Rejected ambient compiler and linker search-path override. |
+| `GCC_EXEC_PREFIX` | build | build | active | consumer: protocol build evidence capture | yes | no | keep: Owned by the compiler or platform loader. | Rejected ambient compiler executable-prefix override. |
+| `LD_PRELOAD` | build | build | active | consumer: protocol build evidence capture | yes | no | keep: Owned by the compiler or platform loader. | Rejected ambient dynamic-loader injection during build evidence capture. |
+| `LD_LIBRARY_PATH` | build | build | active | consumer: protocol build evidence capture | yes | no | keep: Owned by the compiler or platform loader. | Rejected ambient dynamic-library search override during build evidence capture. |

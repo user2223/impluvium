@@ -27,7 +27,8 @@ export function loadRegister(file) {
     if (!plainObject(entry)) throw fail(index, 'not an object');
     const known = ['name', 'kind', 'component', 'status', 'evidence', 'standard', 'secret', 'fate', 'description', 'pattern'];
     for (const key of Object.keys(entry)) if (!known.includes(key)) throw fail(index, `unknown field ${key}`);
-    if (!string(entry.name) || !NAME.test(entry.name)) throw fail(index, 'invalid name');
+    const ccTargetName = /^(?:CC|CXX|AR)_x86_64_(?:pc_windows_gnullvm|unknown_linux_gnu)$/.test(entry.name ?? '') && entry.standard === true;
+    if (!string(entry.name) || (!NAME.test(entry.name) && !ccTargetName)) throw fail(index, 'invalid name');
     if (seen.has(entry.name)) throw fail(index, `duplicate name ${entry.name}`);
     seen.add(entry.name);
     if (!KINDS.includes(entry.kind)) throw fail(index, `${entry.name}: kind must be one of ${KINDS.join(', ')}`);

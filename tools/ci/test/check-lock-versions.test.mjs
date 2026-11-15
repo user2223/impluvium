@@ -21,6 +21,15 @@ test('check-lock-versions passes when every package is locked at its expected ve
   assert.match(result.stdout, /framework: 2\.9\.5/);
   assert.match(result.stdout, /framework-utils: 2\.8\.2/);
 });
+
+test('check-lock-versions covers the three protocol runtime pins without constraining parallel HTTP versions', t => {
+  const entries = [['buffa', '0.9.2'], ['buffa-types', '0.9.2'], ['connectrpc', '0.9.1']];
+  const text = entries.map(([name, version]) => `[[package]]\nname = "${name}"\nversion = "${version}"\n`).join('\n') +
+    '\n[[package]]\nname = "reqwest"\nversion = "0.12.28"\n\n[[package]]\nname = "reqwest"\nversion = "0.13.5"\n';
+  const expected = write(t, 'expect.json', JSON.stringify({ version: 1, packages: Object.fromEntries(entries) }));
+  invoke('check-lock-versions', args(write(t, 'Cargo.lock', text), expected), 0);
+  invoke('check-lock-versions', args(write(t, 'Cargo.lock', text + '\n[[package]]\nname = "buffa"\nversion = "0.9.1"\n'), expected), 1);
+});
 test('check-lock-versions fails on a different locked version', t => {
   const result = invoke('check-lock-versions', args(lock(t, 'version = "2.8.2"', 'version = "2.10.0"')), 1);
   assert.match(result.stderr, /Cargo\.lock:\d+: framework-utils: locked at 2\.10\.0, expected 2\.8\.2/);

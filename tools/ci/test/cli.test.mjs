@@ -6,7 +6,9 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-for (const tool of ['check-pins', 'check-features', 'check-licence-boundary', 'clippy-ratchet', 'tsc-ratchet', 'count-tests', 'check-lock-versions']) {
+const tools = ['check-pins', 'check-features', 'check-licence-boundary', 'clippy-ratchet', 'tsc-ratchet', 'count-tests', 'check-lock-versions',
+  'check-protocol-graph', 'capture-protocol-graph', 'capture-protocol-workspace', 'check-protocol-breaking', 'protocol-base', 'protocol-tools', 'protocol-matrix'];
+for (const tool of tools) {
   test(`${tool}: help and unknown-option exit conventions`, () => {
     assert.match(invoke(tool, ['--help'], 0).stdout, /Usage:.*\n[\s\S]*Exit:/);
     invoke(tool, ['--unknown-option'], 2);
@@ -16,7 +18,7 @@ for (const tool of ['check-pins', 'check-features', 'check-licence-boundary', 'c
 test('cli: tools execute through a symlinked directory', t => {
   const directory = path.join(temporary(t), 'linked-ci');
   symlinkSync(fileURLToPath(new URL('../', import.meta.url)), directory, 'dir');
-  for (const tool of ['check-pins', 'check-features', 'check-licence-boundary', 'clippy-ratchet', 'tsc-ratchet', 'count-tests', 'check-lock-versions']) {
+  for (const tool of tools) {
     const script = path.join(directory, `${tool}.mjs`);
     const help = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8', timeout: 15_000 });
     assert.ifError(help.error);

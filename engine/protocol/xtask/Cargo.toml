@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: 0BSD
+
+[package]
+name = "impluvium-protocol-xtask"
+version = "0.1.0"
+edition = "2024"
+license = "0BSD"
+publish = false
+description = "Explicit protocol generation and drift checking"

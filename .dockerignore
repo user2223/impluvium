@@ -27,6 +27,14 @@
 !desktop/src-tauri/*/Cargo.toml
 !desktop/src-tauri/src/
 !desktop/src-tauri/*/src/
+!engine/LICENSE
+!engine/protocol/NOTICE
+!engine/crates/protocol/Cargo.toml
+!engine/crates/protocol/src/
+!engine/crates/client/Cargo.toml
+!engine/crates/client/src/
+!engine/protocol/xtask/Cargo.toml
+!engine/protocol/xtask/src/
 
 # Never part of the context, wherever they are.
 **/target

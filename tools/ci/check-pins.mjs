@@ -5,11 +5,15 @@ import { dependencies, manifests } from './cargo.mjs';
 import { commands, executable, hasToolWord, withoutRedirections } from './shell.mjs';
 import { toml } from './toml.mjs';
 import { walkYaml, yaml } from './yaml.mjs';
+import { yamlData } from './pnpm-licences.mjs';
+import { toolContract } from './protocol-tools.mjs';
+import { windowsPins } from './protocol-contract.mjs';
+import { protocolWorkflowIssues } from './protocol-workflow.mjs';
 
 const requiredJobs = ['checks', 'rust', 'server', 'desktop-ui', 'server-image', 'client-linux'];
 const nonResolvingCargo = new Set(['fmt', '--version', '-V', 'help', 'version']);
 const toolPin = /^(?:[A-Z][A-Z_0-9]*_(?:VERSION|SHA256)|RUST_NIGHTLY|RUSTUP_TOOLCHAIN)$/;
-const workflowShells = new Set(['bash', 'sh', 'bash -e {0}', 'bash --noprofile --norc -eo pipefail {0}', 'sh -e {0}']);
+const workflowShells = new Set(['bash', 'sh', 'bash -e {0}', 'bash --noprofile --norc -eo pipefail {0}', 'bash --noprofile --norc -euo pipefail {0}', 'sh -e {0}']);
 const mountKeys = new Set(['type', 'from', 'source', 'src', 'target', 'dst', 'destination',
   'readonly', 'ro', 'readwrite', 'rw', 'id', 'sharing', 'required', 'mode', 'uid', 'gid', 'size', 'env']);
 const packageActions = {
@@ -264,10 +268,13 @@ function checkWorkflow(state, workflowFile) {
     const job = jobs[name];
     if (!job) { issues.push(problem(workflowFile, 1, `required job ${name} is missing`)); continue; }
     if (typeof job.value !== 'object' || Array.isArray(job.value)) throw new InputError(problem(workflowFile, job.line, 'expected job mapping'));
-    for (const key of ['if', 'name']) {
+    for (const key of ['if', 'name', ...(['checks', 'rust'].includes(name) ? ['needs'] : [])]) {
       if (job.value[key]) issues.push(problem(workflowFile, job.value[key].line, `${name}: required jobs cannot have job-level ${key}:`));
     }
     if (job.value.strategy?.value?.matrix) issues.push(problem(workflowFile, job.value.strategy.line, `${name}: required jobs cannot use a matrix`));
+    const container = job.value.container;
+    if (['checks', 'rust'].includes(name) && container?.value && typeof container.value === 'object' &&
+        Object.keys(container.value).some(key => key !== 'image')) issues.push(problem(workflowFile, container.line, `${name}: container must define only its pinned image`));
   }
   const centralEnv = workflow.value.env?.value ?? {};
   walkYaml(workflow, (node, keys) => {
@@ -577,6 +584,11 @@ export function check(options) {
   for (const file of workflows) checkWorkflow(state, file);
   checkDockerfile(state);
   checkPackages(state);
+  if (existsSync(path.join(root, 'engine/protocol/xtask/Cargo.toml'))) {
+    toolContract(root);
+    windowsPins(root);
+    state.issues.push(...protocolWorkflowIssues(yamlData(path.join(root, state.workflowFile))).map(message => problem(state.workflowFile, 1, message)));
+  }
   const { issues, rustImages, channels, dockerFile } = state;
   if (!rustImages.length) issues.push(problem(dockerFile, 1, 'no Rust image found'));
   for (const image of rustImages) {

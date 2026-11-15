@@ -1,7 +1,9 @@
 # CI checks
 
-These tools require Node 24 and use only its standard library. They read files;
-they never invoke Cargo, a compiler, a package manager, Git or a shell. Each
+These tools require Node 24 and use only its standard library. Checkers read
+files and never invoke Cargo, a compiler, a package manager, Git or a shell.
+The explicitly named capture and bootstrap helpers start tools in disposable
+containers and retain their evidence; they do not approve their own results. Each
 entry point accepts `--help`. Exit codes are 0 for success, 1 for a failed check,
 and 2 for invalid arguments, unreadable files or malformed/unsupported input.
 Diagnostics use `file:line: message`. Entry points also work through symlinked
@@ -28,7 +30,8 @@ for the self-tests. Repository walks skip `.git`, `node_modules`, `target`,
 node tools/ci/check-pins.mjs --root .
 node tools/ci/check-features.mjs --root . --previous-baseline /tmp/base-feature-gates.json
 cargo metadata --locked --all-features --format-version=1 > /tmp/metadata.json
-node tools/ci/check-licence-boundary.mjs --root . --metadata /tmp/metadata.json --allow-no-engine
+pnpm --filter "{./engine/protocol/ts}..." list --depth Infinity --json > /tmp/pnpm-graph.json
+node tools/ci/check-licence-boundary.mjs --root . --metadata /tmp/metadata.json --pnpm-graph /tmp/pnpm-graph.json --pnpm-lock pnpm-lock.yaml
 ```
 
 `check-pins` applies generic checks to every file under `.gitea/workflows/` and
@@ -197,7 +200,7 @@ manifest-only fallback. Generate it with
 `--all-features` and without `--no-deps` or a target filter so optional and
 platform dependency edges are available. Walks from every `engine/` package
 reject any reachable package inside the repository but outside `engine/`, any
-licence expression mentioning MPL, GPL, LGPL or AGPL, and any explicit
+licence expression that has no permitted alternative free of copyleft obligations, and any explicit
 `license_file` whose name or content indicates MPL. Conventional crate licence
 files and shared engine ancestor notices are
 also inspected. Registry crates, renamed workspace dependencies and `[patch]`
@@ -208,10 +211,7 @@ an incomplete graph are input errors. Empty metadata, empty workspace members,
 workspace manifests outside `--root`, and any on-disk engine package manifest
 missing from `metadata.packages` are input errors. A virtual `Cargo.toml` with
 `[workspace]` and no `[package]` needs no metadata package; a manifest with both
-tables does. Selecting no `engine/` packages is exit 2 unless `--allow-no-engine`
-is explicit. Until `engine/` exists in this repository, CI uses that flag as in
-the invocation above; remove it when adding the first engine package. It only
-permits an empty selection and never skips manifest coverage or licence checks.
+tables does. Selecting no `engine/` packages is always exit 2.
 Metadata must cover every engine workspace in one document (merge the packages, workspace members and
 resolved nodes of separate captures if necessary). The capture's workspace
 root may be `engine/`; `--root` must still name the repository root, at the
@@ -219,6 +219,485 @@ same filesystem location used during capture. The project's own material
 under `engine/` is 0BSD; third-party material listed in
 `engine/protocol/NOTICE` keeps its own license. Dependencies must remain
 permissively licensed throughout the dependency graph.
+
+The Cargo and pnpm adapters feed one boundary traversal. SPDX syntax is
+parsed before admission: `OR` needs a usable alternative, `AND` needs every
+term, parentheses preserve grouping and `WITH` binds an exception to one
+license. Cargo's deprecated `/` separator means `OR` with the same precedence;
+it never means `AND` or bypasses validation of either operand.
+Admission reads `deny.toml` rather than maintaining another allow
+list. The engine boundary still forbids MPL/GPL/LGPL/AGPL obligations even
+when the inherited workspace allows MPL. For example,
+`MIT OR Apache-2.0 OR LGPL-2.1-or-later` passes; LGPL alone or
+`MIT AND LGPL-2.1-or-later` fails. Missing, unknown or malformed expressions
+are input errors; known unapproved terms simply cannot satisfy an
+alternative. An expression without a permitted alternative is a boundary
+violation. MPL files remain forbidden independently of
+expression alternatives. No target filter is applied to this boundary.
+
+`spdx-license-ids.json` and `spdx-deprecated-ids.json` are unchanged identifier
+tables from `spdx-license-ids` 3.0.23 (CC0-1.0,
+https://github.com/jslicense/spdx-license-ids). Exception names were checked
+against `spdx-exceptions` 2.5.0 and the public SPDX exception vocabulary
+(https://spdx.org/licenses/exceptions-index.html). These lexical tables
+distinguish unknown names from valid but unapproved alternatives; they do
+not authorize any license. Admission still has exactly one source,
+`deny.toml`. No third-party parser implementation or license text is copied.
+
+The pnpm adapter requires the installed filesystem and root lock version 9.
+It enumerates engine workspace manifests separately, including empty roots,
+and matches each importer section, alias/link, installed manifest identity,
+snapshot and peer context. Missing installed files or graph/lock edges fail
+closed. npm installations under `node_modules` are external packages, while
+workspace links retain their repository boundary. The pnpm JSON license
+field alone is never used as evidence.
+
+## Protocol evidence and tools
+
+`protocol-tools.mjs --root DIR --work DIR --kind codegen|windows` prepares
+tools in a disposable container. Codegen pins and measured frozen locks
+come from the workflow and `codegen-tools.json`. Windows pins come only
+from `versions.env`. Archive verification precedes extraction or execution;
+tool-lock comparison precedes fetch and offline build. Failure-order tests
+exercise those operations without downloading or compiling tools.
+
+`capture-protocol-graph.mjs --root DIR --contract FILE --profile NAME
+--target TARGET --run build|test|clippy --source-sha SHA --source-receipt FILE --out DIR` starts
+the actual calls from the contract's four package/feature selections.
+Cross-builds additionally supply `--windows-tools DIR` containing the
+verified installation receipt. The output and target directory must be
+fresh. Capture sets and records `CC_ENABLE_DEBUG_OUTPUT=1` itself.
+
+Each completed output directory contains `invocation.json`, `metadata.json`,
+`packages.tree`, `graph.json`, `cargo.stdout`, `cargo.jsonl`, `build.log`,
+`tools.json` and `diagnostics.json`. The graph and invocation use
+schema version 2, with representation `package-features`; the policy encoding
+and workspace report use version 3. The package call is
+`cargo tree ... --no-dedupe --prefix none --edges normal,build --format '{p}|{f}'`;
+tests and Clippy additionally include `dev` edges. Package, feature and target
+arguments come from the same structured selection as the actual build.
+There is no feature-pseudonode tree or depth limit.
+
+Each normalized row contains an opaque package ID and its sorted active
+feature set. Exact repeats, including `(*)` display markers, collapse to one
+row; two feature sets for one package remain separate rows and are never
+unioned. Build dependencies and proc macros remain included. Metadata is an
+unfiltered identity catalogue, so Linux-host dependencies are available even
+for Windows builds. Neither metadata features nor metadata dependency edges
+are used to reconstruct profile resolution. Cargo artifacts must corroborate
+every observed package/feature row, and every artifact must match a row.
+Required runtime packages/features must also have target artifacts.
+
+This profile check does not reconstruct dependency aliases, individual edges,
+target conditions on edges, feature-activation paths, or a host/target label
+for every list row. Moving an existing edge without changing the package and
+feature sets is not detected. Build contexts still come from actual artifacts
+and compiler/linker records. The separate workspace check retains full
+versioned paths for inherited exceptions; the licence boundary retains its
+own graph traversal. Runtime TLS/trust routing requires its own tests.
+
+Child stdout streams
+directly to files with backpressure, a 2 GiB ceiling per file and a SHA-256;
+stderr is retained separately with a 16 MiB ceiling. Both capture and checker
+read the package list and hash evidence in bounded chunks. Normalization keeps
+only unique package/feature rows. Exceeding a limit fails rather than truncating
+evidence.
+
+`capture-status.json` records running, failed or complete status. Failures
+retain partial raw evidence for diagnosis; a candidate is written only after
+the actual Cargo run and tool attribution finish without diagnostics. List
+analysis never prevents the actual build and recorders from running. Independent
+package-row, Cargo-stream, command-display and recorder-JSON errors accumulate
+in `diagnostics.json`, with the raw filename, line numbers, text and reason.
+Identical failures retain all their source lines. Failed prerequisites that
+would make tool execution unsafe still stop before execution. The checker
+rejects an incomplete capture or nonempty diagnostics. Retry with a fresh results directory, retaining the failed
+one separately; never reuse or approve its partial files.
+
+The capture preserves separate stdout/stderr, including C commands emitted
+on Cargo stdout before `build-finished`, and derives a separate
+`tests.txt` with paired suite headers for the existing test counter.
+Multiline Cargo command displays and shell-escaped punctuation are parsed
+as data, never evaluated. Expected failed compiler capability probes are
+retained; only successful compile/archive calls establish a C build.
+`record-linker.mjs` is copied into the results directory with a per-run
+configuration. Cargo's linker setting points to that launcher, which
+delegates to the previously resolved compiler driver and records the actual
+arguments, directory, status and executable in `linker.jsonl`. Both source
+and delegation are checked. `record-compiler.mjs` similarly records actual
+C/C++ compiler and archiver invocations in `compiler.jsonl`, including their
+real working directory and originating Cargo package. The original target-
+selecting invocation path and the resolved binary path are both retained.
+Delegation never replaces a prefixed llvm-mingw driver with an unprefixed
+Clang invocation. Rust command displays do not prove a working directory:
+their `cwd` stays null, with the parent Cargo working directory recorded
+separately. `CARGO_MANIFEST_DIR` is not treated as a working-directory
+observation. Launcher calls remain in the unabridged build-script
+output with `CC_ENABLE_DEBUG_OUTPUT=1`; the checker correlates them with the
+actual delegated commands. Missing compile/archive calls for built
+C code and foreign tool paths fail, while unused tools are explicit.
+Product capture rejects protocol generators and `protoc` on PATH. Compiler
+recorders read Cargo's `OUT_DIR` only to attribute C build context; protocol
+generation still uses checked-in sources and never reads it.
+
+Linker context records the Cargo-selected delegation, never a substring in
+an output path. Cross builds select separate host and target launchers;
+their configured roles, launcher paths and actual drivers must agree.
+For native Linux, host and target share the same verified driver and Cargo
+linker setting, recorded as the target delegation. This field does not
+distinguish native host compilation units from native target units.
+Custom build programs are accepted only by their exact Cargo artifact
+filename, package ID and matching metadata `custom-build` target; their
+names need not be `build-script-build`.
+
+`check-protocol-graph.mjs --root DIR --contract FILE --source-sha SHA --input DIR` only reads
+evidence. It replays normalization, checks raw hashes, selections, locks,
+artifacts and effective environment. Each observed name/version/source/feature-set
+row must belong to the reviewed permission set for that profile, target and run;
+extra reviewed rows need not be observed. A changed feature set needs its own
+permission row, not a union with another row. Windows additionally needs the shared archive pin,
+verified tool bytes and actual target/static-CRT evidence. Engine product
+roots never receive legacy exceptions.
+
+`permission-candidate.json` is a capture result for review, not an automatic
+update. `protocol-graph.json.permissions` is populated only from reviewed captures; every missing or
+incomplete entry fails. Review each Linux build/test/Clippy selection and
+each Windows build selection against the manifests and provider rules
+before adding the corresponding candidate. Compression, system proxy,
+hyper-rustls trust-source features, native TLS and a second provider remain
+forbidden even if someone adds them to a permission entry. In particular,
+rustls-native-certs is not banned as a package when the client uses the
+platform verifier; the flat list does not prove its incoming edges.
+
+`capture-protocol-workspace.mjs --root DIR --source-sha SHA --base-sha SHA
+--contract FILE --source-receipt FILE --out DIR` separately captures complete all-feature workspace metadata for
+all targets conservatively and enumerates every inherited forbidden path. First run it
+on the actual public base export, review `legacy-candidate.json` and freeze its
+SHA and exact exceptions in `protocol-graph.json.legacy`. Each exception
+includes the root, full versioned path, target, edges and removal owner.
+The current workspace is compared using `check-protocol-graph.mjs
+--root DIR --contract FILE --source-sha SHA --workspace DIR/workspace.json`. Empty pending
+legacy data fails; current observations never authorize their own paths.
+Only a capture whose source SHA equals the supplied base SHA emits
+`legacy-candidate.json`. A current capture emits `workspace.json` with both
+SHAs for comparison, without proposing baseline exceptions.
+
+The matrix driver uses the fixed four-profile selection, verifies each complete
+capture, applies its separate test or Clippy ratchet, then deletes only that
+selection's target tree. It retains raw evidence and processes all 16 selections
+even when some fail; any failure makes the driver exit nonzero:
+
+```sh
+node tools/ci/protocol-matrix.mjs --root /work/repo \
+  --contract /work/repo/tools/ci/protocol-graph.json --source-sha "$SOURCE_SHA" \
+  --source-receipt /work/source.json --windows-tools /work/llvm-mingw \
+  --out /work/results/profiles --previous-baselines /work/previous-baselines \
+  --previous-comparison /work/comparison/source.json \
+  --previous-source-receipt /work/base-source.json
+```
+
+An explicitly supplied comparison directory must exist and be readable. The
+existing `protocol-base.mjs` comparison record binds its event base to the
+current source SHA. Each copied baseline must match the base source receipt's
+Git blob and SHA-256. A missing copy fails whenever that path is in the attested
+catalogue; only its proven absence permits a first run without that baseline.
+An explicit no-comparison event retains its recorded reason and cannot reuse
+stale baseline copies. CI prepares this evidence in the required baseline step.
+For source exports without Git, reuse the same comparison record format and
+the base receipt produced with `--commit-object`; the matrix needs no Git.
+
+The workflow checker binds each required step to its job, execution conditions,
+environment, container definition, triggers, shell, order and exact run text.
+Only line endings and surrounding whitespace are normalized. Matrix control
+flow is tested in the driver, not inferred from
+shell fragments. For contract updates, use the attestation and rebuild procedure
+below; all product builds need a generator-free PATH.
+
+The contract fixes required steps, environments, triggers and job dependencies.
+Additional steps remain trusted code: the contract does not isolate their
+effects on tools and the working tree. Workflow changes therefore require
+review of any replacement or modification of Git, generators and checkers.
+
+The required drift block first reads the event commit's Git objects and verifies
+the working source bytes with `export-protocol-source.mjs`, then invokes
+`check-drift`. This comparison ignores index flags and also rejects untracked
+outputs, including ignored files. The existing exact exceptions cover the
+checkout-local Cargo and filtered pnpm outputs; generated protocol trees remain
+fully checked. This CI block requires Git. In a source export without Git,
+verify the original source receipt immediately before `check-drift` with
+`verifySource(root, receipt, expectedCommit)` from `protocol-source.mjs` instead;
+it also rejects changed tracked bytes and extra files in generated trees.
+
+### Feature closure of the pinned dependencies
+
+The following table documents the reviewed feature closure of the pinned
+manifests, not an authorization to reuse stale captures. The versioned
+contract must be regenerated when source, evidence or resolution rules change.
+
+The following sets apply to both targets and all three Linux runs unless
+explicitly qualified. A dash means absent, and `[]` means an empty feature set.
+Windows has build captures only. Version numbers match `Cargo.lock`;
+`buffa`, `buffa-types` and `connectrpc` also match `locked-versions.json`.
+
+| Package | Version | Core | Server | Client | Combined |
+|---|---|---|---|---|---|
+| buffa | 0.9.2 | `json,std,text` | `fast-utf8,json,std,text` | `fast-utf8,json,std,text` | `fast-utf8,json,std,text` |
+| buffa-types | 0.9.2 | `json,std` | `json,std` | `json,std` | `json,std` |
+| sha2 | 0.11.1 | `[]` | `[]` | `[]` | `[]` |
+| blake3 | 1.8.7 | `std` | `std` | `std` | `std` |
+| connectrpc | 0.9.1 | — | `axum,json` | `client,json` | `axum,client,json` |
+| hyper-rustls | 0.27.10 | — | — | `aws-lc-rs,http1,http2,tls12` | `aws-lc-rs,http1,http2,tls12` |
+| reqwest | 0.13.5 | — | — | `__rustls,__rustls-aws-lc-rs,__tls,http2,json,rustls,stream` | `__rustls,__rustls-aws-lc-rs,__tls,http2,json,rustls,stream` |
+| rustls | 0.23.46 | — | — | `aws-lc-rs,aws_lc_rs,std,tls12` | `aws-lc-rs,aws_lc_rs,std,tls12` |
+| aws-lc-rs | 1.19.0 | — | — | `aws-lc-sys,prebuilt-nasm` | `aws-lc-sys,prebuilt-nasm` |
+| aws-lc-sys | 0.47.0 | — | — | `prebuilt-nasm` | `prebuilt-nasm` |
+| hyper-util | 0.1.21 | — | — | `client,client-legacy,client-proxy,default,http1,http2,tokio` | `client,client-legacy,client-proxy,default,http1,http2,tokio` |
+| rustls-platform-verifier | 0.7.1 | — | — | `[]` | `[]` |
+| hyper | 1.12.0 | — | `default,http2` | `client,default,http1,http2` | `client,default,http1,http2` |
+| tokio | 1.54.1 | — | `bytes,default,io-util,macros,rt,sync,time,tokio-macros` | `bytes,default,fs,io-util,libc,macros,mio,net,rt,socket2,sync,time,tokio-macros` | `bytes,default,fs,io-util,libc,macros,mio,net,rt,socket2,sync,time,tokio-macros` |
+| tokio-rustls | 0.26.6 | — | — | `aws-lc-rs,aws_lc_rs,tls12` | `aws-lc-rs,aws_lc_rs,tls12` |
+| rustls-webpki | 0.103.16 | — | — | `alloc,aws-lc-rs,std` | `alloc,aws-lc-rs,std` |
+
+For Windows, client and combined add `tokio/windows-sys` to the Tokio set
+above. Their Linux-only `rustls-native-certs 0.8.5` and
+`openssl-probe 0.2.2` (both with no features) are replaced by
+`windows-link 0.2.1` and `windows-sys 0.61.2`. The latter carries the Windows
+API feature closure for Tokio and the platform verifier, recorded exactly
+in the permission rows. Server has `libc 0.2.191/default,std` on Linux only.
+Core sets are identical across targets; all Linux run sets are identical
+within their profile.
+
+The resolved sets contain these additions to the explicitly requested
+manifest features, which were reviewed rather than silently discarded:
+
+- `buffa/text` is required by `buffa-types 0.9.2`;
+  `buffa/fast-utf8` is required by `connectrpc 0.9.1` when present.
+- `reqwest/__rustls,__rustls-aws-lc-rs,__tls` are the pinned crate's
+  `rustls` feature closure. Thus its resolved set has seven features rather
+  than just the four requested public features. No unrelated public feature
+  was added. `rustls/aws_lc_rs` is the pinned crate's alias behind
+  `aws-lc-rs`, not an additional provider. `hyper-rustls` has exactly the
+  requested four features without additions.
+- The resulting `aws-lc-rs/aws-lc-sys,prebuilt-nasm` and
+  `aws-lc-sys/prebuilt-nasm` are forwarded by rustls' provider feature.
+  They introduce no FIPS or bindgen profile. Resolved CMake dependencies
+  do not establish an actual CMake invocation; actual tool evidence remains
+  mandatory independently of permissions.
+- `hyper-util/client,client-proxy,default` extend its direct selection through
+  reqwest and feature forwarding. `client-proxy` supports explicit proxies;
+  `reqwest/system-proxy` would enable `client-proxy-system`, which is absent.
+  The pinned Hyper, hyper-util and Tokio `default` features are empty.
+  Hyper and Tokio have no separately enumerated exact feature limit in
+  this contract's product selection; their observed closures are frozen
+  above and in the permission rows. No `full` feature is enabled.
+- Linux certificate discovery comes from the pinned platform verifier.
+  `openssl-probe` is not the forbidden `openssl` or `openssl-sys` TLS stack;
+  hyper-rustls has no native-certificate or bundled-root feature enabled.
+
+These explanations refer to the named versions' published Cargo manifests
+(`[features]` and the corresponding dependency declarations). They approve
+only the exact observed rows, not future aliases or extra features.
+The package scaffold does not yet implement the later runtime `no_proxy`
+requirement or HTTP/TLS policy; package permissions do not claim that behavior.
+
+### Source attestations and complete workspace coverage
+
+Create source receipts independently from Git objects before any capture:
+
+```sh
+node tools/ci/export-protocol-source.mjs --repository CHECKOUT --commit SOURCE_SHA \
+  --receipt /work/source.json
+node tools/ci/export-protocol-source.mjs --repository CHECKOUT --commit PUBLIC_BASE_SHA \
+  --out /work/base --receipt /work/base-source.json
+```
+
+The first form verifies the checkout; the second creates a fresh export.
+Both read the commit object and its complete tracked file catalogue directly
+from Git. CI uses this form.
+
+For source exports without a Git repository, supply `--commit-object FILE`.
+Here `--repository DIR` names the untouched source export. The file must contain
+the raw commit payload emitted by `git cat-file commit SHA`, and must be kept
+outside the export, along with receipts and output directories:
+
+```sh
+node tools/ci/export-protocol-source.mjs --repository /work/source --commit "$SOURCE_SHA" \
+  --commit-object /work/commit.raw --out /work/build --receipt /work/source.json
+node tools/ci/export-protocol-source.mjs --repository /work/base-input --commit "$BASE_SHA" \
+  --commit-object /work/base-commit.raw --out /work/base --receipt /work/base-source.json
+```
+
+This form reads **every file** before installation or building, with no
+exclusions for build outputs, installed dependencies or hidden files. It
+rejects symlinks and special files. Empty directories are ignored because
+Git does not record them. Only the owner's executable bit selects mode
+`100644` or `100755`; archive permission differences such as `0664` versus
+`0644`, or `0775` versus `0755`, do not change the catalogue.
+The reconstructed tree must match the tree in the supplied commit object,
+and the SHA-1 of that Git commit object must match the full requested commit ID.
+Both forms produce byte-identical receipts for the same source commit.
+Keep the original export pristine; install dependencies and build in the
+fresh `/work/build` copy, using the same receipt for its subsequent capture.
+
+Receipts include blob IDs, SHA-256 hashes and file modes. Capture
+and checker reconstruct the Git tree, verify the commit object ID and compare
+all repository source bytes, even without `.git`. Missing, changed or extra
+source inputs fail. Extra-file discovery exempts only the exact root-relative
+output directories `target`, `desktop/src-tauri/target`, `node_modules`,
+`engine/protocol/ts/node_modules`, `engine/protocol/ts/dist`, and
+`torrential/src/proto`, plus the root Git administration entry. Every tracked
+file remains mandatory. These paths cover Cargo output, the filtered pnpm
+installation, the TS build and the inherited protocol build script. Identical
+names below Rust source or test directories are never exceptions. Engine generated
+sources are tracked inputs and are never exempted. Receipts and results
+must be outside source exports. No capture
+may generate its own receipt from the current directory and merely label it
+with a caller-supplied SHA.
+
+Pass `--source-receipt /work/source.json` to each product capture. Its source
+proof is embedded in `invocation.json` and replayed by the read-only checker.
+Both checker modes require an independently supplied `--source-sha SHA`;
+a receipt for another commit fails even if its tree is identical.
+Pass `--contract FILE --source-receipt FILE` to workspace capture too.
+Workspace scope is `all-targets-conservative`: one **unfiltered**
+`cargo metadata --locked --offline --all-features --format-version=1`
+retains every resolved edge and its target condition. Conditions are data,
+not evaluated on the build host. In particular an outer Windows build edge
+and an inner Unix host edge remain one complete path. These conservative
+paths have target `all`; they are not claims that every such path executes
+on every platform. Older platform-filtered exceptions are invalid.
+
+Engine manifests are inventoried from the complete attested file catalogue.
+The licence boundary also inventories all real Engine directories without
+name-based exclusions. An independent workspace cannot evade coverage under
+a directory named `target` or `dist`.
+Every local Engine package is classified by exact manifest path in
+`enginePackages`. Products must be selected by a reviewed profile. The only
+separate tool classification is `impluvium-protocol-xtask`. Unknown Engine
+packages fail instead of silently inheriting the workspace's legacy exception.
+Every selected product root also needs a matching **target** artifact,
+including roots with no enabled features.
+
+Local inherited workspace packages also freeze their **declared** dependency
+requirements: package name, alias, kind, target condition, optionality, defaults
+and requested features. Their entire local feature tables are frozen too, so
+indirect activation through a new default or local feature cannot bypass the
+ratchet. This deliberately covers all inherited declarations, avoiding another
+reachability classification. Engine packages use the profile rules instead.
+Removing requests or restricting features, defaults and optionality is allowed;
+new declarations, conditions or broader requests fail with the affected root
+and declaration. Review the change and independently recapture the selected
+public base before updating its requirements. Workspace-wide feature unification
+cannot conceal these changes. The unfiltered full-path check still applies.
+
+### Rebuilding the compact contract
+
+The contract starts in a deliberately incomplete state after an evidence
+format change; empty permissions and null legacy data fail closed. A null
+`legacy.requirements` specifically requires new base/current workspace captures;
+it does not invalidate unchanged product permission sets. Capture
+all 16 profile/target/run combinations with source receipts, then capture
+the actual **publicly reachable comparison base** and the current source
+with the conservative workspace mode. Use the full base commit ID for both
+SHA options in its base capture; the current capture uses that same base ID.
+The baseline identifies a publicly reachable commit, not only a tree.
+If the base is not yet published or merged, keep the baseline pending.
+
+After reviewing the complete candidates and the new path set, write a fresh
+review candidate deterministically:
+
+```sh
+node tools/ci/write-protocol-contract.mjs --root /work/repo \
+  --contract /work/repo/tools/ci/protocol-graph.json --captures /work/results/profiles \
+  --source-sha "$SOURCE_SHA" --base-sha "$BASE_SHA" \
+  --base /work/base-results/workspace.json --current /work/current-results/workspace.json \
+  --out /work/protocol-graph.review.json
+```
+
+The capture directory layout is `PROFILE/TARGET/RUN`. Keep exports, source
+receipts, raw metadata and the verified tool installation until validation
+finishes. The writer validates every complete capture and both workspace
+reports, rejects forbidden features independently of permissions and writes
+only the fresh review file. Copy it into the repository only after review,
+then capture and check the final source again. After a rebase, capture the
+new public base independently; compare full paths before updating its commit
+ID and baseline. Never authorize changed paths merely by relabelling a SHA.
+
+Encoding version 3 interns package identities, complete package/feature tuples
+and identical permission sets. Declared requirement payloads are interned and
+referenced by root; their expansion preserves complete declarations and local
+feature entries. Legacy paths use parent-indexed prefix nodes
+with explicit terminal records. Expanding a terminal reconstructs exactly
+one complete versioned path with all edge aliases, kinds and conditions;
+it cannot recombine allowed edges into new paths. A missing reference or a
+cycle fails. Captures still emit ordinary readable candidate objects.
+No host paths, timestamps, tool output or source receipts enter the public
+contract.
+
+Windows preparation inventories the archive's executable and loadable-library
+trees, including alias links, `clang-target-wrapper.sh`, `clang -> clang-23`
+and `ld.lld -> lld`. Capture and checker verify that inventory, wrapper bytes,
+inner binaries and the centrally pinned Clang version. Ambient compiler cache,
+search-path and loader overrides are rejected. The recorder proves the
+selected driver invocation; inventory verification binds its inner tools.
+
+### Offline feature counterexamples
+
+Five separate copies exercise actual Cargo resolution, complete capture,
+artifact/tool validation and policy rejection. They add exactly these features
+while retaining the existing default-feature and provider choices:
+
+| Case | Manifest | Dependency feature added | Profile | Required rejection |
+|---|---|---|---|---|
+| gzip | engine/crates/protocol/Cargo.toml | connectrpc/gzip | server | forbidden feature connectrpc/gzip |
+| zstd | engine/crates/protocol/Cargo.toml | connectrpc/zstd | server | forbidden feature connectrpc/zstd |
+| system-proxy | engine/crates/client/Cargo.toml | reqwest/system-proxy | client | forbidden feature reqwest/system-proxy |
+| native-tls | engine/crates/client/Cargo.toml | reqwest/native-tls | client | forbidden package native-tls |
+| ring | engine/crates/client/Cargo.toml | rustls/ring, keeping aws-lc-rs | client | forbidden feature rustls/ring |
+
+The mandatory Rust job fetches only the product lock with `cargo fetch --locked`.
+Each counterexample starts from a separate attested source copy and adds its
+named manifest feature. Cargo derives its lock with
+`cargo metadata --offline --format-version=1`, once without `--locked`.
+The result must retain **exactly** the product lock's package set: every name,
+version, source and checksum. Only dependency edges may change; other lock
+data must also remain unchanged. A difference fails with
+`a reviewed prepared lock is required for this change`; no fallback is run.
+No separate negative locks are checked in or fetched. The native-TLS and zstd
+build prerequisites come from the Rust bootstrap.
+
+After this comparison, all capture and build commands use `--locked --offline`.
+The exporter proves the original Git contents plus exactly the named manifest
+edit and a package-preserving derived lock. Its receipt binds the original
+product lock to Git and freezes the derived bytes by SHA-256; capture and
+checker repeat both the source and lock-data validation. Even a byte-identical
+lock is valid: `system-proxy` and `ring` are rejected from the resolved feature
+sets, corroborated by actual Cargo artifacts, rather than from lock changes.
+Ordinary captures reject these explicit mutation receipts. Negative captures
+cannot create baseline exceptions or populate product permissions. A failed
+resolution, missing crate, failed build or generic incomplete-capture error
+**does not count** as a successful counterexample. Every capture must complete
+and its checker must report the exact structured diagnostic code and package/
+feature fields above. File paths and human-readable messages are not matching
+inputs. All five prescribed case names and five completed rejections are required.
+The suite retains `results.json`, each `rejection.json`, receipts and raw
+capture evidence. It deletes only a successfully evaluated Target tree.
+
+For an untouched source export without Git, check accepts the same
+`--commit-object` option. Keep the original export pristine; the cases modify
+only their newly created copies:
+
+```sh
+node tools/ci/protocol-negative.mjs --mode check --repository /work/source \
+  --commit "$SOURCE_SHA" --commit-object /work/commit.raw \
+  --contract /work/source/tools/ci/protocol-graph.json --out /work/negative-results
+```
+
+The six `protocol-tests-*.json` files contain measured container results.
+Existing counters reject `null` placeholders if a new baseline is needed.
+Clippy budgets for new crates are zero by policy. Keep one complete stream and baseline per
+selection, with actual previous baselines from the event base. Initial
+placeholder replacement is not permission to relax a previous baseline.
 
 Both diagnostic ratchets use a nonempty package-name-to-count baseline:
 

@@ -1,6 +1,9 @@
 {
   "version": 1,
   "packages": {
+    "impluvium-protocol": 0,
+    "impluvium-client": 0,
+    "impluvium-protocol-xtask": 0,
     "torrential": 470,
     "droplet-rs": 0,
     "droplet_types": 0,

@@ -1,11 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { invoke, replace, repository, temporary } from './helpers.mjs';
 
 function graph(t, transform = () => {}) {
   const root = repository(t);
+  cpSync(new URL('../../../deny.toml', import.meta.url), path.join(root, 'deny.toml'));
+  mkdirSync(path.join(root, 'engine/npm'), { recursive: true });
+  writeFileSync(path.join(root, 'engine/npm/package.json'), JSON.stringify({ name: 'types', version: '1.0.0', license: '0BSD' }));
+  writeFileSync(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - engine/npm\n');
+  writeFileSync(path.join(root, 'pnpm-lock.yaml'), "lockfileVersion: '9.0'\nimporters:\n  engine/npm: {}\npackages: {}\nsnapshots: {}\n");
+  writeFileSync(path.join(root, 'pnpm-graph.json'), JSON.stringify([{ name: 'types', version: '1.0.0', path: path.join(root, 'engine/npm') }]));
   const packages = [
     ['core', 'engine/core', 'Apache-2.0'],
     ['shared', 'engine/shared', 'MIT'],
@@ -27,17 +33,29 @@ function graph(t, transform = () => {}) {
   transform(data, root);
   const metadata = path.join(root, 'metadata.json');
   writeFileSync(metadata, JSON.stringify(data));
-  return ['--root', root, '--metadata', metadata];
+  return ['--root', root, '--metadata', metadata, '--pnpm-graph', path.join(root, 'pnpm-graph.json'), '--pnpm-lock', path.join(root, 'pnpm-lock.yaml')];
 }
 
 test('licence boundary: unreachable MPL packages are allowed in resolved metadata', t => {
   invoke('check-licence-boundary', graph(t), 0);
 });
 
+for (const license of ['MIT/Apache-2.0', 'MIT OR Apache-2.0 OR LGPL-2.1-or-later', 'MIT OR MPL-2.0']) {
+  test(`licence boundary: usable permissive alternative in ${license}`, t => {
+    invoke('check-licence-boundary', graph(t, data => { data.packages[3].license = license; }), 0);
+  });
+}
+
+for (const license of [null, 'MIT OR Unknown-License', 'MIT AND', '(MIT']) {
+  test(`licence boundary: missing or invalid expression ${license} fails closed`, t => {
+    invoke('check-licence-boundary', graph(t, data => { data.packages[3].license = license; }), 2);
+  });
+}
+
 for (const index of [0, 1, 3]) test(`licence boundary: reachable MPL expressions fail at graph package ${index}`, t => {
-  for (const license of ['MPL-2.0', 'MIT OR MPL-2.0', '(MPL-2.0 AND Apache-2.0)']) {
+  for (const license of ['MPL-2.0', '(MPL-2.0 AND Apache-2.0)']) {
     const args = graph(t, data => { data.packages[index].license = license; });
-    assert.match(invoke('check-licence-boundary', args, 1).stderr, /MPL-licensed crate/);
+    assert.match(invoke('check-licence-boundary', args, 1).stderr, /not permitted/);
   }
 });
 
@@ -104,6 +122,20 @@ test('licence boundary: every engine manifest on disk must appear in metadata', 
   });
   assert.match(invoke('check-licence-boundary', args, 2).stderr, /engine\/missing\/Cargo.toml:1: engine manifest missing/);
 });
+for (const name of ['target', 'dist', 'node_modules']) test(`licence boundary: ${name} cannot hide an independent engine workspace`, t => {
+  const args = graph(t, (data, root) => {
+    const directory = path.join(root, 'engine', name, 'extra'); mkdirSync(directory, { recursive: true });
+    writeFileSync(path.join(directory, 'Cargo.toml'), '[workspace]\n[package]\nname = "extra"\nversion = "0.1.0"\n[dependencies]\nring = "0.17"\n');
+  });
+  assert.match(invoke('check-licence-boundary', args, 2).stderr, /engine manifest missing from metadata/);
+});
+test('licence boundary: a Node manifest under target cannot escape importer coverage', t => {
+  const args = graph(t, (data, root) => {
+    const directory = path.join(root, 'engine/target/extra'); mkdirSync(directory, { recursive: true });
+    writeFileSync(path.join(directory, 'package.json'), '{"name":"extra","version":"1.0.0","license":"AGPL-3.0-only"}');
+  });
+  assert.match(invoke('check-licence-boundary', args, 2).stderr, /engine package is not a workspace member/);
+});
 
 test('licence boundary: metadata without engine packages cannot skip engine manifests', t => {
   const args = graph(t, data => {
@@ -130,13 +162,13 @@ test('licence boundary: inherited copyleft paths outside the server tree are for
   });
   const result = invoke('check-licence-boundary', args, 1);
   assert.match(result.stderr, /crosses outside engine/);
-  assert.match(result.stderr, /AGPL-licensed crate/);
+  assert.match(result.stderr, /not permitted/);
 });
 
-for (const license of ['GPL-3.0-only', 'LGPL-2.1-or-later', 'AGPL-3.0-only', 'MIT OR MPL-2.0']) {
+for (const license of ['GPL-3.0-only', 'LGPL-2.1-or-later', 'AGPL-3.0-only', 'MIT AND MPL-2.0']) {
   test(`licence boundary: reachable registry expression ${license} is forbidden`, t => {
     const args = graph(t, data => { data.packages[3].license = license; });
-    assert.match(invoke('check-licence-boundary', args, 1).stderr, /licensed crate is reachable/);
+    assert.match(invoke('check-licence-boundary', args, 1).stderr, /not permitted/);
   });
 }
 
@@ -169,7 +201,7 @@ test('licence boundary: a standalone engine root cannot select an empty traversa
   assert.match(invoke('check-licence-boundary', args, 2).stderr, /no engine\/ packages selected/);
 });
 
-test('licence boundary: no engine packages requires an explicit allow-no-engine flag', t => {
+test('licence boundary: no engine packages always fails', t => {
   const args = graph(t, (data, root) => {
     rmSync(path.join(root, 'engine'), { recursive: true });
     data.packages = data.packages.filter(pkg => pkg.id === 'service');
@@ -177,18 +209,18 @@ test('licence boundary: no engine packages requires an explicit allow-no-engine 
     data.resolve.nodes = [{ id: 'service', dependencies: [] }];
   });
   assert.match(invoke('check-licence-boundary', args, 2).stderr, /no engine\/ packages selected/);
-  invoke('check-licence-boundary', [...args, '--allow-no-engine'], 0);
+  invoke('check-licence-boundary', [...args, '--allow-no-engine'], 2);
 });
 
-test('licence boundary: allow-no-engine does not skip coverage or reachable licence violations', t => {
+test('licence boundary: removed empty-engine option is rejected', t => {
   const incomplete = graph(t, data => {
     data.packages = data.packages.filter(pkg => pkg.id === 'service');
     data.workspace_members = ['service'];
     data.resolve.nodes = [{ id: 'service', dependencies: [] }];
   });
-  assert.match(invoke('check-licence-boundary', [...incomplete, '--allow-no-engine'], 2).stderr, /engine manifest missing from metadata/);
+  assert.match(invoke('check-licence-boundary', [...incomplete, '--allow-no-engine'], 2).stderr, /Unknown option/);
   const forbidden = graph(t, data => { data.packages[0].license = 'MPL-2.0'; });
-  assert.match(invoke('check-licence-boundary', [...forbidden, '--allow-no-engine'], 1).stderr, /MPL-licensed crate/);
+  assert.match(invoke('check-licence-boundary', [...forbidden, '--allow-no-engine'], 2).stderr, /Unknown option/);
 });
 
 test('licence boundary: virtual engine workspace manifests need no metadata package', t => {

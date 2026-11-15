@@ -28,6 +28,10 @@ concurrency:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
 env:
   # Pinned build inputs: actions by commit SHA, job images by digest, tools by version and checksum.
   # Every pin has exactly one place (tools/ci/check-pins.mjs checks this). The server image's base images are
@@ -40,6 +44,14 @@ env:
   BUILDKIT_SHA256: a59539daf547fe0958efe2d07e41c0a6944e1112a66d7e519ec1cf5b673ef15b
   CARGO_DENY_VERSION: 0.20.2
   CARGO_DENY_SHA256: 9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f
+  BUF_VERSION: 1.75.0
+  BUF_SHA256: fad1e38d6909bbb583a4da81d8c02a01046e2cd663bde7e337dd24277393764b
+  PROTOC_GEN_BUFFA_VERSION: 0.9.2
+  PROTOC_GEN_BUFFA_SHA256: ad0eef58b1f62b0813c1bf028cf1c68a60fd3d250059218b2d6f2683d9139367
+  PROTOC_GEN_BUFFA_PACKAGING_VERSION: 0.9.2
+  PROTOC_GEN_BUFFA_PACKAGING_SHA256: 4fb7570694ccde8570c6f8d7a07ffdf485dca7f498a8775c7aa51240a97aabd9
+  CONNECTRPC_CODEGEN_VERSION: 0.9.0
+  CONNECTRPC_CODEGEN_SHA256: 514a7a6fbe705d532ddf490c221db7bd52c5b94fd691cb257a7c18e5646355bb
 
 jobs:
   checks:
@@ -49,7 +61,8 @@ jobs:
     steps:
       - name: Bootstrap (Node 24 for actions and the checks in tools/ci)
         run: |
-          dnf -y install --setopt=install_weak_deps=False nodejs24 nodejs24-bin git curl
+          dnf -y install --setopt=install_weak_deps=False \
+            nodejs24 nodejs24-bin nodejs24-npm-bin git curl gcc gcc-c++ make pkgconf-pkg-config perl tar xz ca-certificates
           node --version
           node --version | grep -q '^v24\.'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -86,6 +99,12 @@ jobs:
           fi
           git fetch --no-tags --depth=1 origin "$base"
           git show "$base:.gitea/workflows/ci.yml" > "$RUNNER_TEMP/base/ci.yml"
+          if git cat-file -e "$base:tools/ci/protocol-tests-xtask-codegen.json" 2>/dev/null; then
+            git show "$base:tools/ci/protocol-tests-xtask-codegen.json" > "$RUNNER_TEMP/base/protocol-tests-xtask-codegen.json"
+          elif grep -q 'tools/ci/protocol-tests-xtask-codegen.json' "$RUNNER_TEMP/base/ci.yml"; then
+            echo 'The base uses a missing protocol codegen baseline'
+            exit 1
+          fi
           if git cat-file -e "$base:tools/ci/feature-gates.json" 2>/dev/null; then
             git show "$base:tools/ci/feature-gates.json" > "$RUNNER_TEMP/base/feature-gates.json"
             echo "tools/ci/feature-gates.json: compared with $base"
@@ -171,17 +190,88 @@ jobs:
             "https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/$archive.tar.gz"
           echo "${CARGO_DENY_SHA256}  $RUNNER_TEMP/$archive.tar.gz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
-          install -m 0755 "$RUNNER_TEMP/$archive/cargo-deny" "$HOME/.cargo/bin/cargo-deny"
-      - name: Licence boundary (engine/ stays permissive; there is no engine/ yet)
+          mkdir -p /work/tools/bin
+          install -m 0755 "$RUNNER_TEMP/$archive/cargo-deny" /work/tools/bin/cargo-deny
+          echo /work/tools/bin >> "$GITHUB_PATH"
+      - name: Protocol TypeScript dependencies (root lock and directory filter)
+        run: |
+          npm install -g "corepack@${COREPACK_VERSION}"
+          corepack enable
+          pnpm --version
+          test -f engine/protocol/ts/package.json
+          pnpm install --frozen-lockfile --ignore-scripts --filter "{./engine/protocol/ts}..." --fail-if-no-match
+      - name: Verified local protocol generators
+        run: |
+          node tools/ci/protocol-tools.mjs --root . --work /work --kind codegen
+          echo "$GITHUB_WORKSPACE/engine/protocol/ts/node_modules/.bin" >> "$GITHUB_PATH"
+          export PATH="/work/tools/bin:$GITHUB_WORKSPACE/engine/protocol/ts/node_modules/.bin:$PATH"
+          for tool in buf protoc-gen-buffa protoc-gen-buffa-packaging protoc-gen-connect-rust protoc-gen-es cargo-deny; do
+            command -v "$tool"
+          done
+          cargo fetch --locked
+      - name: Protocol schema lint
+        working-directory: engine/protocol
+        run: buf lint
+      - name: Protocol comparison base (actual event commit)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          node tools/ci/protocol-base.mjs --root . --event "$EVENT_NAME" --ref "$GITHUB_REF" \
+            --current-sha "$GITHUB_SHA" --pr-base "$PR_BASE_SHA" --before "$PUSH_BEFORE" --out /work/comparison
+      - name: Protocol breaking comparison (report before wire freeze)
+        run: |
+          node tools/ci/check-protocol-breaking.mjs --mode report --current "$GITHUB_WORKSPACE/engine/protocol" \
+            --base /work/comparison/base/engine/protocol --source /work/comparison/source.json --out /work/results/breaking-base
+      - name: Protocol breaking mechanism (field deletion must be detected)
+        run: |
+          node tools/ci/check-protocol-breaking.mjs --mode selftest --current "$GITHUB_WORKSPACE/engine/protocol" \
+            --out /work/results/breaking-selftest
+      - name: Protocol drift (compare unchanged checked-in outputs)
+        run: |
+          node tools/ci/export-protocol-source.mjs --repository . --commit "$GITHUB_SHA" --receipt "$RUNNER_TEMP/protocol-drift-source.json"
+          cargo run --locked --offline -p impluvium-protocol-xtask -- check-drift
+      - name: Protocol codegen counterexamples (scratch copies only)
+        run: |
+          cargo test --locked --offline -p impluvium-protocol-xtask --test codegen > /work/results/codegen-tests.txt 2>&1
+          cargo metadata --locked --offline --format-version=1 > /work/results/codegen-metadata.json
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/protocol-tests-xtask-codegen.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/protocol-tests-xtask-codegen.json")
+          fi
+          node tools/ci/count-tests.mjs --baseline tools/ci/protocol-tests-xtask-codegen.json "${previous[@]}" \
+            --metadata /work/results/codegen-metadata.json --input /work/results/codegen-tests.txt
+      - name: Protocol TypeScript package (strict types, build and exports)
+        run: |
+          pnpm -C engine/protocol/ts run typecheck
+          pnpm -C engine/protocol/ts run build
+          pnpm -C engine/protocol/ts run test
+      - name: Licence boundary (Rust and installed TypeScript graph)
         run: |
           cargo metadata --locked --all-features --format-version=1 > "$RUNNER_TEMP/metadata.json"
-          node tools/ci/check-licence-boundary.mjs --root . --metadata "$RUNNER_TEMP/metadata.json" --allow-no-engine
+          pnpm --filter "{./engine/protocol/ts}..." list --depth Infinity --json > /work/results/pnpm-graph.json
+          node tools/ci/check-licence-boundary.mjs --root . --metadata "$RUNNER_TEMP/metadata.json" \
+            --pnpm-graph /work/results/pnpm-graph.json --pnpm-lock pnpm-lock.yaml
       - name: Dependency licences, bans and sources (deny.toml)
         run: cargo deny --locked check licenses bans sources
       - name: Security advisories (report only)
         # Reported in every run, also for release tags; which advisories block is decided with the release checks.
         continue-on-error: true
         run: cargo deny --locked check advisories
+      - name: Protocol schema and codegen evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: protocol-schema-evidence
+          path: |
+            /work/results/breaking-*/**
+            /work/results/codegen-tests.txt
+            /work/results/codegen-metadata.json
+            /work/results/pnpm-graph.json
+            /work/comparison/source.json
+            ${{ runner.temp }}/protocol-drift-source.json
+          retention-days: 7
 
   server:
     runs-on: impluvium-linux
@@ -294,7 +384,7 @@ jobs:
           dnf -y install --setopt=install_weak_deps=False \
             nodejs24 nodejs24-bin git curl file gcc gcc-c++ make pkgconf-pkg-config perl \
             webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel libxdo-devel \
-            libarchive-devel
+            libarchive-devel tar xz ca-certificates
           node --version
           node --version | grep -q '^v24\.'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -326,6 +416,7 @@ jobs:
           # branch of a pull request, the previous head for a branch push. Counts may only fall, test counts
           # only rise. A missing base fails the run; only a new branch, a tag push and a manual run have none.
           mkdir -p "$RUNNER_TEMP/base"
+          node tools/ci/protocol-base.mjs --root . --event "$EVENT_NAME" --ref "$GITHUB_REF" --current-sha "$GITHUB_SHA" --pr-base "$PR_BASE_SHA" --before "$PUSH_BEFORE" --out "$RUNNER_TEMP/base/comparison"
           case "$EVENT_NAME:$GITHUB_REF" in
             pull_request:*) base="$PR_BASE_SHA" ;;
             push:refs/heads/*) base="$PUSH_BEFORE" ;;
@@ -342,13 +433,14 @@ jobs:
             echo "New branch $GITHUB_REF: no base revision, only the current baselines are checked."
             exit 0
           fi
-          git fetch --no-tags --depth=1 origin "$base"
+          git cat-file commit "$base" > "$RUNNER_TEMP/base/commit.raw"
+          node tools/ci/export-protocol-source.mjs --repository "$RUNNER_TEMP/base/comparison/base" --commit "$base" --commit-object "$RUNNER_TEMP/base/commit.raw" --receipt "$RUNNER_TEMP/base/source.json"
           git show "$base:.gitea/workflows/ci.yml" > "$RUNNER_TEMP/base/ci.yml"
-          for name in clippy-baseline test-baseline; do
+          for name in clippy-baseline test-baseline protocol-tests-core protocol-tests-server protocol-tests-client protocol-tests-combined protocol-tests-xtask-unit; do
             if git cat-file -e "$base:tools/ci/$name.json" 2>/dev/null; then
               git show "$base:tools/ci/$name.json" > "$RUNNER_TEMP/base/$name.json"
               echo "tools/ci/$name.json: compared with $base"
-            elif grep -q "tools/ci/$name.json" "$RUNNER_TEMP/base/ci.yml"; then
+            elif grep -q "tools/ci/$name.json" "$RUNNER_TEMP/base/ci.yml" || { [[ "$name" == protocol-tests-* ]] && grep -qF 'tools/ci/protocol-tests-$profile.json' "$RUNNER_TEMP/base/ci.yml"; }; then
               echo "tools/ci/$name.json is used by $base but missing there"
               exit 1
             else
@@ -357,34 +449,67 @@ jobs:
           done
       - name: Format
         run: cargo fmt --all --check
-      - name: Clippy (stable, default members)
+      - name: Clippy (stable, inherited packages)
         run: |
           previous=()
           if [ -f "$RUNNER_TEMP/base/clippy-baseline.json" ]; then
             previous=(--previous-baseline "$RUNNER_TEMP/base/clippy-baseline.json")
           fi
           set +e
-          cargo clippy --locked --all-targets --message-format=json -- --cap-lints warn > "$RUNNER_TEMP/clippy-stable.jsonl"
+          cargo clippy --locked --all-targets --message-format=json \
+            -p torrential -p droplet-rs -p droplet_types -p libarchive-drop -- --cap-lints warn > "$RUNNER_TEMP/clippy-stable.jsonl"
           clippy_status=$?
           set -e
           node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json "${previous[@]}" \
             --metadata "$RUNNER_TEMP/metadata.json" --input "$RUNNER_TEMP/clippy-stable.jsonl" \
             --package torrential --package droplet-rs --package droplet_types --package libarchive-drop
           test "$clippy_status" -eq 0
-      - name: Tests (stable, default members)
+      - name: Tests (stable, inherited packages)
         run: |
           previous=()
           if [ -f "$RUNNER_TEMP/base/test-baseline.json" ]; then
             previous=(--previous-baseline "$RUNNER_TEMP/base/test-baseline.json")
           fi
           set +e
-          cargo test --locked --no-fail-fast > "$RUNNER_TEMP/tests.txt" 2>&1
+          cargo test --locked --no-fail-fast -p torrential -p droplet-rs -p droplet_types -p libarchive-drop > "$RUNNER_TEMP/tests.txt" 2>&1
           test_status=$?
           set -e
           cat "$RUNNER_TEMP/tests.txt"
           node tools/ci/count-tests.mjs --baseline tools/ci/test-baseline.json "${previous[@]}" \
             --metadata "$RUNNER_TEMP/metadata.json" --input "$RUNNER_TEMP/tests.txt"
           test "$test_status" -eq 0
+      - name: Protocol xtask (generator-free unit tests and Clippy)
+        run: |
+          mkdir -p /work/results
+          cargo test --locked --offline -p impluvium-protocol-xtask --bin impluvium-protocol-xtask > /work/results/xtask-unit.txt 2>&1
+          cargo clippy --locked --offline -p impluvium-protocol-xtask --all-targets --message-format=json \
+            -- --cap-lints warn > /work/results/xtask-clippy.jsonl
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/protocol-tests-xtask-unit.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/protocol-tests-xtask-unit.json")
+          fi
+          node tools/ci/count-tests.mjs --baseline tools/ci/protocol-tests-xtask-unit.json "${previous[@]}" \
+            --metadata "$RUNNER_TEMP/metadata.json" --input /work/results/xtask-unit.txt
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/clippy-baseline.json" ]; then previous=(--previous-baseline "$RUNNER_TEMP/base/clippy-baseline.json"); fi
+          node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json "${previous[@]}" \
+            --metadata "$RUNNER_TEMP/metadata.json" --input /work/results/xtask-clippy.jsonl --package impluvium-protocol-xtask
+      - name: Verified Windows cross tools and locked dependencies
+        run: |
+          node tools/ci/protocol-tools.mjs --root . --work /work --kind windows
+          rustup target add x86_64-pc-windows-gnullvm
+          cargo fetch --locked
+      - name: Attest product source independently from Git objects
+        run: node tools/ci/export-protocol-source.mjs --repository . --commit "$GITHUB_SHA" --receipt /work/results/source.json
+      - name: Protocol package-feature evidence, contracts and separate ratchets
+        run: node tools/ci/protocol-matrix.mjs --root . --contract tools/ci/protocol-graph.json --source-sha "$GITHUB_SHA" --source-receipt /work/results/source.json --windows-tools /work/llvm-mingw --out /work/results/profiles --previous-baselines "$RUNNER_TEMP/base" --previous-comparison "$RUNNER_TEMP/base/comparison/source.json" --previous-source-receipt "$RUNNER_TEMP/base/source.json"
+      - name: Full protocol feature counterexamples (offline, package-preserving locks)
+        run: node tools/ci/protocol-negative.mjs --mode check --repository . --commit "$GITHUB_SHA" --contract tools/ci/protocol-graph.json --out /work/results/negative
+      - name: Complete workspace legacy-path report
+        run: |
+          base_sha="$(node -p 'JSON.parse(require("fs").readFileSync("tools/ci/protocol-graph.json", "utf8")).legacy.baseSha || "UNFILLED"')"
+          node tools/ci/capture-protocol-workspace.mjs --root . --source-sha "$GITHUB_SHA" --base-sha "$base_sha" --contract tools/ci/protocol-graph.json --source-receipt /work/results/source.json --out /work/results/workspace
+          node tools/ci/check-protocol-graph.mjs --root . --contract tools/ci/protocol-graph.json --source-sha "$GITHUB_SHA" --workspace /work/results/workspace/workspace.json
       - name: Clippy (nightly, desktop crates)
         # The desktop crates build only with the nightly toolchain of desktop/src-tauri/rust-toolchain.toml,
         # which applies in this directory. A separate target directory keeps the stable build intact.
@@ -408,6 +533,43 @@ jobs:
             --package impluvium --package client --package database --package download_manager \
             --package games --package process --package remote --package utils --exclude droplet_types
           test "$clippy_status" -eq 0
+
+      - name: Protocol product and workspace evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: protocol-product-evidence
+          path: |
+            /work/results/**/invocation.json
+            /work/results/**/capture-status.json
+            /work/results/**/diagnostics.json
+            /work/results/**/metadata.json
+            /work/results/**/*.tree
+            /work/results/**/*.stderr
+            /work/results/**/graph.json
+            /work/results/**/permission-candidate.json
+            /work/results/**/cargo.stdout
+            /work/results/**/cargo.jsonl
+            /work/results/**/build.log
+            /work/results/**/tools.json
+            /work/results/**/compiler.jsonl
+            /work/results/**/linker.jsonl
+            /work/results/**/tests.txt
+            /work/results/**/source.json
+            /work/results/source.json
+            /work/results/negative/results.json
+            /work/results/profiles/matrix-results.json
+            ${{ runner.temp }}/base/comparison/source.json
+            ${{ runner.temp }}/base/source.json
+            /work/results/**/rejection.json
+            /work/results/**/*.mjs
+            /work/results/**/*.mjs.json
+            /work/results/workspace/*.json
+            /work/results/xtask-*.txt
+            /work/results/xtask-clippy.jsonl
+            !/work/results/**/target/**
+            !/work/results/negative/**/source/**
+          retention-days: 7
 
   server-image:
     runs-on: impluvium-linux

@@ -32,8 +32,20 @@ Provenance of the files below engine/protocol/
   (RFC 8628), Unicode 16.0.0 character data and the HTTP specifications
   cited in the chapters.
 
-- Test vectors, generated code, reference tooling and benchmark material
-  that are added later record their own provenance next to them.
+- The package facades in engine/crates/{protocol,client}, the TypeScript
+  package facade, local generator configurations, xtask and their tests
+  were written from scratch for impluvium under 0BSD. No inherited
+  application code or experimental implementation was copied into them.
+
+- The generated Rust message and service trees and ts/src/generated are
+  produced only from proto/ by the pinned local buffa, Connect and
+  protobuf-es plugins. Keep any notices emitted by those generators.
+  Generator sources, runtime libraries and Google well-known-type sources
+  are not vendored here. Their licenses remain separate from this project's
+  own sources; resolved dependencies require their own license review.
+
+- Test vectors, reference tooling and benchmark material that are added
+  later record their own provenance next to them.
 
 Third-party material
 --------------------

@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: 0BSD
+
+[package]
+name = "impluvium-protocol"
+version = "0.1.0"
+edition = "2024"
+license = "0BSD"
+publish = false
+description = "Shared impluvium protocol types"
+
+[features]
+default = []
+server = ["dep:connectrpc", "connectrpc/axum", "connectrpc/json"]
+client = ["dep:connectrpc", "connectrpc/client", "connectrpc/json"]
+
+[dependencies]
+buffa = { version = "=0.9.2", default-features = false, features = ["std", "json"] }
+buffa-types = { version = "=0.9.2", default-features = false, features = ["std", "json"] }
+serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
+sha2 = { version = "=0.11.1", default-features = false }
+blake3 = { version = "=1.8.7", default-features = false, features = ["std"] }
+connectrpc = { version = "=0.9.1", optional = true, default-features = false }

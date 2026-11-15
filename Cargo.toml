@@ -13,9 +13,12 @@ members = [
   "libraries/droplet",
   "libraries/droplet_types",
   "libraries/libarchive",
+  "engine/crates/protocol",
+  "engine/crates/client",
+  "engine/protocol/xtask",
 ]
 # Plain `cargo` commands from the repository root use the stable toolchain of
-# rust-toolchain.toml and cover the server side and the libraries.
+# rust-toolchain.toml and cover the server side, libraries and engine packages.
 #
 # The desktop crates need the nightly toolchain pinned in
 # desktop/src-tauri/rust-toolchain.toml, so build, check and lint them from
@@ -26,6 +29,9 @@ default-members = [
   "libraries/droplet",
   "libraries/droplet_types",
   "libraries/libarchive",
+  "engine/crates/protocol",
+  "engine/crates/client",
+  "engine/protocol/xtask",
 ]
 # No member declares a rust-version, so the resolver picks dependency versions
 # that the running toolchain supports. Write Cargo.lock (cargo update, adding

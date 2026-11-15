@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "pinSource": ".gitea/workflows/ci.yml",
+  "tools": [
+    {
+      "binary": "buf",
+      "versionPin": "BUF_VERSION",
+      "sha256Pin": "BUF_SHA256",
+      "url": "https://github.com/bufbuild/buf/releases/download/v${version}/buf-Linux-x86_64"
+    },
+    {
+      "binary": "protoc-gen-buffa",
+      "crate": "protoc-gen-buffa",
+      "versionPin": "PROTOC_GEN_BUFFA_VERSION",
+      "sha256Pin": "PROTOC_GEN_BUFFA_SHA256",
+      "url": "https://static.crates.io/crates/protoc-gen-buffa/protoc-gen-buffa-${version}.crate",
+      "lock": "tools/ci/generator-locks/protoc-gen-buffa.Cargo.lock",
+      "lockSha256": "ea65ad078bd6d84ee1f9edbf0d5784ad5a4d7f1abef6c4d4e68bbe7908d31d3d"
+    },
+    {
+      "binary": "protoc-gen-buffa-packaging",
+      "crate": "protoc-gen-buffa-packaging",
+      "versionPin": "PROTOC_GEN_BUFFA_PACKAGING_VERSION",
+      "sha256Pin": "PROTOC_GEN_BUFFA_PACKAGING_SHA256",
+      "url": "https://static.crates.io/crates/protoc-gen-buffa-packaging/protoc-gen-buffa-packaging-${version}.crate",
+      "lock": "tools/ci/generator-locks/protoc-gen-buffa-packaging.Cargo.lock",
+      "lockSha256": "5322aee4c8485d419b1d78f2231f4117486dedf1853cf7693883f950b0a8ce80"
+    },
+    {
+      "binary": "protoc-gen-connect-rust",
+      "crate": "connectrpc-codegen",
+      "versionPin": "CONNECTRPC_CODEGEN_VERSION",
+      "sha256Pin": "CONNECTRPC_CODEGEN_SHA256",
+      "url": "https://static.crates.io/crates/connectrpc-codegen/connectrpc-codegen-${version}.crate",
+      "lock": "tools/ci/generator-locks/connectrpc-codegen.Cargo.lock",
+      "lockSha256": "e0bc6b5d89dacfbf1d91cca2ef7a17b0f1e8072066a62530e69416195e05f7eb"
+    },
+    {
+      "binary": "protoc-gen-es",
+      "package": "@bufbuild/protoc-gen-es",
+      "versionSource": "engine/protocol/ts/package.json#/devDependencies/@bufbuild~1protoc-gen-es",
+      "integritySource": "pnpm-lock.yaml",
+      "installFilter": "{./engine/protocol/ts}...",
+      "binDirectory": "engine/protocol/ts/node_modules/.bin"
+    }
+  ]
+}

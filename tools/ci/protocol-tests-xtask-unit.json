@@ -1,0 +1,4 @@
+{
+  "version": 1,
+  "packages": { "impluvium-protocol-xtask": { "tests": { "exact": 5 }, "docTests": { "min": 0 } } }
+}

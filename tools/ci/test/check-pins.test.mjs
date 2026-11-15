@@ -434,6 +434,19 @@ test('pins: unknown package manager prefix options cannot hide launchers', t => 
     assert.match(invoke('check-pins', ['--root', root], 2).stderr, /cannot verify (pnpm|npm|yarn) invocation/);
   }
 });
+for (const job of ['checks', 'rust']) test(`pins: ${job} cannot depend on a skipped job`, t => {
+  const root = repository(t);
+  replace(root, workflow, `  ${job}:\n`, `  ${job}:\n    needs: gate\n`);
+  assert.match(invoke('check-pins', ['--root', root], 1).stderr, /required jobs cannot have job-level needs/);
+});
+for (const job of ['checks', 'rust']) for (const field of ['env', 'options']) test(`pins: ${job} container rejects ${field}`, t => {
+  const root = repository(t), image = 'fedora:44@sha256:' + 'b'.repeat(64);
+  const before = job === 'checks' ? `    container: '${image}'\n` : `    container:\n      image: ${image}\n`;
+  const injection = field === 'env' ? '      env:\n        NODE_OPTIONS: "--import=data:text/javascript,process.exit(0)"\n' :
+    '      options: "--env=NODE_OPTIONS=--import=data:text/javascript,process.exit(0)"\n';
+  replace(root, workflow, before, `    container:\n      image: ${image}\n${injection}`);
+  assert.match(invoke('check-pins', ['--root', root], 1).stderr, /container must define only its pinned image/);
+});
 
 for (const directory of ['.gitea/workflows', '.github/workflows']) {
   for (const [body, message] of [

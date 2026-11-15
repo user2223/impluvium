@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: 0BSD
+
+[package]
+name = "impluvium-client"
+version = "0.1.0"
+edition = "2024"
+license = "0BSD"
+publish = false
+description = "Shared impluvium client type facade"
+
+[features]
+default = []
+
+[dependencies]
+impluvium-protocol = { version = "=0.1.0", path = "../protocol", default-features = false, features = ["client"] }
+connectrpc = { version = "=0.9.1", default-features = false, features = ["client", "json"] }
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls", "http2", "stream", "json"] }
+rustls = { version = "=0.23.46", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }
+hyper-rustls = { version = "=0.27.10", default-features = false, features = ["http1", "http2", "tls12", "aws-lc-rs"] }
+hyper-util = { version = "=0.1.21", default-features = false, features = ["client-legacy", "http1", "http2", "tokio"] }
+rustls-platform-verifier = { version = "=0.7.1", default-features = false }

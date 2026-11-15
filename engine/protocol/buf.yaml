@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: 0BSD
+
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - WIRE_JSON

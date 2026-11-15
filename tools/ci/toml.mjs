@@ -11,7 +11,10 @@ const bareValue = new RegExp('^(?:' + [
 ].join('|') + ')$');
 
 export function toml(file) {
-  const source = read(file);
+  return parseToml(read(file), file);
+}
+
+export function parseToml(source, file = '<toml>') {
   const tokens = [];
   const pattern = /\s+|#[^\n]*|"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'[^']*'|[\[\]{},=.]|[^\s#[\]{}=,.'"]+/gy;
   let offset = 0;
@@ -38,7 +41,7 @@ export function toml(file) {
     if (text.startsWith("'")) return text.slice(1, -1);
     if (text === 'true' || text === 'false') return text === 'true';
     // Other bare values must be TOML integers, exponent floats, inf/nan or dates and times; they stay
-    // text. Anything else, such as an unquoted word, is malformed. Floats with a dot are unsupported.
+    // text. Anything else, such as an unquoted word, is malformed.
     if (bareValue.test(text)) return text;
     fail();
   };
@@ -56,7 +59,7 @@ export function toml(file) {
   const put = (object, parts, value) => {
     for (const part of parts.slice(0, -1)) {
       object = object[part] ??= Object.create(null);
-      if (!object || typeof object !== 'object') fail();
+      if (!object || typeof object !== 'object' || Array.isArray(object)) fail();
     }
     if (Object.hasOwn(object, parts.at(-1))) fail();
     object[parts.at(-1)] = value;
@@ -84,7 +87,14 @@ export function toml(file) {
       take('}');
       return object;
     }
-    return scalar(take().text);
+    const token = take().text;
+    if (/^[+-]?(?:0|[1-9](?:_?\d)*)$/.test(token) && peek() === '.') {
+      take('.');
+      const fraction = take().text;
+      if (!/^\d(?:_?\d)*(?:[eE][+-]?\d(?:_?\d)*)?$/.test(fraction)) fail();
+      return token + '.' + fraction;
+    }
+    return scalar(token);
   };
   const data = Object.create(null);
   const entries = [];
@@ -99,18 +109,24 @@ export function toml(file) {
       section = key();
       take(']');
       if (array) take(']');
-      const identity = JSON.stringify(section);
-      if (!array && tables.has(identity)) fail();
-      if (!array) tables.add(identity);
       current = data;
-      for (const part of section.slice(0, -1)) current = current[part] ??= Object.create(null);
+      for (const part of section.slice(0, -1)) {
+        const next = current[part] ??= Object.create(null);
+        current = Array.isArray(next) ? next.at(-1) : next;
+        if (!current || typeof current !== 'object') fail();
+      }
       const last = section.at(-1);
       if (array) {
         const list = current[last] ??= [];
+        if (!Array.isArray(list)) fail();
         const item = Object.create(null);
         list.push(item);
         current = item;
-      } else current = current[last] ??= Object.create(null);
+      } else {
+        current = current[last] ??= Object.create(null);
+        if (!current || typeof current !== 'object' || Array.isArray(current) || tables.has(current)) fail();
+        tables.add(current);
+      }
     } else {
       const line = tokens[index].line;
       const parts = key();

@@ -1,110 +1,50 @@
 import path from 'node:path';
-import { existsSync } from 'node:fs';
-import { cli, files, InputError, plainObject, problem, read, required, stringOption } from './common.mjs';
+import { cli, InputError, plainObject, problem, required, stringOption } from './common.mjs';
+import { engineManifests } from './engine-manifests.mjs';
 import { cargoMetadata } from './metadata.mjs';
 import { toml } from './toml.mjs';
+import { policy } from './spdx.mjs';
+import { inside, traverse } from './licence-graph.mjs';
+import { pnpmGraph } from './pnpm-licences.mjs';
 
-const mpl = /Mozilla[ _-]+Public[ _-]+License|\bMPL(?:-\d+(?:\.\d+)?)?\b/i;
-const copyleft = /\b(?:MPL|GPL|LGPL|AGPL)(?:-\d+(?:\.\d+)?)?\b/i;
-const licenceNames = ['LICENSE', 'LICENSE.md', 'LICENSE.txt', 'LICENCE', 'LICENCE.md', 'LICENCE.txt'];
-
-function licenceIssues(pkg, root) {
-  const file = path.relative(root, pkg.manifest_path);
-  const issues = [];
-  if (typeof pkg.license === 'string' && copyleft.test(pkg.license)) {
-    const family = copyleft.exec(pkg.license)[0];
-    issues.push(problem(file, 1, `${pkg.name}: ${family.replace(/-.*/, '')}-licensed crate is reachable from engine/`));
+export function cargoGraph(file, root) {
+  const metadata = cargoMetadata(file, { resolved: true });
+  if (!metadata.packages.length || !metadata.workspace_members.length) throw new InputError(problem(file, 1, 'metadata must contain workspace members'));
+  const packages = new Map();
+  for (const pkg of metadata.packages) {
+    if (!path.isAbsolute(pkg.manifest_path)) throw new InputError(problem(file, 1, 'metadata manifest paths must be absolute'));
+    packages.set(pkg.id, { id: pkg.id, name: pkg.name, manifest: pkg.manifest_path, license: pkg.license, licenseFile: pkg.license_file });
   }
-  const directory = path.dirname(pkg.manifest_path);
-  const candidates = new Set(licenceNames.map(name => path.join(directory, name)));
-  // Preserve checks of shared engine licence notices as well as Cargo metadata.
-  for (let parent = directory; ; parent = path.dirname(parent)) {
-    const relative = path.relative(root, parent);
-    if (relative !== 'engine' && !relative.startsWith('engine' + path.sep)) break;
-    for (const name of licenceNames) candidates.add(path.join(parent, name));
+  for (const id of metadata.workspace_members) {
+    if (!inside(root, packages.get(id).manifest)) throw new InputError(problem(file, 1, 'workspace member manifest is outside --root'));
   }
-  if (pkg.license_file != null) {
-    if (typeof pkg.license_file !== 'string') throw new InputError(problem(file, 1, 'invalid license_file in metadata'));
-    const explicit = path.resolve(directory, pkg.license_file);
-    if (mpl.test(path.basename(explicit))) issues.push(problem(file, 1, `${pkg.name}: MPL license_file is reachable from engine/`));
-    // Explicit metadata files must be available alongside the captured metadata.
-    read(explicit);
-    candidates.add(explicit);
+  const manifests = new Set([...packages.values()].map(pkg => path.resolve(pkg.manifest)));
+  for (const file of engineManifests(root)) {
+    const manifest = toml(path.join(root, file)).data;
+    if (plainObject(manifest.workspace) && !Object.hasOwn(manifest, 'package') && path.dirname(path.join(root, file)) === metadata.workspace_root) continue;
+    if (!manifests.has(path.join(root, file))) throw new InputError(problem(file, 1, 'engine manifest missing from metadata.packages'));
   }
-  for (const candidate of candidates) {
-    if (!existsSync(candidate)) continue;
-    const text = read(candidate);
-    const match = mpl.exec(text);
-    if (match) issues.push(problem(path.relative(root, candidate), text.slice(0, match.index).split('\n').length,
-      `${pkg.name}: MPL licence text is reachable from engine/`));
-  }
-  return issues;
+  // All resolved normal, build, dev and target-specific edges remain in scope.
+  const graph = new Map(metadata.resolve.nodes.map(node => [node.id, node.dependencies]));
+  const roots = [...packages.values()].filter(pkg => inside(path.join(root, 'engine'), pkg.manifest)).map(pkg => pkg.id);
+  if (!roots.length) throw new InputError(problem(file, 1, 'no engine/ packages selected'));
+  return { packages, graph, roots };
 }
 
 export function check(options) {
-  required(options, 'root', 'metadata');
-  const metadata = cargoMetadata(options.metadata, { resolved: true });
-  const root = path.resolve(options.root);
-  const packages = new Map(metadata.packages.map(pkg => [pkg.id, pkg]));
-  const graph = new Map(metadata.resolve.nodes.map(node => [node.id, node.dependencies]));
-  const relative = pkg => path.relative(root, pkg.manifest_path).split(path.sep).join('/');
-  const insideRoot = pkg => !/^\.\.(?:\/|$)/.test(relative(pkg)) && !path.isAbsolute(relative(pkg));
-  if (!metadata.packages.length || !metadata.workspace_members.length) {
-    throw new InputError(problem(options.metadata, 1, 'metadata must contain workspace members'));
-  }
-  if (metadata.packages.some(pkg => !path.isAbsolute(pkg.manifest_path))) {
-    throw new InputError(problem(options.metadata, 1, 'metadata manifest paths must be absolute'));
-  }
-  for (const id of metadata.workspace_members) {
-    const pkg = packages.get(id);
-    if (!path.isAbsolute(pkg.manifest_path) || !insideRoot(pkg)) {
-      throw new InputError(problem(options.metadata, 1, `${pkg.name}: workspace member manifest is outside --root`));
-    }
-  }
-  const manifests = new Set(metadata.packages.map(pkg => path.resolve(pkg.manifest_path)));
-  for (const file of files(root).filter(file => file.startsWith('engine/') && path.basename(file) === 'Cargo.toml')) {
-    const manifest = toml(path.join(root, file)).data;
-    if (plainObject(manifest.workspace) && !Object.hasOwn(manifest, 'package')) continue; // Virtual workspace.
-    if (!manifests.has(path.join(root, file))) {
-      throw new InputError(problem(file, 1, 'engine manifest missing from metadata.packages; capture all engine workspaces at this --root'));
-    }
-  }
-  const issues = [];
-  const checked = new Set();
-  const enginePackages = metadata.packages.filter(pkg => relative(pkg).startsWith('engine/'));
-  if (!enginePackages.length && !options['allow-no-engine']) {
-    throw new InputError(problem(options.metadata, 1, 'no engine/ packages selected; use the repository root or explicitly pass --allow-no-engine'));
-  }
-  for (const start of enginePackages) {
-    if (!graph.has(start.id)) throw new InputError(problem(options.metadata, 1, `${start.name}: engine package missing from resolved graph`));
-    const visited = new Set();
-    const queue = [{ id: start.id, trail: [relative(start)] }];
-    for (let index = 0; index < queue.length; index++) {
-      const { id, trail } = queue[index];
-      if (visited.has(id)) continue;
-      visited.add(id);
-      const pkg = packages.get(id);
-      if (insideRoot(pkg) && !relative(pkg).startsWith('engine/')) {
-        issues.push(problem(relative(start), 1, `engine dependency crosses outside engine/: ${trail.join(' -> ')}`));
-      }
-      if (!checked.has(id)) {
-        checked.add(id);
-        issues.push(...licenceIssues(pkg, root));
-      }
-      for (const dependency of graph.get(id)) {
-        queue.push({ id: dependency, trail: [...trail, relative(packages.get(dependency))] });
-      }
-    }
-  }
-  return issues;
+  required(options, 'root', 'metadata', 'pnpm-graph', 'pnpm-lock');
+  const root = path.resolve(options.root), cargo = cargoGraph(options.metadata, root), rules = policy(path.join(root, 'deny.toml'));
+  return [
+    ...traverse(cargo, root, rules),
+    ...traverse(pnpmGraph(root, options['pnpm-graph'], options['pnpm-lock']), root, rules),
+  ];
 }
 
-await cli(import.meta.url, `Usage: node tools/ci/check-licence-boundary.mjs --root DIR --metadata FILE [--allow-no-engine]
-Read cargo metadata --locked --all-features --format-version=1 JSON, with dependencies and resolve.nodes.
-Reject dependencies inside the repository outside engine/, and reachable MPL/GPL/LGPL/AGPL expressions.
-MPL licence files are also rejected. Metadata must cover all engine package manifests on disk.
-No engine packages is an input error unless --allow-no-engine is explicit. Virtual workspace manifests need no package ID.
-Metadata and licence files must be available in the same filesystem; no Cargo commands are executed.
+await cli(import.meta.url, `Usage: node tools/ci/check-licence-boundary.mjs --root DIR --metadata FILE --pnpm-graph FILE --pnpm-lock FILE
+Read resolved Cargo metadata for all features and targets and a fully installed pnpm list --depth Infinity --json graph.
+Apply deny.toml SPDX admission and the stricter engine copyleft/path boundary through both adapters.
+Read installed npm manifests and license files and cross-check every engine importer and lock identity.
+Missing roots, manifests, licenses, links, lock identities or edges are input errors. No tools are executed.
 Exit: 0 passed, 1 boundary violation, 2 usage or input error.`, {
-  root: stringOption, metadata: stringOption, 'allow-no-engine': { type: 'boolean' },
+  root: stringOption, metadata: stringOption, 'pnpm-graph': stringOption, 'pnpm-lock': stringOption,
 }, check);
