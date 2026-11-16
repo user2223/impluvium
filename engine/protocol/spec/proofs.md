@@ -34,9 +34,24 @@ Payload type `application/vnd.impluvium.pairing-proof.v1+protobuf`, signed with 
 A proof envelope, including its payload, is at most 4 096 bytes. Fields that this schema does not define (for example
 a pairing token or a device timestamp) are unknown fields: they are skipped and never stand in for a required field.
 
+### 1.3 Common request checks
+
+For `BeginSession`, `CompleteSession`, `StartPairing` and `PollPairing`, the server first checks, in this order:
+
+1. The HTTP method and request content coding ([api.md §5](api.md#5-connect-unary-calls) item 3). A rejection is
+   `unimplemented` (HTTP 501), without a wire reason, before any body read or proof check.
+2. For `StartPairing` only, the client-address rate limit (§3.1); if reached, return `resource_exhausted`, `RATE_LIMITED`.
+3. The request-body limit ([api.md §5](api.md#5-connect-unary-calls) item 7), then its encoding profile. No method's
+   field, device, pairing, proof or capacity check precedes these checks.
+
+The method-specific orders below follow this prefix. Their body-limit and profile rows refer to step 3 here and
+do not run a second time. A failure of the prefix changes no session, challenge or pairing state.
+
 ## 2. Sessions
 
 ### 2.1 `BeginSession`
+
+After §1.3:
 
 1. The request carries `device_id` (canonical UUID text, otherwise `invalid_uuid`).
 2. If no device with this `device_id` is registered, the server answers `unauthenticated` without an error reason
@@ -49,8 +64,8 @@ a pairing token or a device timestamp) are unknown fields: they are skipped and 
 
 ### 2.2 `CompleteSession`
 
-The server processes a `CompleteSessionRequest` in this order; the first failing check determines the result. Checks 1
-to 3 change no state.
+The server applies §1.3, then processes a `CompleteSessionRequest` in this order; the first failing check determines
+the result. Checks 1 to 3 change no state.
 
 | Order | Check | Local reason | Wire result |
 |---:|---|---|---|
@@ -97,9 +112,15 @@ one succeeds.
 
 ### 2.4 Token use and device state
 
-On every request that requires an access token, the server checks in this order: the token is known
-(`unauthenticated`, no reason), not expired (`unauthenticated`, `TOKEN_EXPIRED`), its device is not revoked
-(`unauthenticated`, `DEVICE_REVOKED`) and not idle-expired (`unauthenticated`, `DEVICE_EXPIRED`).
+On every request that requires an access token, the server checks in this order:
+
+1. Exactly one `Authorization` header field with the Bearer scheme; a missing or repeated field or another scheme
+   is `unauthenticated`, without a wire reason. Cookie sessions do not authenticate these requests.
+2. The token is known (`unauthenticated`, no reason).
+3. The token is not expired (`unauthenticated`, `TOKEN_EXPIRED`).
+4. Its device is not revoked (`unauthenticated`, `DEVICE_REVOKED`).
+5. Its device is not idle-expired (`unauthenticated`, `DEVICE_EXPIRED`).
+
 `RevokeSelf` revokes the calling device; a client that signs out calls it before it deletes its local state.
 
 **Idle expiry.** Each device has an **activity time**: the time `t` recorded by the atomic step 5 of its last
@@ -117,7 +138,8 @@ No deep link is part of this revision.
 
 ### 3.1 `StartPairing`
 
-Unauthenticated and rate-limited per client address (`resource_exhausted`, `RATE_LIMITED`). Checks in order:
+Unauthenticated and rate-limited per client address (`resource_exhausted`, `RATE_LIMITED`). The rate check is at §1.3
+step 2, before the body is read. After §1.3, check the fields in order:
 
 | Order | Field | Rule | Reason |
 |---:|---|---|---|
@@ -160,7 +182,8 @@ requires an explicit confirmation. The user can deny the pairing instead.
 
 ### 3.4 `PollPairing`
 
-The device polls no more often than every `interval_seconds`. The server processes a request in this order:
+The device polls no more often than every `interval_seconds`. The server applies §1.3, then processes a request in
+this order:
 
 | Order | Check | Local reason | Wire result |
 |---:|---|---|---|

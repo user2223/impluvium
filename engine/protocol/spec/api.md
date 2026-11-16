@@ -23,6 +23,16 @@ contain a path prefix.
 A conforming client calls no other path of the server. Every other route of the server belongs to its own web
 interface, is not versioned and may change in any release.
 
+### 1.1 Common GET dispatch checks
+
+For discovery, document and object routes, events and depot requests, dispatch identifies the fixed route prefix
+without validating an identifier or looking up a resource. The server then checks, in this order:
+
+1. If the server is starting, return 503, `unavailable`, `SERVER_STARTING`.
+2. If the method is not `GET`, return 405, `unimplemented`, without a wire reason.
+
+Neither step reads a request body or accesses credentials. Only then does the route's processing order continue.
+
 ## 2. Discovery
 
 ### 2.1 Request and response
@@ -30,6 +40,12 @@ interface, is not versioned and may change in any release.
 `GET {base}/api/info` needs no authentication, reveals no game or user data and is rate-limited by the server. The
 response is `200` with `Content-Type: application/json` and the ProtoJSON encoding of `impluvium.v2.Discovery`. Its shape
 is frozen: later revisions only add fields, and the document is never served under a version prefix.
+
+The server processes discovery in this order:
+
+1. The common GET dispatch checks (§1.1).
+2. The client-address rate limit: if reached, return 429, `resource_exhausted`, `RATE_LIMITED`.
+3. Return the discovery document. No credential is read or checked.
 
 ### 2.2 Fields
 
@@ -126,7 +142,12 @@ Registry of this revision:
    `Content-Type: application/proto` (binary) or `application/json` (ProtoJSON). The response uses the same codec.
 2. There are no streaming RPCs and no Connect `GET` requests.
 3. Requests and responses carry no `Content-Encoding` other than `identity`, and clients send no `Accept-Encoding`
-   other than `identity`. A server answers a compressed request with `unimplemented`.
+   other than `identity`. Before reading a body or checking a token or proof, every RPC checks, in order:
+
+   1. The method is `POST`; otherwise return `unimplemented` (HTTP 501).
+   2. `Content-Encoding` is absent or `identity`; otherwise return `unimplemented` (HTTP 501), without decompressing.
+
+   Neither rejection carries a wire reason.
 4. Clients SHOULD send `Connect-Protocol-Version: 1`. A client MAY send `Connect-Timeout-Ms`.
 5. A success is HTTP 200 with the response message. An error is a non-200 status with the error body of
    [errors.md §3](errors.md#3-error-bodies).
@@ -139,12 +160,12 @@ Registry of this revision:
 8. Hidden or age-restricted content, and content the user may not access, is reported as not found
    (`GAME_NOT_FOUND`, `VERSION_NOT_FOUND`), never as `permission_denied`.
 9. A method that requires an access token processes a request in this order; the first failing step determines the
-   result: the checks of items 3 and 7; the token checks of [proofs.md §2.4](proofs.md#24-token-use-and-device-state);
+   result: the checks of item 3, then item 7; the token checks of [proofs.md §2.4](proofs.md#24-token-use-and-device-state);
    decoding and the check order of the request message ([encoding.md §7.1](encoding.md#71-semantic-check-orders)),
    reported with the Connect code of the reason's class
    ([errors.md §4](errors.md#4-mapping-of-local-reasons-to-connect-codes)); the page token (§7 item 6: malformed or
    used with other request fields, then expired); existence and access (item 8). The pairing and session methods
-   follow their own orders in [proofs.md](proofs.md).
+   follow [proofs.md §1.3](proofs.md#13-common-request-checks) and then their own orders there.
 
 ## 6. Services
 
@@ -462,6 +483,16 @@ All three routes require `Authorization: Bearer <access_token>`, answer token er
 may not access as 404, use no content coding, and use the error body of [errors.md §3](errors.md#3-error-bodies) for
 errors. A 401 response carries `WWW-Authenticate: Bearer error="invalid_token"`; 429 and 503 responses carry
 `Retry-After`. Clients read them with the response rules of [transport.md §6](transport.md#6-response-protection).
+
+The server processes all three routes in this order; the first failing step determines the result:
+
+1. The common GET dispatch checks (§1.1).
+2. The authorization-header and token checks of [proofs.md §2.4](proofs.md#24-token-use-and-device-state).
+3. The authenticated caller's rate and concurrency limits: if either is reached, return 429, `resource_exhausted`,
+   `RATE_LIMITED`. These limits are checked here, before any resource-identifier check or lookup.
+4. The path identifier's syntax, with the 404 result of §8.1, §8.2 or §8.3. No path-syntax result precedes step 2.
+5. Existence and entitlement, with the same 404 result as a syntax failure for that route; otherwise return its
+   success response. The identifier is not used for a resource lookup before step 4 passes.
 
 ### 8.1 Manifests
 

@@ -111,9 +111,14 @@ carry a ticket is defined in [transport.md §5](transport.md#5-depot-origins-and
 
 ### 7.2 Processing order
 
+The first failing step determines the result; the rate/concurrency row retains its explicitly permitted placement
+after step 2. Steps 0 and 0a are the common GET dispatch checks of
+[api.md §1.1](api.md#11-common-get-dispatch-checks); neither validates a path identifier or reads credentials.
+
 | Order | Condition | Status | Reason in the error body |
 |---:|---|---:|---|
 | 0 | The server is starting | 503 | `SERVER_STARTING` |
+| 0a | The method is not `GET` | 405 | – (`unimplemented`) |
 | 1 | No `Authorization` header, more than one `Authorization` header field, not the `Bearer` scheme, value longer than 5 469 bytes, or token not valid unpadded base64url | 401 | – |
 | 2 | Ticket verification §4 steps up to 11 fails | 401 | `TICKET_EXPIRED` for `ticket_expired`, otherwise none |
 | 3 | A path segment is not 64 lowercase hexadecimal digits | 404 | – |

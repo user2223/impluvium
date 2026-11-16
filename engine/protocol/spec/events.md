@@ -34,16 +34,31 @@ parameters are ignored. The **resume point** is the value of `last_event_id` if 
 value of the `Last-Event-ID` request header if exactly one such header field is present; otherwise there is none. More
 than one `Last-Event-ID` header field is refused with 400 (`invalid_parameter`).
 
-The server checks, in this order:
+The server checks, in this order; the first failing step determines the result:
 
 | Order | Condition | Status |
 |---:|---|---|
-| 1 | Missing, invalid, expired or revoked credential; for cookie streams also an `Origin` other than the server's own origin | 401 |
+| 0 | Common GET dispatch checks ([api.md §1.1](api.md#11-common-get-dispatch-checks)) | as defined there |
+| 1a | Missing or ambiguous credential form (rules below) | 401 (`unauthenticated`, no wire reason) |
+| 1b | Invalid, expired or revoked credential; for cookie streams also an `Origin` other than the server's own origin | 401 |
 | 2a | A repeated parameter, or more than one `Last-Event-ID` header field | 400 (`invalid_parameter`) |
 | 2b | `topics` missing or not valid (table above) | 400 (`invalid_topic`) |
 | 2c | `client` not valid, or missing on a cookie-authenticated stream | 400 (`invalid_client_id`) |
 | 3 | A topic the caller may not read | 403 |
-| 4 | Client-identifier table full (§9) | 429 |
+| 4 | `client` is present, its supersession key is new, and the client-identifier table is full (§9) | 429 |
+
+At step 1a, select the credential form by header presence, before validating either credential:
+
+1. Reject more than one `Authorization` header field, more than one occurrence of the server's session cookie, or an
+   `Authorization` header together with that cookie, even if either credential is invalid. Unrelated cookies do not
+   count as a session credential.
+2. With exactly one `Authorization` header and no session cookie, require the Bearer scheme and apply
+   [proofs.md §2.4](proofs.md#24-token-use-and-device-state) at step 1b; never fall back to a cookie.
+3. With no `Authorization` header and exactly one session cookie, apply the cookie-session and `Origin` checks at
+   step 1b. With neither form, reject at step 1a.
+
+No rejected open request creates a client-identifier entry or supersedes a stream. Only after all opening checks
+pass is the accepted credential form used for the owner in §9 item 2 and supersession performed.
 
 Error responses use the error body of [errors.md §3](errors.md#3-error-bodies). Session cookies used for the stream
 carry `SameSite`. On success the response is `200` with `Content-Type: text/event-stream`, `Cache-Control: no-cache`,
@@ -279,9 +294,9 @@ A client that maintains a library model follows these rules:
    Streams of different devices, of different cookie sessions, of a device and a cookie session, and of different users
    never supersede each other, whatever their identifiers.
 4. A bearer stream without `client` is never superseded and supersedes nothing.
-5. The server keeps at most 256 client-identifier entries per user; when the table is full, a new identifier is refused
-   with 429. An entry is removed only by the stream that currently owns it, so a superseded stream never removes the
-   entry of its successor.
+5. The server keeps at most 256 client-identifier entries per user; when the table is full, a new supersession key is
+   refused with 429. An existing key reuses its entry; a bearer stream without `client` needs no entry. An entry is
+   removed only by the stream that currently owns it, so a superseded stream never removes the entry of its successor.
 6. The client identifier limits connections. It never grants a permission.
 
 ## 10. Client obligations

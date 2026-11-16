@@ -32,6 +32,37 @@ redirect rules and credentials from one shared rule source, so that no stack is 
 4. URLs with user information, URLs with another scheme and URLs that do not parse are rejected before any connection
    (`invalid_url`).
 
+### 2.1 Request preflight order
+
+For every request, use only public configuration, the request purpose and existing trust state to check, in order:
+
+1. The base URL and request URL satisfy §2 (`invalid_url`). The request URL may contain the query its route defines.
+2. The platform certificate verifier is available (§4 item 4: `platform_trust_unavailable`), also for `http` requests.
+3. The scheme is permitted (§3 item 2: `insecure_scheme_not_allowed`).
+4. The destination matches the request purpose of §1 and the credential destinations of §5 item 1
+   (`origin_not_allowed`); for a chunk request, it belongs to an allowed depot endpoint (§5 items 2 and 3).
+5. For a request that would carry a proof, token or ticket, the trust context is not in a stop state
+   ([trust.md §3](trust.md#3-states): `instance_mismatch` or `content_key_changed`).
+
+The first failure determines the result. No connection is opened and no credential is read or proof generated until
+all these checks pass and the expected response schema and limits are bound (§6 item 1).
+
+Then proceed under §2.2.
+
+### 2.2 Connection and credential transfer
+
+After the preflight of §2.1 passes, proceed in this order:
+
+1. Establish or reuse a connection without attaching credentials.
+2. Check its verified state. An unverified server connection is pending, not a new rejection reason: before reading
+   a credential or generating a proof for it, complete credential-free discovery and the checks of
+   [trust.md §4](trust.md#4-checks-before-every-credential-transfer) on that connection. Pairing uses the discovery
+   checks of [trust.md §2](trust.md#2-establishing-a-trust-context), with no pin comparison yet. Discovery itself needs
+   no verified connection. A depot connection needs no pin checks, but its ticket must have the provenance required
+   by [trust.md §4.2](trust.md#42-verified-connections) item 5; if not yet met, obtain an authenticated download response
+   first, under these same request rules.
+3. Only after these prerequisites pass, read the credential or generate the proof, attach it and send the request.
+
 ## 3. Encryption
 
 1. `https` is the default.
@@ -50,7 +81,7 @@ redirect rules and credentials from one shared rule source, so that no stack is 
    no option to accept invalid certificates.
 3. Revocation semantics follow the platform verifier: on Windows a recognised revocation of the end-entity certificate
    rejects the connection and an unknown revocation status is tolerated; on Linux no revocation check takes place.
-4. If the platform verifier is not available on a platform, every request fails before any connection and before any
+4. At §2.1 step 2, if the platform verifier is not available, the request fails before any connection and before any
    credential is read, with the typed error `platform_trust_unavailable`. The client then creates no files, starts no
    processes, changes no profiles and does not fall back to another trust source.
 
@@ -71,7 +102,7 @@ redirect rules and credentials from one shared rule source, so that no stack is 
    whose origin is one of the depot origins that the client configuration allows. By default the configuration allows
    only the server origin. A server response alone never extends the configuration.
 3. Before the first connection to a depot origin and before a ticket is read or attached, the client checks that the
-   request URL belongs to an allowed depot endpoint. A request that does not is refused before connecting
+   request URL belongs to an allowed depot endpoint (§2.1 step 4). A request that does not is refused before connecting
    (`origin_not_allowed`).
 4. Removing an origin from the configuration takes effect before the next request to it.
 5. Among allowed endpoints, the client prefers lower `priority` values and keeps the list order for equal values.
@@ -111,6 +142,16 @@ A client never hands a response body to a general-purpose decoder before these c
 3. A redirect target MUST also be the depot request URL of an allowed depot endpoint of the same origin, for the same
    `{manifest_id_hex}` and `{chunk_id_hex}` (§5 item 1); otherwise the redirect is refused before it is followed
    (`redirect_target_not_allowed`). The ticket is attached to the redirected request under §5.
+
+For each redirect, check in this order before any new connection or ticket read:
+
+| Order | Check | Rejection |
+|---:|---|---|
+| 1 | Redirect count (§7 item 2) | `redirect_limit` |
+| 2 | Resolve and validate the target URL (§2) | `invalid_url` |
+| 3 | Same origin (§7 item 2) | `redirect_cross_origin` |
+| 4 | Allowed target (§7 item 3) | `redirect_target_not_allowed` |
+| 5 | Request preflight (§2.1) for the target | the first preflight failure |
 
 ## 8. Proxies
 

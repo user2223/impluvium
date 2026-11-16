@@ -64,8 +64,8 @@ These are local trust states. They are never sent by a server and never derived 
 
 The **pin checks** are the following checks, in this order; the first failing check determines the state or reason.
 
-1. Transport rules of [transport.md](transport.md) for the discovery request (scheme, origin, no redirect, no
-   credential).
+1. Transport preflight of [transport.md §2.1](transport.md#21-request-preflight-order) for the discovery request, then
+   its response rules (no redirect, no credential).
 2. Bounded read and encoding profile of the discovery document.
 3. The checks of [api.md §2.3](api.md#23-validation) in their order: `discovery = 1` and `product = "impluvium"`
    (`not_an_impluvium_server`), field rules, manifest format 3 (`protocol_unsupported`).

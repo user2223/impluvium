@@ -236,3 +236,115 @@ For a chunk GET with `Range: bytes=0-0`, the success-body limit is one byte. A `
 is read under the 65 536-byte error-body limit even though it exceeds one byte. After the pre-check, the client
 handles the code and reason: it refreshes the ticket and continues the download
 ([tickets.md §5](tickets.md#5-transport-of-tickets)).
+
+## 13. Competing request checks
+
+HTTP header blocks below use CRLF line endings and end with an empty line. Requests have no body unless stated.
+The host, tokens and cookie values are synthetic. The first failing check decides the result.
+
+### 13.1 Document authentication before path syntax
+
+```http
+GET /api/v2/descriptors/not-a-uuid HTTP/1.1
+Host: reference.invalid
+
+```
+
+The server is running, no limit is reached and no authorization header is present. The common GET checks pass;
+[api.md §8](api.md#8-document-and-object-routes) step 2 returns 401, `unauthenticated`, without a wire reason,
+with `WWW-Authenticate: Bearer error="invalid_token"`. The server never checks `not-a-uuid`. With a valid access
+token instead, step 4 returns 404, `not_found`, `VERSION_NOT_FOUND`. The same authentication-first rule applies
+to a malformed manifest id or object id. If the server is starting, the unchanged raw request returns 503,
+`unavailable`, `SERVER_STARTING`, before either authentication or path validation.
+
+### 13.2 Depot method before ticket checks
+
+```http
+POST /depot/v2/0000000000000000000000000000000000000000000000000000000000000000/0000000000000000000000000000000000000000000000000000000000000000 HTTP/1.1
+Host: reference.invalid
+Content-Length: 0
+
+```
+
+The server is running. In [tickets.md §7.2](tickets.md#72-processing-order), step 0 passes and step 0a returns 405,
+`unimplemented`, without a wire reason. The absent ticket is not checked. If the server is starting, the same
+request returns 503, `unavailable`, `SERVER_STARTING`, at step 0; if only the method is changed to `GET` while the
+server is running, step 1 returns 401, `unauthenticated`, without a wire reason.
+
+### 13.3 Client preflight before connection or credential access
+
+```json
+{
+  "purpose": "chunk",
+  "requestUrl": "http://reference.invalid/depot/v2/0000000000000000000000000000000000000000000000000000000000000000/0000000000000000000000000000000000000000000000000000000000000000",
+  "insecureMode": false,
+  "platformTrustAvailable": false,
+  "allowedEndpoints": []
+}
+```
+
+The URL is valid. In [transport.md §2.1](transport.md#21-request-preflight-order), step 2 fails with
+`platform_trust_unavailable`; neither the forbidden `http` scheme nor the empty endpoint set changes that result.
+No connection is opened and no credential is read. If only `platformTrustAvailable` becomes true, step 3 returns
+`insecure_scheme_not_allowed`. If `insecureMode` also becomes true, step 4 returns `origin_not_allowed`.
+
+With a permitted server URL, an available verifier and no stop state, a new server connection is initially
+unverified. All static preflight checks pass; the client opens the connection without credentials and runs discovery
+on it. It reads no access token and generates no proof until the applicable checks of
+[trust.md §4](trust.md#4-checks-before-every-credential-transfer) pass on that connection.
+
+### 13.4 Content coding before an authentication RPC body
+
+The following header block is followed by the one-byte body `00` (hex):
+
+```http
+POST /api/v2/impluvium.v2.AuthService/CompleteSession HTTP/1.1
+Host: reference.invalid
+Content-Type: application/proto
+Content-Encoding: gzip
+Content-Length: 1
+
+```
+
+Body:
+
+```text
+00
+```
+
+[proofs.md §1.3](proofs.md#13-common-request-checks) step 1 returns 501, `unimplemented`, without a wire reason.
+The server does not decompress, scan the `00` tag or check a proof. With `Content-Encoding: identity` instead,
+step 3 rejects tag zero as `malformed_wire`, reported as 400, `invalid_argument`, without a wire reason.
+The same coding-before-body order applies to `BeginSession`, `StartPairing` and `PollPairing`.
+
+### 13.5 Ambiguous stream credentials do not select an owner
+
+```http
+GET /api/v2/events?topics=library&client=a HTTP/1.1
+Host: reference.invalid
+Authorization: Bearer invalid
+Cookie: session=valid
+Origin: https://reference.invalid
+
+```
+
+The server is running; the bearer token is unknown, the cookie session is valid, the topic is permitted and the
+client table has room. [events.md §1](events.md#1-opening-the-stream) step 1a returns 401, `unauthenticated`,
+without a wire reason, before validating either credential. It creates no client entry and supersedes no stream.
+The result is unchanged if both credentials are valid. Removing the authorization header permits cookie
+authentication, whose supersession owner is the cookie session id; removing the cookie permits only bearer
+authentication, which fails here because the token is unknown. A valid bearer-only request uses its device id,
+not its token or the cookie session, as owner.
+
+### 13.6 Other competing checks
+
+| Request and context | First result | Why |
+|---|---|---|
+| `POST /api/info`, server running, address rate limit reached | 405, `unimplemented`, no wire reason | Common GET method check precedes the discovery rate check. |
+| `POST /api/v2/events`, server running, no credential, no `topics` | 405, `unimplemented`, no wire reason | Common GET method check precedes stream authentication and parameters. |
+| `GET` to an RPC method with `Content-Encoding: gzip`, no token | 501, `unimplemented`, no wire reason | The RPC method check precedes content coding and authentication. |
+| `StartPairing` with identity coding, body `00` (hex), address rate limit reached | 429, `resource_exhausted`, `RATE_LIMITED` | The address limit precedes the body scan in proofs.md §1.3. |
+| Document GET with a malformed id and two authorization fields | 401, `unauthenticated`, no wire reason | Header cardinality is checked before token lookup and path syntax. |
+| Stream GET with two occurrences of the session cookie, even with equal values | 401, `unauthenticated`, no wire reason | Credential selection rejects ambiguity before authentication. |
+| Valid stream GET with an existing supersession key and a full client table | 200; supersede the old stream and reuse its entry | No new table entry is needed. A bearer stream without `client` also needs no entry. |
+| A sixth chunk redirect whose target also has another origin | `redirect_limit` | The redirect-count check precedes target checks and the repeated preflight. |
