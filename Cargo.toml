@@ -16,6 +16,7 @@ members = [
   "engine/crates/protocol",
   "engine/crates/client",
   "engine/protocol/xtask",
+  "engine/protocol/benchmarks/hashchunk",
 ]
 # Plain `cargo` commands from the repository root use the stable toolchain of
 # rust-toolchain.toml and cover the server side, libraries and engine packages.
@@ -32,6 +33,7 @@ default-members = [
   "engine/crates/protocol",
   "engine/crates/client",
   "engine/protocol/xtask",
+  "engine/protocol/benchmarks/hashchunk",
 ]
 # No member declares a rust-version, so the resolver picks dependency versions
 # that the running toolchain supports. Write Cargo.lock (cargo update, adding

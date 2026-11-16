@@ -4,6 +4,11 @@ import { plainObject } from './common.mjs';
 import { toml } from './toml.mjs';
 import { engineManifests } from './engine-manifests.mjs';
 
+const toolManifests = {
+  'impluvium-protocol-xtask': 'engine/protocol/xtask/Cargo.toml',
+  'impluvium-hashchunk-bench': 'engine/protocol/benchmarks/hashchunk/Cargo.toml',
+};
+
 const badPackages = new Set(['ring', 'native-tls', 'openssl', 'openssl-sys', 'prost', 'pbjson', 'tonic', 'flate2', 'zstd']);
 const badFeatures = { connectrpc: ['gzip', 'zstd', 'client-tls'], reqwest: ['system-proxy'], rustls: ['ring'] };
 
@@ -22,7 +27,7 @@ export function engineCoverage(metadata, root, data, source) {
     const entry = data.enginePackages?.[pkg.name];
     if (!entry || entry.manifest !== relative || !['product', 'tool'].includes(entry.kind) ||
         (entry.kind === 'product' && !covered.has(pkg.name)) ||
-        (entry.kind === 'tool' && (pkg.name !== 'impluvium-protocol-xtask' || relative !== 'engine/protocol/xtask/Cargo.toml'))) fail(`unassigned engine package: ${pkg.name}`);
+        (entry.kind === 'tool' && toolManifests[pkg.name] !== relative)) fail(`unassigned engine package: ${pkg.name}`);
   }
 }
 

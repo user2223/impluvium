@@ -6,7 +6,7 @@ import { protocolSteps, protocolWorkflowIssues } from '../protocol-workflow.mjs'
 
 const source = () => yamlData(fileURLToPath(new URL('../../../.gitea/workflows/ci.yml', import.meta.url)));
 test('the real workflow satisfies all exact required execution blocks', () => {
-  assert.equal(protocolSteps.length, 22);
+  assert.equal(protocolSteps.length, 23);
   assert.deepEqual(protocolWorkflowIssues(source()), []);
 });
 const mutations = {
@@ -80,4 +80,22 @@ test('line endings and surrounding whitespace are the only text normalizations',
     step.run = '\n  ' + step.run.trim().replaceAll('\n', '\r\n') + '  \n';
   }
   assert.deepEqual(protocolWorkflowIssues(workflow), []);
+});
+
+for (const [label, before, after] of [
+  ['dynamic profile check applied to tool baselines',
+    '[[ "$name" == protocol-tests-core || "$name" == protocol-tests-server || "$name" == protocol-tests-client || "$name" == protocol-tests-combined ]]',
+    '[[ "$name" == protocol-tests-* ]]'],
+  ['hashchunk baseline omitted from base retrieval', 'protocol-tests-xtask-unit protocol-tests-hashchunk; do', 'protocol-tests-xtask-unit; do'],
+]) test(`base retrieval rejects ${label}`, () => {
+  const workflow = source(), step = workflow.jobs.rust.steps.find(step => step.name === 'Baselines of the base revision');
+  assert.ok(step.run.includes(before));
+  step.run = step.run.replace(before, after);
+  assert.ok(protocolWorkflowIssues(workflow).length);
+});
+test('hashchunk Clippy cannot omit the protocol dependency from its ratchet selection', () => {
+  const workflow = source(), step = workflow.jobs.rust.steps.find(step => step.name === 'Hash and chunk benchmark tool (tests and Clippy)');
+  assert.ok(step.run.includes('--package impluvium-hashchunk-bench --package impluvium-protocol'));
+  step.run = step.run.replace(' --package impluvium-protocol', '');
+  assert.ok(protocolWorkflowIssues(workflow).length);
 });

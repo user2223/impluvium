@@ -44,6 +44,10 @@ Provenance of the files below engine/protocol/
   are not vendored here. Their licenses remain separate from this project's
   own sources; resolved dependencies require their own license review.
 
+- The hash/chunk benchmark records its selective 0BSD source adaptations,
+  algorithm attribution and external dependencies in
+  benchmarks/hashchunk/PROVENANCE.md. No additional third-party source is copied.
+
 - Test vectors, reference tooling and benchmark material that are added
   later record their own provenance next to them.
 

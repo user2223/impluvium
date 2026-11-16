@@ -57,6 +57,10 @@
     "aws-lc-sys": "0.47.0"
   },
   "enginePackages": {
+    "impluvium-hashchunk-bench": {
+      "manifest": "engine/protocol/benchmarks/hashchunk/Cargo.toml",
+      "kind": "tool"
+    },
     "impluvium-protocol": {
       "manifest": "engine/crates/protocol/Cargo.toml",
       "kind": "product"
@@ -169,7 +173,7 @@
     }
   ],
   "legacy": {
-    "baseSha": "355a05c609b7497b39de9d7e733d833ab79d8eb3",
+    "baseSha": "222795cd7f70091db4762de61c8b0b60abb0b169",
     "nodes": [
       [
         -1,

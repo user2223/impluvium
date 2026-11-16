@@ -572,8 +572,10 @@ The licence boundary also inventories all real Engine directories without
 name-based exclusions. An independent workspace cannot evade coverage under
 a directory named `target` or `dist`.
 Every local Engine package is classified by exact manifest path in
-`enginePackages`. Products must be selected by a reviewed profile. The only
-separate tool classification is `impluvium-protocol-xtask`. Unknown Engine
+`enginePackages`. Products must be selected by a reviewed profile. The separate tool classifications are `impluvium-protocol-xtask` at
+`engine/protocol/xtask/Cargo.toml` and `impluvium-hashchunk-bench` at
+`engine/protocol/benchmarks/hashchunk/Cargo.toml`. Each requires its exact
+name/path pair. Unknown Engine
 packages fail instead of silently inheriting the workspace's legacy exception.
 Every selected product root also needs a matching **target** artifact,
 including roots with no enabled features.
@@ -583,12 +585,67 @@ requirements: package name, alias, kind, target condition, optionality, defaults
 and requested features. Their entire local feature tables are frozen too, so
 indirect activation through a new default or local feature cannot bypass the
 ratchet. This deliberately covers all inherited declarations, avoiding another
-reachability classification. Engine packages use the profile rules instead.
+reachability classification. Engine products use the profile rules; the explicitly classified tools use
+their separate tests and Clippy ratchets. The inherited requirement table is
+unchanged by adding a tool.
 Removing requests or restricting features, defaults and optionality is allowed;
 new declarations, conditions or broader requests fail with the affected root
 and declaration. Review the change and independently recapture the selected
 public base before updating its requirements. Workspace-wide feature unification
 cannot conceal these changes. The unfiltered full-path check still applies.
+
+### Hash and chunk benchmark tool
+
+The Rust job runs the tool's small functional tests and Clippy after fetching
+locked dependencies. It does not download corpora, run the million-file model,
+perform decision-quality throughput measurements or add a fifth product profile.
+Source attribution and the size-model boundary are documented in
+`engine/protocol/benchmarks/hashchunk/PROVENANCE.md`.
+
+The test target is named `hashchunk_integration` so Cargo metadata can attribute
+its suites without confusing it with other workspace integration targets.
+Capture stdout and stderr together for tests, and Cargo JSON stdout separately
+for Clippy. Retain both logs in the protocol evidence artifact:
+
+```sh
+cargo test --locked --offline -p impluvium-hashchunk-bench --no-fail-fast \
+  > /work/results/hashchunk-tests.txt 2>&1
+cargo clippy --locked --offline -p impluvium-hashchunk-bench \
+  --all-targets --message-format=json -- --cap-lints warn \
+  > /work/results/hashchunk-clippy.jsonl
+cargo metadata --locked --offline --format-version=1 > /work/results/hashchunk-metadata.json
+node tools/ci/count-tests.mjs --baseline tools/ci/protocol-tests-hashchunk.json \
+  --metadata /work/results/hashchunk-metadata.json --input /work/results/hashchunk-tests.txt
+node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json \
+  --metadata /work/results/hashchunk-metadata.json --input /work/results/hashchunk-clippy.jsonl \
+  --package impluvium-hashchunk-bench --package impluvium-protocol
+```
+
+Supply `--previous-baseline FILE` with the respective baseline from the actual
+comparison base whenever present. The Clippy stream includes the protocol
+workspace dependency: both packages must be selected and both artifacts must
+be present. Both budgets are zero; the existing protocol baseline is preserved.
+
+An unmeasured test count is represented by `tests.exact: null`, which the
+existing counter rejects as malformed input. Replace it only with the successful
+non-ignored count from the complete package log, never by counting test source
+annotations. Binary-only doc tests have a floor of zero.
+
+The base-revision retrieval loop includes `protocol-tests-hashchunk`. Its dynamic
+profile-path check applies only to `core`, `server`, `client` and `combined`.
+Each tool baseline is checked against its concrete path in the actual base
+workflow. Absence before introduction is allowed; a used but missing baseline
+fails. Exercise both the introduction against the preceding public revision
+and the later missing-file case in a disposable checkout. Keep the entire shell
+block and the literal workflow contract synchronized.
+
+Adding the workspace member requires lock resolution in a disposable container.
+Use `cargo update --workspace` from the root with the pinned stable toolchain,
+then `cargo fetch --locked`; review that only the new member and necessary
+resolution were added. Do not replace the root lock with the experimental lock.
+Recapture all 16 existing product selections and both complete workspaces with
+their independent source receipts, then review the writer's contract candidate.
+The tool classification alone does not refresh any measured graph data.
 
 ### Rebuilding the compact contract
 

@@ -230,3 +230,5 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `GCC_EXEC_PREFIX` | build | build | active | consumer: protocol build evidence capture | yes | no | keep: Owned by the compiler or platform loader. | Rejected ambient compiler executable-prefix override. |
 | `LD_PRELOAD` | build | build | active | consumer: protocol build evidence capture | yes | no | keep: Owned by the compiler or platform loader. | Rejected ambient dynamic-loader injection during build evidence capture. |
 | `LD_LIBRARY_PATH` | build | build | active | consumer: protocol build evidence capture | yes | no | keep: Owned by the compiler or platform loader. | Rejected ambient dynamic-library search override during build evidence capture. |
+| `CARGO_BIN_EXE_*` | test | protocol benchmark | active | read | yes | no | keep: Owned by Cargo. | Cargo supplies integration tests with the path to the benchmark executable. |
+| `RAYON_NUM_THREADS` | test | protocol benchmark | active | consumer: Rayon thread-pool configuration in generator determinism tests | yes | no | keep: Owned by Rayon. | Sets different worker counts for deterministic corpus generation tests. |

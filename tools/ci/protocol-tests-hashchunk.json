@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "packages": {
+    "impluvium-hashchunk-bench": {
+      "tests": {
+        "exact": 49
+      },
+      "docTests": {
+        "min": 0
+      }
+    }
+  }
+}

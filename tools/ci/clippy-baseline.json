@@ -1,6 +1,7 @@
 {
   "version": 1,
   "packages": {
+    "impluvium-hashchunk-bench": 0,
     "impluvium-protocol": 0,
     "impluvium-client": 0,
     "impluvium-protocol-xtask": 0,

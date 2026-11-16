@@ -80,3 +80,18 @@ for (const directory of ['engine/target/extra', 'engine/dist/extra']) test(`atte
   writeFileSync(path.join(root, directory, 'Cargo.toml'), '[workspace]\n[package]\nname = "extra"\nversion = "0.1.0"\n[dependencies]\nring = "0.17"\n');
   assert.throws(() => engineCoverage({ workspace_root: root, packages: [] }, root, data, attest(root)), /unassigned engine manifest missing from metadata/);
 });
+for (const [name, manifest] of [
+  ['impluvium-protocol-xtask', 'engine/protocol/xtask/Cargo.toml'],
+  ['impluvium-hashchunk-bench', 'engine/protocol/benchmarks/hashchunk/Cargo.toml'],
+]) test(`tool classification requires the exact pair for ${name}`, () => {
+  const { root, metadata, source } = fixture(true), pkg = metadata.packages.find(pkg => pkg.id === 'engine');
+  pkg.name = name; pkg.manifest_path = `${root}/${manifest}`;
+  const classified = { profiles: {}, enginePackages: { [name]: { manifest, kind: 'tool' } } };
+  assert.equal(workspacePaths(metadata, 'all', root, classified, source).length, 2);
+  pkg.manifest_path = `${root}/engine/other/Cargo.toml`;
+  classified.enginePackages[name].manifest = 'engine/other/Cargo.toml';
+  assert.throws(() => workspacePaths(metadata, 'all', root, classified, source), /unassigned/);
+  pkg.name = 'other'; pkg.manifest_path = `${root}/${manifest}`;
+  classified.enginePackages = { other: { manifest, kind: 'tool' } };
+  assert.throws(() => workspacePaths(metadata, 'all', root, classified, source), /unassigned/);
+});

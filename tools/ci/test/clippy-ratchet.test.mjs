@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { check as clippyCheck } from '../clippy-ratchet.mjs';
 import { fixture, invoke, temporary } from './helpers.mjs';
 
 const original = () => readFileSync(fixture('clippy.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
@@ -156,4 +157,19 @@ test('clippy: exactly one completion is required and trailing blank lines are al
   const complete = changed(t, items => items);
   writeFileSync(complete, readFileSync(complete, 'utf8') + '\n\n');
   invoke('clippy-ratchet', args(complete), 0);
+});
+
+test('hashchunk Clippy selection includes its protocol dependency and requires both artifacts', t => {
+  const root = temporary(t), names = ['impluvium-hashchunk-bench', 'impluvium-protocol'];
+  const metadata = path.join(root, 'metadata.json'), baseline = path.join(root, 'baseline.json'), input = path.join(root, 'clippy.jsonl');
+  writeFileSync(metadata, JSON.stringify({ packages: names.map(name => ({ id: name, name })), workspace_members: names }));
+  writeFileSync(baseline, JSON.stringify({ version: 1, packages: Object.fromEntries(names.map(name => [name, 0])) }));
+  const artifacts = names.map(name => ({ reason: 'compiler-artifact', package_id: name }));
+  const stream = records => writeFileSync(input, [...records, { reason: 'build-finished', success: true }].map(JSON.stringify).join('\n'));
+  stream(artifacts);
+  const options = { baseline, metadata, input, package: names };
+  assert.deepEqual(clippyCheck(options), []);
+  assert.match(clippyCheck({ ...options, package: [names[0]] }).join('\n'), /protocol: observed workspace package outside --package selection/);
+  stream(artifacts.slice(0, 1));
+  assert.match(clippyCheck(options).join('\n'), /protocol: count missing/);
 });
