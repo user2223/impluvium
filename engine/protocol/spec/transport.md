@@ -92,9 +92,10 @@ A client never hands a response body to a general-purpose decoder before these c
    `application/octet-stream` for envelopes and chunks; `text/event-stream` for an opened event stream. An object
    response keeps its stored type and is checked by the caller. Otherwise the response is a broken body
    ([errors.md §6](errors.md#6-responses-without-a-valid-error-body)).
-5. **Body.** The body is read under the route's byte limit and a deadline. Received bytes are counted; a
-   `Content-Length` header neither replaces the count nor raises the limit. A body that exceeds the limit is abandoned
-   (`response_too_large`).
+5. **Body.** The body is read under a deadline and the route's byte limit for its expected success status, or the
+   65 536-byte error-body limit otherwise. Received bytes are counted; a `Content-Length` header neither replaces the
+   count nor raises the limit. A body that exceeds its limit is abandoned: `response_too_large` for a success status,
+   otherwise the status mapping of [errors.md §6](errors.md#6-responses-without-a-valid-error-body).
 6. **Pre-check.** The body passes the encoding profile and the element, byte and nesting limits of its schema
    ([encoding.md](encoding.md)) before decoding. Error bodies use their own schema ([errors.md §3](errors.md#3-error-bodies)),
    independent of the codec of the request.

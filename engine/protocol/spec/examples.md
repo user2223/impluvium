@@ -212,3 +212,27 @@ number was 41 applies it (`prevSeq` 41 ≤ 41 < 42) and then sees from the heart
 `CAU` is the unpadded base64 of the two bytes `08 05`: field 1 (`reason`) with value 5, `DEVICE_REVOKED`. A client that
 received this body from the pinned server origin deletes the credentials of that trust context
 ([errors.md §7](errors.md#7-credential-cleanup)). The same JSON from another origin, or a `502` HTML page, never does.
+
+For these responses to `ListDevices`, the success-body read limit is 1 048 576 bytes and the error-body read limit is
+65 536 bytes ([limits.md §4–5](limits.md#4-rpc-bodies)). Header-size and content-coding checks pass. HTML pages have
+`Content-Type: text/html`; JSON bodies have `Content-Type: application/json`. Any body read completes within its
+deadline unless the read limit is exceeded. The transport checks precede the status mapping of
+[errors.md §6](errors.md#6-responses-without-a-valid-error-body):
+
+| Status | Body | Local result |
+|---|---|---|
+| 502 | HTML page | `server_unavailable` |
+| 413 | Truncated JSON (`{"code":`) in a complete HTTP body | `request_too_large` |
+| 500 | HTML page | `broken_error_body` |
+| 302 | HTML page; RPC routes allow no redirects | `redirect_not_allowed` |
+| 502 | JSON body exceeds 65 536 bytes; read aborted | `server_unavailable` |
+| 200 | JSON body exceeds the success-body read limit of 1 048 576 bytes | `response_too_large` |
+
+A `502` response with a JSON body above 65 536 bytes when opening the event stream is also `server_unavailable`;
+the client abandons the body at the same error-body limit.
+
+For a chunk GET with `Range: bytes=0-0`, the success-body limit is one byte. A `401` response with
+`Content-Type: application/json` and a valid error body (`code` `unauthenticated`, `ErrorInfo.reason` `TICKET_EXPIRED`)
+is read under the 65 536-byte error-body limit even though it exceeds one byte. After the pre-check, the client
+handles the code and reason: it refreshes the ticket and continues the download
+([tickets.md §5](tickets.md#5-transport-of-tickets)).

@@ -117,8 +117,8 @@ Names used for enclosing limits:
 
 Body limits apply to the complete request or response body in wire bytes, in either codec, also when the body arrives
 in chunks; the larger size of JSON counts. A request body above the limit is rejected before decoding with
-`resource_exhausted` (`body_too_large`); a response body above the limit is abandoned by the client
-(`response_too_large`).
+`resource_exhausted` (`body_too_large`); a success response body above the response limit is abandoned by the client
+(`response_too_large`). The response column below applies to success bodies; error bodies use the limit in §5.
 
 | Service | Methods | Request | Response |
 |---|---|---:|---:|
@@ -203,11 +203,17 @@ by the response limit.
 | Descriptor envelope (`GET …/descriptors/…`) | 1 064 960 (1 048 576 + 16 384) |
 | Object (`GET …/objects/…`) | chosen by the caller for the object's purpose |
 | Chunk (`GET /depot/v2/…`) | the chunk's size from the manifest (at most 16 777 216), or the requested range length |
-| Error body (all surfaces) | 65 536 |
+| Error body (all surfaces, including event-stream open) | 65 536 |
 | One event of the event stream, all its lines | 65 536 |
 | Response header section | 65 536 |
 | `Authorization` header value carrying a ticket | 5 469 |
 | Event stream resume point (`last_event_id`, `Last-Event-ID`) | 53 |
+
+The error-body limit here and in §6 is the read limit for every response whose status is not the expected success
+status of the requested route or method. It applies when opening the event stream and to chunk and object GETs,
+independently of their success-body limits, even when those limits are smaller. Exceeding it aborts the read and
+fails the body-size check of [errors.md §3.2](errors.md#32-pre-check-of-error-bodies); the status mapping of
+[errors.md §6](errors.md#6-responses-without-a-valid-error-body) applies.
 
 Discovery field inventory:
 

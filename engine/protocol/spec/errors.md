@@ -98,12 +98,16 @@ wire reason). For the other routes the status is given by the route's chapter, f
 
 ### 3.2 Pre-check of error bodies
 
-A client checks an error body before any decoder sees it, independently of the codec of the original request:
+A client checks an error body before any decoder sees it, independently of the codec of the original request.
+
+The body-size check is enforced while reading: on every surface, an error response uses the 65 536-byte error-body
+limit instead of the success-body limit of the requested route or method. At the first byte above this limit the
+client abandons the body and classifies the response under §6.
 
 | Order | Check | Limit |
 |---:|---|---|
 | 1 | `Content-Type` is `application/json` | – |
-| 2 | Body size | ≤ 65 536 bytes |
+| 2 | Body size, enforced while reading | ≤ 65 536 bytes |
 | 3 | JSON profile of [encoding.md §3](encoding.md#3-json-profile), including duplicate keys and nesting | depth ≤ 64 |
 | 4 | Top level is an object with a string `code` of 1–64 bytes | – |
 | 5 | `message`, if present, is a string | ≤ 4 096 bytes |
@@ -244,14 +248,29 @@ the underlying reason.
 ## 6. Responses without a valid error body
 
 A response whose status is not 200 (for RPC) or not the expected success status (for other routes), and whose body
-fails the pre-check of §3.2, is classified by status:
+fails the pre-check of §3.2, is classified by the table below, subject to the transport checks of
+[transport.md §6](transport.md#6-response-protection) and the redirect rules of
+[transport.md §7](transport.md#7-redirects). Header-size, redirect and content-coding failures take precedence over
+this table.
+
+For an error response, a wrong `Content-Type` at transport step 4 is a failure of §3.2's first check and uses this
+table without reading the body. Otherwise, transport step 5 reads the body under the 65 536-byte error-body limit
+and a deadline, on every surface. Exceeding this limit aborts the read and fails §3.2's body-size check; the response
+uses this table, not `response_too_large`.
+
+Truncated JSON means an incomplete JSON document in a complete HTTP body. A timeout or an incomplete HTTP body
+transfer remains a transport failure and does not use this table; the deliberate abort at the error-body limit
+above is a pre-check failure.
+
+Subject to this order, the local result is determined solely by status. HTML pages, truncated JSON, a wrong
+`Content-Type` and an over-long error body do not override the status mapping.
 
 | Status | Local result | Client behaviour |
 |---|---|---|
 | 413 | `request_too_large` | The request is too large; do not retry it unchanged. |
 | 429 | `rate_limited` | Retry after a valid `Retry-After` (item 2 below), otherwise after the client's backoff. |
 | 502, 503, 504 | `server_unavailable` | Server not available; retry with bounded backoff. |
-| any other, or an HTML page, truncated JSON, a wrong `Content-Type`, an over-long body | `broken_error_body` | Protocol or availability error; retry with bounded backoff. |
+| any status other than 413, 429, 502, 503 or 504 | `broken_error_body` | Protocol or availability error; retry with bounded backoff. |
 
 1. In every case of this table the client keeps its credentials and its trust context, never signs out and never
    treats the response as a device revocation.
@@ -259,7 +278,8 @@ fails the pre-check of §3.2, is classified by status:
    HTTP-date form and other values are ignored.
 3. Bounded backoff: the client waits with exponential growth and random jitter, starting at no less than 1 second and
    never waiting longer than 300 seconds between attempts, unless a valid `Retry-After` asks for longer.
-4. A response with a valid error body is handled by its code and reason, whatever its status.
+4. After the preceding transport checks have passed, a response with a valid error body is handled by its code and
+   reason, whatever its status.
 
 ## 7. Credential cleanup
 
