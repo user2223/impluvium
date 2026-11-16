@@ -35,6 +35,8 @@
 !engine/crates/client/src/
 !engine/protocol/xtask/Cargo.toml
 !engine/protocol/xtask/src/
+!engine/protocol/benchmarks/hashchunk/Cargo.toml
+!engine/protocol/benchmarks/hashchunk/src/
 
 # Never part of the context, wherever they are.
 **/target
