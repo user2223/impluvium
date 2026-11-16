@@ -1,0 +1,43 @@
+{
+  "classes": [
+    {
+      "name": "many-small-files (generator)",
+      "kind": "many-small-files",
+      "pairs": [
+        {
+          "label": "generator v1 -> v2 (seed 20261101)",
+          "old": "../data/gen/v1",
+          "new": "../data/gen/v2"
+        }
+      ]
+    },
+    {
+      "name": "compressed archives (Linux kernel)",
+      "kind": "compressed-archive",
+      "pairs": [
+        {
+          "label": "linux-7.2.tar.xz -> linux-7.3.tar.xz",
+          "old": "../data/archives/linux-7.2.tar.xz",
+          "new": "../data/archives/linux-7.3.tar.xz"
+        },
+        {
+          "label": "linux-7.3.tar.xz -> linux-7.3.1.tar.xz",
+          "old": "../data/archives/linux-7.3.tar.xz",
+          "new": "../data/archives/linux-7.3.1.tar.xz"
+        }
+      ]
+    },
+    {
+      "name": "pak files (Xonotic only)",
+      "kind": "pak-files",
+      "pairs": [
+        {
+          "label": "xonotic 0.8.5 -> 0.8.6",
+          "old": "../data/xonotic/0.8.5",
+          "new": "../data/xonotic/0.8.6"
+        }
+      ]
+    }
+  ],
+  "license": "0BSD"
+}

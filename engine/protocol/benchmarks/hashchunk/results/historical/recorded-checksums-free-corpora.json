@@ -1,0 +1,60 @@
+{
+  "0ad-0.27.1-unix-data.tar.xz": {
+    "official": {"algorithm": "sha256", "hex_parts": ["837e2d6ddf138b025fc02017245d7581", "a4bb84fd94b42c0e605d321b7017a998"]},
+    "sha256": {"algorithm": "sha256", "hex_parts": ["837e2d6ddf138b025fc02017245d7581", "a4bb84fd94b42c0e605d321b7017a998"]},
+    "size": 1367955136
+  },
+  "0ad-0.28.0-unix-data.tar.xz": {
+    "official": {"algorithm": "sha256", "hex_parts": ["e844b30ae2102c47e0a4fff2f0e0ef05", "ba0cebb1890aa72276fa12457c39526f"]},
+    "sha256": {"algorithm": "sha256", "hex_parts": ["e844b30ae2102c47e0a4fff2f0e0ef05", "ba0cebb1890aa72276fa12457c39526f"]},
+    "size": 1415012652
+  },
+  "Sintel.2010.1080p.mkv": {
+    "official": {"algorithm": "md5", "hex_parts": ["89b52d27a509629dbbdf22bb69a8250f"]},
+    "sha256": {"algorithm": "sha256", "hex_parts": ["97f1dbc66231df42ad49bd8c29aa174b", "8f48933058e47e7157d4ba63d93a8efa"]},
+    "size": 1180090590
+  },
+  "Sintel.2010.720p.mkv.zip": {"official": null, "sha256": {"algorithm": "sha256", "hex_parts": ["d252f898641b20f51c64206f31063e65", "9c28b152a9d988936736d1b56e6e4db3"]}, "size": 681285470},
+  "linux-7.2.tar.xz": {
+    "official": {"algorithm": "sha256", "hex_parts": ["f9fef3d14c0df53819026f4be7445983", "5c2a0b0dcbf5b5bbd9ea19f0829402b3"]},
+    "sha256": {"algorithm": "sha256", "hex_parts": ["f9fef3d14c0df53819026f4be7445983", "5c2a0b0dcbf5b5bbd9ea19f0829402b3"]},
+    "size": 160068116
+  },
+  "linux-7.3.1.tar.xz": {
+    "official": {"algorithm": "sha256", "hex_parts": ["fa595aad93734f829c963c2a90ef7c36", "73224fd7fdae7b49406e397cde2de231"]},
+    "sha256": {"algorithm": "sha256", "hex_parts": ["fa595aad93734f829c963c2a90ef7c36", "73224fd7fdae7b49406e397cde2de231"]},
+    "size": 162406920
+  },
+  "linux-7.3.tar.xz": {
+    "official": {"algorithm": "sha256", "hex_parts": ["87363c24f10e06321eb362765521094e", "94471f6bff8bce2d6b3e40f39f004953"]},
+    "sha256": {"algorithm": "sha256", "hex_parts": ["87363c24f10e06321eb362765521094e", "94471f6bff8bce2d6b3e40f39f004953"]},
+    "size": 162399360
+  },
+  "sintel/Sintel.2010.720p.mkv": {
+    "official": {"algorithm": "md5", "hex_parts": ["1f5de6a3822dc9ba4f1e273df9d23c2d"]},
+    "sha256": {"algorithm": "sha256", "hex_parts": ["f12c070e295b38cfc94ebd61ac3357c3", "bac82d1015985f1e8da93a4c6496c46d"]},
+    "size": 681285280
+  },
+  "tree:0ad/0.27.1": {"members": 66, "tree_digest": {"algorithm": "sha256", "hex_parts": ["a560b761a8fa256976352aaf6d01ce25", "b0d667c2ad7d6b0b3437c684dd584521"]}, "unpacked_bytes": 3526937892},
+  "tree:0ad/0.28.0": {"members": 46, "tree_digest": {"algorithm": "sha256", "hex_parts": ["284d84bc89701a0e7a27dcd9b81c74ec", "eef42fd861a5076b786730b3e95cf18d"]}, "unpacked_bytes": 3602349060},
+  "tree:trees/linux-7.2": {"members": 101059, "tree_digest": {"algorithm": "sha256", "hex_parts": ["8fd774ced5dd2ade85c51a543d705a66", "21171c2de58d2ecf411614b744f9a0b9"]}, "unpacked_bytes": 1615609096},
+  "tree:trees/linux-7.3": {"members": 102364, "tree_digest": {"algorithm": "sha256", "hex_parts": ["aa9fc81f2ea9510b9153c526abaa9879", "61d15db8b1fb53f608f319275a26ffe5"]}, "unpacked_bytes": 1641372619},
+  "tree:xonotic/0.8.5": {"members": 2891, "tree_digest": {"algorithm": "sha256", "hex_parts": ["3c0a166687160f81d9f5aafc1b340caf", "6ba219127c91f21f3d424e523d07bf33"]}, "unpacked_bytes": 1351891317},
+  "tree:xonotic/0.8.6": {"members": 2894, "tree_digest": {"algorithm": "sha256", "hex_parts": ["176f04fb7775e47f4b7895ffcd0bcab9", "10df23dbb8b3c64f3663ce55d0fe0b88"]}, "unpacked_bytes": 1353022920},
+  "xonotic-0.8.5.zip": {
+    "official": {
+      "algorithm": "sha512",
+      "hex_parts": ["4ffc4b73eeb5f580d178a98419d5b44c", "bff0c56e356a62baa729b5b7a6c3d43b", "2b425b123428c9b1bf3f4718eaf61bcf", "5d62914521cc061c7563a253440c807e"]
+    },
+    "sha256": {"algorithm": "sha256", "hex_parts": ["0f92aa238362aeb059b9d9026a9bd38d", "6217423a35c19f126fb39e38736e37e5"]},
+    "size": 1228561792
+  },
+  "xonotic-0.8.6.zip": {
+    "official": {
+      "algorithm": "sha512",
+      "hex_parts": ["cb39879e96f19abb2877588c2d50c5d3", "e64dd68153bec3dd1bebedf4d765e506", "afa419c28381d7005aed664cb1a04257", "1c132b5b319e4308cab67745d996c2a6"]
+    },
+    "sha256": {"algorithm": "sha256", "hex_parts": ["50850f8d800e7499722f6ea61e478e96", "464a375494b5a24da93aa0598cbe964d"]},
+    "size": 1238439495
+  }
+}

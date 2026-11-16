@@ -1,0 +1,19 @@
+{
+  "source_revision": "e1af3927ada0",
+  "lib": "prost",
+  "validated": "limits::validate (format, counts, chunk ids/sizes, mode, path rules, sort order, symlink targets, index bounds, per-file and total size sums)",
+  "file_bytes": 12771105,
+  "entries": 100100,
+  "chunks": 106063,
+  "prescan_seconds": 0.0077,
+  "decode_seconds_median": 0.0262,
+  "decode_seconds_all": [
+    0.03354389,
+    0.026232467,
+    0.019917396
+  ],
+  "validate_seconds_median": 0.004,
+  "rss_after_read": 14815232,
+  "peak_rss_after_first_decode": 49070080,
+  "peak_rss_final": 51204096
+}

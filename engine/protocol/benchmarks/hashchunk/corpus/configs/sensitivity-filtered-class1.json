@@ -1,0 +1,48 @@
+{
+  "classes": [
+    {
+      "name": "many-small-files (generator minus boundary files)",
+      "kind": "many-small-files",
+      "pairs": [
+        {
+          "label": "generator minus boundary files v1 -> v2",
+          "old": "../data/gen-wo-boundary/v1",
+          "new": "../data/gen-wo-boundary/v2"
+        }
+      ]
+    },
+    {
+      "name": "compressed archives (Linux kernel)",
+      "kind": "compressed-archive",
+      "pairs": [
+        {
+          "label": "linux-7.2.tar.xz -> linux-7.3.tar.xz",
+          "old": "../data/archives/linux-7.2.tar.xz",
+          "new": "../data/archives/linux-7.3.tar.xz"
+        },
+        {
+          "label": "linux-7.3.tar.xz -> linux-7.3.1.tar.xz",
+          "old": "../data/archives/linux-7.3.tar.xz",
+          "new": "../data/archives/linux-7.3.1.tar.xz"
+        }
+      ]
+    },
+    {
+      "name": "pak files (Xonotic, 0 A.D.)",
+      "kind": "pak-files",
+      "pairs": [
+        {
+          "label": "xonotic 0.8.5 -> 0.8.6",
+          "old": "../data/xonotic/0.8.5",
+          "new": "../data/xonotic/0.8.6"
+        },
+        {
+          "label": "0 A.D. 0.27.1 -> 0.28.0 (unix data)",
+          "old": "../data/0ad/0.27.1",
+          "new": "../data/0ad/0.28.0"
+        }
+      ]
+    }
+  ],
+  "license": "0BSD"
+}

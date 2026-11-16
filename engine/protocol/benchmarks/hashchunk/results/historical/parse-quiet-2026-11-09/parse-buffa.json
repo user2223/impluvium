@@ -1,0 +1,21 @@
+{
+  "source_revision": "e1af3927ada0",
+  "lib": "buffa",
+  "validated": "same checks on owned buffa messages",
+  "file_bytes": 127959252,
+  "entries": 1001000,
+  "chunks": 1061212,
+  "prescan_seconds": 0.0737,
+  "decode_seconds_median": 0.253,
+  "decode_seconds_all": [
+    0.287509571,
+    0.249974471,
+    0.258875521,
+    0.253031,
+    0.251115777
+  ],
+  "validate_seconds_median": 0.0471,
+  "rss_after_read": 129961984,
+  "peak_rss_after_first_decode": 517029888,
+  "peak_rss_final": 537300992
+}

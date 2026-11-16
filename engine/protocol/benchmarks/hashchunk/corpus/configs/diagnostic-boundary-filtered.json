@@ -1,0 +1,16 @@
+{
+  "classes": [
+    {
+      "name": "boundary files filtered out of the same corpus",
+      "kind": "diagnostic",
+      "pairs": [
+        {
+          "label": "generator minus boundary files v1 -> v2 (seed 20261101)",
+          "old": "../data/gen-wo-boundary/v1",
+          "new": "../data/gen-wo-boundary/v2"
+        }
+      ]
+    }
+  ],
+  "license": "0BSD"
+}

@@ -1,0 +1,632 @@
+{
+  "tool": "chunkbench hash",
+  "aggregate_only": false,
+  "label": "windows-vm plausibility warm",
+  "machine": {
+    "tool_version": "0.1.0",
+    "source_revision": null,
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "dependencies": "sha2=0.11.1,blake3=1.8.7,fastcdc=5.0.0,prost=0.14.4,rayon=1.12.0,crossbeam-channel=0.5.17",
+    "cpu_model": "unknown",
+    "logical_cpus": 0,
+    "available_parallelism": 4,
+    "cpu_mhz_first_core": null,
+    "cpu_max_mhz": null,
+    "flags": {
+      "sha_ni": true,
+      "avx2": true,
+      "avx512f": false,
+      "sse41": true
+    },
+    "sha2_soft_backend_forced": false,
+    "mem_total_bytes": 0,
+    "cgroup_cpu_max": null,
+    "cgroup_memory_max": null,
+    "kernel": "",
+    "arch": "x86_64",
+    "os": "windows"
+  },
+  "loadavg_start": "",
+  "loadavg_end": "",
+  "quiet_override": false,
+  "ignored_containers": 0,
+  "decision_grade": true,
+  "parameters": {
+    "chunking": {
+      "family": "cdc",
+      "id": "cdc-256k",
+      "max": 1048576,
+      "min": 65536,
+      "nominal": 262144,
+      "selectable": true
+    },
+    "file_hash_of_split_files": true,
+    "max_busy_percent": 10.0,
+    "pipeline": "reader/chunker thread(s) -> bounded queue of batches (<=512 KiB or 256 chunks) -> fixed worker pool; chunk data is copied once",
+    "quiet_gate": {
+      "accounting": "host /proc/stat first 8 counters; idle includes iowait; subtract /proc/self/stat utime+stime+cutime+cstime (all own threads and reaped children); no subprocesses in pipeline; kernel workers remain counted",
+      "consecutive_samples": 3,
+      "sample_interval_seconds": 1,
+      "timeout_seconds": 120
+    },
+    "readers": 1,
+    "reps": 5,
+    "verify_path": "reads with the boundaries recorded by the build run, no chunking, compares hashes",
+    "workers": [
+      1,
+      4
+    ]
+  },
+  "tree_files": 2549,
+  "tree_bytes": 616092778,
+  "conditions": [
+    {
+      "algorithm": "sha256",
+      "workers": 0,
+      "readers": 1,
+      "stage": "chunk-only",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.66621297,
+        0.66104246,
+        0.68682704,
+        0.68552734,
+        0.65470032
+      ],
+      "seconds_median": 0.66621297,
+      "mib_per_s_median": 881.9279800301359,
+      "bytes": 616092778,
+      "files": 2549,
+      "chunks": 4189,
+      "resident_fraction_before_each_rep": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "busy_percent_before_each_rep": [],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        }
+      ],
+      "cache_state_valid": false,
+      "cache_state": "unknown",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 1,
+      "readers": 1,
+      "stage": "build",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.98640972,
+        0.95664202,
+        0.94878408,
+        1.02355096,
+        0.95517193
+      ],
+      "seconds_median": 0.95664202,
+      "mib_per_s_median": 614.1815293687157,
+      "bytes": 616092778,
+      "files": 2549,
+      "chunks": 4189,
+      "resident_fraction_before_each_rep": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "busy_percent_before_each_rep": [],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        }
+      ],
+      "cache_state_valid": false,
+      "cache_state": "unknown",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 4,
+      "readers": 1,
+      "stage": "build",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.73119509,
+        0.72530748,
+        0.76408198,
+        0.8066428,
+        0.75380969
+      ],
+      "seconds_median": 0.75380969,
+      "mib_per_s_median": 779.4432291019999,
+      "bytes": 616092778,
+      "files": 2549,
+      "chunks": 4189,
+      "resident_fraction_before_each_rep": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "busy_percent_before_each_rep": [],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        }
+      ],
+      "cache_state_valid": false,
+      "cache_state": "unknown",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 1,
+      "readers": 1,
+      "stage": "build",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.73399555,
+        0.7622723,
+        0.75359012,
+        0.73750584,
+        0.73750337
+      ],
+      "seconds_median": 0.73750584,
+      "mib_per_s_median": 796.6741780674951,
+      "bytes": 616092778,
+      "files": 2549,
+      "chunks": 4189,
+      "resident_fraction_before_each_rep": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "busy_percent_before_each_rep": [],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        }
+      ],
+      "cache_state_valid": false,
+      "cache_state": "unknown",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 4,
+      "readers": 1,
+      "stage": "build",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.74466172,
+        0.84350574,
+        0.76010741,
+        0.73008101,
+        0.89939691
+      ],
+      "seconds_median": 0.76010741,
+      "mib_per_s_median": 772.985305987186,
+      "bytes": 616092778,
+      "files": 2549,
+      "chunks": 4189,
+      "resident_fraction_before_each_rep": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "busy_percent_before_each_rep": [],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        }
+      ],
+      "cache_state_valid": false,
+      "cache_state": "unknown",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 1,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "warm",
+      "seconds_each_rep": [
+        1.15703434,
+        1.4137248,
+        1.13739775,
+        1.00124358,
+        0.95554496
+      ],
+      "seconds_median": 1.13739775,
+      "mib_per_s_median": 516.5755417592285,
+      "bytes": 616092778,
+      "files": 2549,
+      "chunks": 4189,
+      "resident_fraction_before_each_rep": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "busy_percent_before_each_rep": [],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        }
+      ],
+      "cache_state_valid": false,
+      "cache_state": "unknown",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 4,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.45477676,
+        0.6231304,
+        0.45059145,
+        0.45904744,
+        0.50894615
+      ],
+      "seconds_median": 0.45904744,
+      "mib_per_s_median": 1279.937121317957,
+      "bytes": 616092778,
+      "files": 2549,
+      "chunks": 4189,
+      "resident_fraction_before_each_rep": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "busy_percent_before_each_rep": [],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        }
+      ],
+      "cache_state_valid": false,
+      "cache_state": "unknown",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 1,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.46736076,
+        0.4961561,
+        0.58241977,
+        0.47431832,
+        0.45921048
+      ],
+      "seconds_median": 0.47431832,
+      "mib_per_s_median": 1238.7290014477567,
+      "bytes": 616092778,
+      "files": 2549,
+      "chunks": 4189,
+      "resident_fraction_before_each_rep": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "busy_percent_before_each_rep": [],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        }
+      ],
+      "cache_state_valid": false,
+      "cache_state": "unknown",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 4,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.37325162,
+        0.37953025,
+        0.36412372,
+        0.37332428,
+        0.37777624
+      ],
+      "seconds_median": 0.37332428,
+      "mib_per_s_median": 1573.8377876252182,
+      "bytes": 616092778,
+      "files": 2549,
+      "chunks": 4189,
+      "resident_fraction_before_each_rep": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "busy_percent_before_each_rep": [],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        },
+        {
+          "wait_seconds": 0.0,
+          "ready": true,
+          "samples": []
+        }
+      ],
+      "cache_state_valid": false,
+      "cache_state": "unknown",
+      "mismatches": 0
+    }
+  ],
+  "quiet_abort": null,
+  "micro": [
+    {
+      "algorithm": "sha256",
+      "threads": 1,
+      "piece_bytes": 65536,
+      "mib_per_s": 1585.9118985673051
+    },
+    {
+      "algorithm": "sha256",
+      "threads": 1,
+      "piece_bytes": 1048576,
+      "mib_per_s": 1573.4281905658781
+    },
+    {
+      "algorithm": "sha256",
+      "threads": 4,
+      "piece_bytes": 65536,
+      "mib_per_s": 5794.97819865819
+    },
+    {
+      "algorithm": "sha256",
+      "threads": 4,
+      "piece_bytes": 1048576,
+      "mib_per_s": 6193.957425555392
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 1,
+      "piece_bytes": 65536,
+      "mib_per_s": 3750.539048422316
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 1,
+      "piece_bytes": 1048576,
+      "mib_per_s": 3984.0194133795976
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 4,
+      "piece_bytes": 65536,
+      "mib_per_s": 13140.62638953462
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 4,
+      "piece_bytes": 1048576,
+      "mib_per_s": 13585.16478778354
+    }
+  ],
+  "notes": [
+    "Functional run; decision rule of the benchmark protocol needs the measurement protocol (quiet machine, physical reference without SHA-NI).",
+    "Before each repetition: join all reader/worker threads, release previous run allocations, prepare cache, then require three consecutive 1 s external CPU samples <= limit within 120 s. Recheck cache residency after waiting. busy_percent_before_each_rep is the final external CPU sample; quiet_before_each_rep records actual wait and every sample (system, own, external). Failed probes reset the quiet streak."
+  ]
+}

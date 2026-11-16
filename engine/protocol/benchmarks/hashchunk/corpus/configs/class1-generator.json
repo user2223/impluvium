@@ -1,0 +1,16 @@
+{
+  "classes": [
+    {
+      "name": "many-small-files",
+      "kind": "many-small-files",
+      "pairs": [
+        {
+          "label": "generator v1 -> v2 (seed 20261101)",
+          "old": "../data/gen/v1",
+          "new": "../data/gen/v2"
+        }
+      ]
+    }
+  ],
+  "license": "0BSD"
+}

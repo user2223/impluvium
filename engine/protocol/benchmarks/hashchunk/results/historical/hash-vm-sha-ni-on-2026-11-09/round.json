@@ -1,0 +1,25 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "time": "2026-11-09T01:56:32Z",
+      "ci_jobs": 0,
+      "host_load_average": [
+        1.01,
+        1.63,
+        1.95
+      ]
+    },
+    {
+      "event": "end",
+      "time": "2026-11-09T02:44:43Z",
+      "ci_jobs": 0,
+      "host_load_average": [
+        2.8,
+        3.18,
+        3.42
+      ]
+    }
+  ],
+  "sha_ni_cpu_lines": 4
+}

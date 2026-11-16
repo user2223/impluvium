@@ -1,0 +1,11 @@
+{
+  "source_revision": "64306afbd875",
+  "payload_bytes": 16777216,
+  "entries_decoded": 8388608,
+  "prescan_result": "Err(TooManyEntries)",
+  "prescan_seconds": 0.0154,
+  "unguarded_decode_seconds": 0.358,
+  "rss_before_decode": 18866176,
+  "peak_rss": 958509056,
+  "amplification_x": 56.0
+}

@@ -1,0 +1,70 @@
+{
+  "classes": [
+    {
+      "name": "many-small-files (generator)",
+      "kind": "many-small-files",
+      "pairs": [
+        {
+          "label": "generator v1 -> v2 (seed 20261101)",
+          "old": "../data/gen/v1",
+          "new": "../data/gen/v2"
+        }
+      ]
+    },
+    {
+      "name": "compressed archives (Linux kernel)",
+      "kind": "compressed-archive",
+      "pairs": [
+        {
+          "label": "linux-7.2.tar.xz -> linux-7.3.tar.xz",
+          "old": "../data/archives/linux-7.2.tar.xz",
+          "new": "../data/archives/linux-7.3.tar.xz"
+        },
+        {
+          "label": "linux-7.3.tar.xz -> linux-7.3.1.tar.xz",
+          "old": "../data/archives/linux-7.3.tar.xz",
+          "new": "../data/archives/linux-7.3.1.tar.xz"
+        }
+      ]
+    },
+    {
+      "name": "pak files (Xonotic, 0 A.D.)",
+      "kind": "pak-files",
+      "pairs": [
+        {
+          "label": "xonotic 0.8.5 -> 0.8.6",
+          "old": "../data/xonotic/0.8.5",
+          "new": "../data/xonotic/0.8.6"
+        },
+        {
+          "label": "0 A.D. 0.27.1 -> 0.28.0 (unix data)",
+          "old": "../data/0ad/0.27.1",
+          "new": "../data/0ad/0.28.0"
+        }
+      ]
+    },
+    {
+      "name": "Sintel 720p -> 1080p (full-replacement diagnostic)",
+      "kind": "diagnostic-full-replacement",
+      "pairs": [
+        {
+          "label": "Sintel.2010.720p.mkv -> Sintel.2010.1080p.mkv",
+          "old": "../data/sintel/Sintel.2010.720p.mkv",
+          "new": "../data/sintel/Sintel.2010.1080p.mkv"
+        }
+      ]
+    },
+    {
+      "name": "Linux source tree 7.2 -> 7.3 (real small files, diagnostic)",
+      "kind": "diagnostic-real-small-files",
+      "pairs": [
+        {
+          "label": "linux 7.2 tree -> 7.3 tree",
+          "old": "../data/trees/linux-7.2",
+          "new": "../data/trees/linux-7.3"
+        }
+      ]
+    }
+  ],
+  "license": "0BSD"
+}

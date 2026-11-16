@@ -1,0 +1,24 @@
+{
+  "events": [
+    {
+      "event": "start",
+      "time": "2026-11-09T02:44:50Z",
+      "ci_jobs": 0,
+      "host_load_average": [
+        2.45,
+        3.09,
+        3.39
+      ]
+    },
+    {
+      "event": "end",
+      "time": "2026-11-09T02:48:11Z",
+      "ci_jobs": 0,
+      "host_load_average": [
+        4.23,
+        3.76,
+        3.6
+      ]
+    }
+  ]
+}

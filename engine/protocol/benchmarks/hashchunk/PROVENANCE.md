@@ -50,8 +50,18 @@ boundary and dependency-license checks after lock resolution.
 No separate workspace, lock file, build script, provisional schema, generated
 code, parser, pre-scan, parser budget implementation or parser benchmark is
 imported. No aggregate coarsening, legacy report fixtures, execution wrappers,
-corpus data, corpus loader, historical results or copied upstream license text
-is included in this package.
+corpus data or copied upstream license text is included in this package.
+
+`corpus/fetch_corpora.py` and selected loader tests adapt the earlier own 0BSD
+loader: typed digest parts, separate verification statuses, direct dry runs,
+stream-counted tar extraction and duplicate/symlink counterexamples are added.
+`test_materials.py` and `compare_tree_digest.py` are new standard-library checks.
+The manifest, six configurations and historical measurement records are our
+own 0BSD descriptions and findings. Their JSON license assignment is carried
+by the manifest and `results/index.json`; configurations also carry a license
+field. The index documents label changes, digest encoding, rewritten support
+notes and exclusions. Third-party corpus bytes, execution wrappers, private
+results, the range-precheck tool and copied upstream license prose are omitted.
 
 Size reports identify `protocol-manifest-v3` and `size_model_only: true`.
 They use a fixed Timestamp, 64-bit sizes, sorted chunk IDs and remapped indexes.

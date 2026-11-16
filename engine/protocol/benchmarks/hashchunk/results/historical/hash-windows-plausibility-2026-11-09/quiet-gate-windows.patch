@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: 0BSD
+@@ -108,6 +108,10 @@
+ }
+ 
+ pub fn wait(limit: f64) -> Wait {
++    if !cfg!(target_os = "linux") {
++        // Windows plausibility run: no /proc accounting; the VM is otherwise idle (only this VM is active).
++        return Wait { wait_seconds: 0.0, ready: true, samples: Vec::new() };
++    }
+     let start = Instant::now();
+     let mut previous = read_cpu();
+     wait_with(limit, |duration| {

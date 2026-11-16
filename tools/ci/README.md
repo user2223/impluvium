@@ -647,6 +647,32 @@ Recapture all 16 existing product selections and both complete workspaces with
 their independent source receipts, then review the writer's contract candidate.
 The tool classification alone does not refresh any measured graph data.
 
+The Rust bootstrap also installs Python. The mandatory
+`Corpus loader, result data and tree digest tests` block runs standard-library
+loader and publication-data tests without network, builds the locked tool and
+compares Rust/Python digests of a small generated two-version tree and an
+executable single-file fixture:
+
+```sh
+python3 -B -m unittest discover \
+  -s engine/protocol/benchmarks/hashchunk/corpus -p 'test_*.py' -v
+cargo build --locked --offline -p impluvium-hashchunk-bench
+python3 -B engine/protocol/benchmarks/hashchunk/corpus/compare_tree_digest.py \
+  --tool target/debug/chunkbench
+```
+
+The loader tests use local fixtures and mock redirect responses, not public
+servers. Publication checks require exact index/file agreement, all sixteen
+historical hash files, repetitions, mandatory measurement metadata, distinct
+model IDs and independent checksum/tree/signature states. Static checks reject
+archives, binary bytes, long encoded blocks and private host-path shapes in
+published data and documentation. They supplement the publication guard; they
+do not authorize publication. Retain `hashchunk-loader-tests.txt` and
+`hashchunk-digest-comparison.txt` alongside the Rust logs. The complete run text,
+order and blocking conditions are frozen in `protocol-workflow.mjs`; its existing
+mutation tests also cover this block. No test or Clippy baseline, lock, generated
+output, workspace member or measured graph data changes for the materials.
+
 ### Rebuilding the compact contract
 
 The contract starts in a deliberately incomplete state after an evidence

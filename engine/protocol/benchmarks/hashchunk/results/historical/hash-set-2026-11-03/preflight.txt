@@ -1,0 +1,2 @@
+# SPDX-License-Identifier: 0BSD
+preflight loadavg=0.93 override=0 ignored_containers=5 chunking=cdc-256k reps=5 rev=6c2451abe2cb

@@ -1,0 +1,16 @@
+{
+  "classes": [
+    {
+      "name": "regenerated without boundary group (sensitivity)",
+      "kind": "diagnostic",
+      "pairs": [
+        {
+          "label": "generator without boundary group v1 -> v2 (seed 20261101)",
+          "old": "../data/gen-nb/v1",
+          "new": "../data/gen-nb/v2"
+        }
+      ]
+    }
+  ],
+  "license": "0BSD"
+}

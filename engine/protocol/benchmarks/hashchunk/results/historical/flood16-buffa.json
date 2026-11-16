@@ -1,0 +1,8 @@
+{
+  "source_revision": "64306afbd875",
+  "lib": "buffa-default-options",
+  "payload_bytes": 16777216,
+  "result": "ElementMemoryLimitExceeded",
+  "seconds": 0.0175,
+  "peak_rss": 54046720
+}

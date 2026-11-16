@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: 0BSD
+archives (bytes): 1228561792 / 1238439495; central directories complete
+members old/new: 2891 / 2894
+identical (name, crc, size): 2480 members, 48266535 bytes
+changed (same name): 368 members, 119517904 bytes (new)
+removed in new: 43 members, 1170791361 bytes
+added in new: 46 members, 1185238481 bytes
+largest members (old):
+     621898582 Xonotic/data/xonotic-20220627-maps.pk3
+     308849037 Xonotic/data/xonotic-20220627-data.pk3
+     125433473 Xonotic/data/xonotic-20220627-nexcompat.pk3
+     110697292 Xonotic/data/xonotic-20220627-music.pk3
+      19210411 Xonotic/xonotic.exe
+      15291832 Xonotic/xonotic-linux64-glx
+largest members (new):
+     626168138 Xonotic/data/xonotic-20230620-maps.pk3
+     317540306 Xonotic/data/xonotic-20230620-data.pk3
+     125433473 Xonotic/data/xonotic-20230620-nexcompat.pk3
+     110697275 Xonotic/data/xonotic-20230620-music.pk3
+      17769571 Xonotic/xonotic.exe
+      13785992 Xonotic/xonotic-linux64-glx
+pk3 changed under the same name: []
+pk3 removed: ['Xonotic/data/font-unifont-20220627.pk3', 'Xonotic/data/font-xolonium-20220627.pk3', 'Xonotic/data/xonotic-20220627-data.pk3', 'Xonotic/data/xonotic-20220627-maps.pk3', 'Xonotic/data/xonotic-20220627-music.pk3', 'Xonotic/data/xonotic-20220627-nexcompat.pk3']
+pk3 added: ['Xonotic/data/font-unifont-20230620.pk3', 'Xonotic/data/font-xolonium-20230620.pk3', 'Xonotic/data/xonotic-20230620-data.pk3', 'Xonotic/data/xonotic-20230620-maps.pk3', 'Xonotic/data/xonotic-20230620-music.pk3', 'Xonotic/data/xonotic-20230620-nexcompat.pk3', 'Xonotic/data/xonotic-20230620-xoncompat.pk3']
+renamed pk3 (same name after the date stamp): old -> new, sizes, CRC
+  xonotic-20220627-data.pk3 -> xonotic-20230620-data.pk3: 308849037 -> 317540306 (+8691269 bytes), crc different
+  xonotic-20220627-maps.pk3 -> xonotic-20230620-maps.pk3: 621898582 -> 626168138 (+4269556 bytes), crc different
+  xonotic-20220627-music.pk3 -> xonotic-20230620-music.pk3: 110697292 -> 110697275 (-17 bytes), crc different
+  xonotic-20220627-nexcompat.pk3 -> xonotic-20230620-nexcompat.pk3: 125433473 -> 125433473 (+0 bytes), crc different
+Scope of this check: the package bytes of these members differ (CRC/size) or not; how much payload inside a
+package is shared is NOT established without loading the data.

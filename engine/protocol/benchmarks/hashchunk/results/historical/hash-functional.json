@@ -1,0 +1,597 @@
+{
+  "tool": "chunkbench hash",
+  "aggregate_only": false,
+  "label": "kernel archive functional run",
+  "machine": {
+    "tool_version": "0.1.0",
+    "source_revision": "525c4f277f4f",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "dependencies": "sha2=0.11.1,blake3=1.8.7,fastcdc=5.0.0,prost=0.14.4,rayon=1.12.0,crossbeam-channel=0.5.17",
+    "cpu_model": "AMD Ryzen 9 5900X 12-Core Processor",
+    "logical_cpus": 24,
+    "available_parallelism": 6,
+    "cpu_mhz_first_core": 3101.169,
+    "cpu_max_mhz": 3701.0,
+    "flags": {
+      "sha_ni": true,
+      "avx2": true,
+      "avx512f": false,
+      "sse41": true
+    },
+    "sha2_soft_backend_forced": false,
+    "mem_total_bytes": 67326083072,
+    "cgroup_cpu_max": "600000 100000",
+    "cgroup_memory_max": "12884901888",
+    "kernel": "7.3.0",
+    "arch": "x86_64",
+    "os": "linux"
+  },
+  "loadavg_start": "8.37 10.38 11.94 6/3782",
+  "loadavg_end": "8.37 10.17 11.82 5/3812",
+  "quiet_override": false,
+  "decision_grade": false,
+  "parameters": {
+    "chunking": {
+      "family": "cdc",
+      "id": "cdc-256k",
+      "max": 1048576,
+      "min": 65536,
+      "nominal": 262144,
+      "selectable": true
+    },
+    "file_hash_of_split_files": true,
+    "max_busy_percent": 100.0,
+    "pipeline": "reader/chunker thread(s) -> bounded queue of batches (<=512 KiB or 256 chunks) -> fixed worker pool; chunk data is copied once",
+    "readers": 1,
+    "reps": 2,
+    "verify_path": "reads with the boundaries recorded by the build run, no chunking, compares hashes",
+    "workers": [
+      1,
+      4
+    ]
+  },
+  "tree_files": 1,
+  "tree_bytes": 162399360,
+  "conditions": [
+    {
+      "algorithm": "sha256",
+      "workers": 0,
+      "readers": 1,
+      "stage": "chunk-only",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.093457522,
+        0.091235921
+      ],
+      "seconds_median": 0.093457522,
+      "mib_per_s_median": 1657.181736883763,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        1.0,
+        1.0
+      ],
+      "busy_percent_before_each_rep": [
+        19.59514170040486,
+        23.774509803921568
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 0,
+      "readers": 1,
+      "stage": "chunk-only",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.398074319,
+        0.328017371
+      ],
+      "seconds_median": 0.398074319,
+      "mib_per_s_median": 389.06327597790226,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        23.433685923515053,
+        21.05263157894737
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 1,
+      "readers": 1,
+      "stage": "build",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.196308867,
+        0.202272604
+      ],
+      "seconds_median": 0.202272604,
+      "mib_per_s_median": 765.6800553811652,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        1.0,
+        1.0
+      ],
+      "busy_percent_before_each_rep": [
+        17.848410757946212,
+        18.962722852512155
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 4,
+      "readers": 1,
+      "stage": "build",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.200658127,
+        0.192423389
+      ],
+      "seconds_median": 0.200658127,
+      "mib_per_s_median": 771.8406473155832,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        1.0,
+        1.0
+      ],
+      "busy_percent_before_each_rep": [
+        19.95114006514658,
+        18.612244897959183
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 1,
+      "readers": 1,
+      "stage": "build",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.132611045,
+        0.142652814
+      ],
+      "seconds_median": 0.142652814,
+      "mib_per_s_median": 1085.6855486412803,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        1.0,
+        1.0
+      ],
+      "busy_percent_before_each_rep": [
+        19.902912621359224,
+        20.32520325203252
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 4,
+      "readers": 1,
+      "stage": "build",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.133825772,
+        0.133440064
+      ],
+      "seconds_median": 0.133825772,
+      "mib_per_s_median": 1157.2965081255984,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        1.0,
+        1.0
+      ],
+      "busy_percent_before_each_rep": [
+        21.859706362153343,
+        19.967532467532468
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 1,
+      "readers": 1,
+      "stage": "build",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.432957074,
+        0.436424994
+      ],
+      "seconds_median": 0.436424994,
+      "mib_per_s_median": 354.87449335409167,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        20.992676973148903,
+        26.37987012987013
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 4,
+      "readers": 1,
+      "stage": "build",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.419179921,
+        0.408251111
+      ],
+      "seconds_median": 0.419179921,
+      "mib_per_s_median": 369.4740393655747,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        24.5114006514658,
+        23.688524590163933
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 1,
+      "readers": 1,
+      "stage": "build",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.359572721,
+        0.368829633
+      ],
+      "seconds_median": 0.368829633,
+      "mib_per_s_median": 419.91229764559756,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        18.978102189781023,
+        19.6734693877551
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 4,
+      "readers": 1,
+      "stage": "build",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.382810451,
+        0.386314401
+      ],
+      "seconds_median": 0.386314401,
+      "mib_per_s_median": 400.9068733443683,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        22.44732576985413,
+        20.03257328990228
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 1,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.197465564,
+        0.194030036
+      ],
+      "seconds_median": 0.197465564,
+      "mib_per_s_median": 784.319531444037,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        1.0,
+        1.0
+      ],
+      "busy_percent_before_each_rep": [
+        21.527213647441105,
+        24.061990212071777
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 4,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.135206234,
+        0.128098162
+      ],
+      "seconds_median": 0.135206234,
+      "mib_per_s_median": 1145.4804564175088,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        1.0,
+        1.0
+      ],
+      "busy_percent_before_each_rep": [
+        18.815896188158963,
+        19.91869918699187
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 1,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.085753677,
+        0.087671109
+      ],
+      "seconds_median": 0.087671109,
+      "mib_per_s_median": 1766.557996121761,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        1.0,
+        1.0
+      ],
+      "busy_percent_before_each_rep": [
+        20.880913539967374,
+        22.693877551020407
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 4,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "warm",
+      "seconds_each_rep": [
+        0.081504769,
+        0.081052399
+      ],
+      "seconds_median": 0.081504769,
+      "mib_per_s_median": 1900.2090372504765,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        1.0,
+        1.0
+      ],
+      "busy_percent_before_each_rep": [
+        50.41186161449753,
+        56.66942833471417
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 1,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.42835251,
+        0.427419148
+      ],
+      "seconds_median": 0.42835251,
+      "mib_per_s_median": 361.56225309106395,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        38.44897959183673,
+        58.12603648424544
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 4,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.427125071,
+        0.407149225
+      ],
+      "seconds_median": 0.427125071,
+      "mib_per_s_median": 362.60128273484673,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        66.86046511627907,
+        26.32436837815811
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 1,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.357024883,
+        0.363533251
+      ],
+      "seconds_median": 0.363533251,
+      "mib_per_s_median": 426.0300762221404,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        27.37704918032787,
+        27.086743044189852
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 4,
+      "readers": 1,
+      "stage": "verify",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.356343217,
+        0.331929961
+      ],
+      "seconds_median": 0.356343217,
+      "mib_per_s_median": 434.626200932604,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        25.243506493506494,
+        23.63488182559087
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    }
+  ],
+  "micro": [
+    {
+      "algorithm": "sha256",
+      "threads": 1,
+      "piece_bytes": 65536,
+      "mib_per_s": 1706.353300570861
+    },
+    {
+      "algorithm": "sha256",
+      "threads": 1,
+      "piece_bytes": 1048576,
+      "mib_per_s": 1678.1372207495674
+    },
+    {
+      "algorithm": "sha256",
+      "threads": 4,
+      "piece_bytes": 65536,
+      "mib_per_s": 6754.935889869873
+    },
+    {
+      "algorithm": "sha256",
+      "threads": 4,
+      "piece_bytes": 1048576,
+      "mib_per_s": 6771.842126258966
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 1,
+      "piece_bytes": 65536,
+      "mib_per_s": 4247.906530856781
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 1,
+      "piece_bytes": 1048576,
+      "mib_per_s": 4102.067219950609
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 4,
+      "piece_bytes": 65536,
+      "mib_per_s": 13611.533041311894
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 4,
+      "piece_bytes": 1048576,
+      "mib_per_s": 13391.951194080119
+    }
+  ],
+  "notes": [
+    "Functional run; decision rule of the benchmark protocol needs the measurement protocol (quiet machine, physical reference without SHA-NI).",
+    "NOT DECISION GRADE: no --max-busy-percent limit of at most 10 was enforced between conditions."
+  ]
+}

@@ -1,0 +1,1811 @@
+{
+  "tool": "chunkbench hash",
+  "aggregate_only": false,
+  "label": "kernel-archive readers=4 cold",
+  "machine": {
+    "tool_version": "0.1.0",
+    "source_revision": "6c2451abe2cb",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "dependencies": "sha2=0.11.1,blake3=1.8.7,fastcdc=5.0.0,prost=0.14.4,rayon=1.12.0,crossbeam-channel=0.5.17",
+    "cpu_model": "AMD Ryzen 9 5900X 12-Core Processor",
+    "logical_cpus": 24,
+    "available_parallelism": 6,
+    "cpu_mhz_first_core": 3675.303,
+    "cpu_max_mhz": 3701.0,
+    "flags": {
+      "sha_ni": true,
+      "avx2": true,
+      "avx512f": false,
+      "sse41": true
+    },
+    "sha2_soft_backend_forced": false,
+    "mem_total_bytes": 67326070784,
+    "cgroup_cpu_max": "600000 100000",
+    "cgroup_memory_max": "12884901888",
+    "kernel": "7.3.0",
+    "arch": "x86_64",
+    "os": "linux"
+  },
+  "loadavg_start": "0.20 0.60 1.00 1/1855",
+  "loadavg_end": "0.08 0.39 0.86 1/1850",
+  "quiet_override": false,
+  "ignored_containers": 5,
+  "decision_grade": true,
+  "parameters": {
+    "chunking": {
+      "family": "cdc",
+      "id": "cdc-256k",
+      "max": 1048576,
+      "min": 65536,
+      "nominal": 262144,
+      "selectable": true
+    },
+    "file_hash_of_split_files": true,
+    "max_busy_percent": 10.0,
+    "pipeline": "reader/chunker thread(s) -> bounded queue of batches (<=512 KiB or 256 chunks) -> fixed worker pool; chunk data is copied once",
+    "quiet_gate": {
+      "accounting": "host /proc/stat first 8 counters; idle includes iowait; subtract /proc/self/stat utime+stime+cutime+cstime (all own threads and reaped children); no subprocesses in pipeline; kernel workers remain counted",
+      "consecutive_samples": 3,
+      "sample_interval_seconds": 1,
+      "timeout_seconds": 120
+    },
+    "readers": 4,
+    "reps": 5,
+    "verify_path": "reads with the boundaries recorded by the build run, no chunking, compares hashes",
+    "workers": [
+      1,
+      4
+    ]
+  },
+  "tree_files": 1,
+  "tree_bytes": 162399360,
+  "conditions": [
+    {
+      "algorithm": "sha256",
+      "workers": 0,
+      "readers": 4,
+      "stage": "chunk-only",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.291054334,
+        0.291547805,
+        0.291489985,
+        0.291507995,
+        0.291485395
+      ],
+      "seconds_median": 0.291489985,
+      "mib_per_s_median": 531.3256255881741,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        0.5823627287853578,
+        1.8767849857201142,
+        1.0695187165775402,
+        0.24927295388450352,
+        1.9160211985324094
+      ],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 3.000633439,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000279718,
+              "busy": {
+                "system_percent": 0.16632016632016633,
+                "own_percent": 0.0,
+                "external_percent": 0.16632016632016633
+              }
+            },
+            {
+              "elapsed_seconds": 2.000452284,
+              "busy": {
+                "system_percent": 1.9567876070118222,
+                "own_percent": 0.0,
+                "external_percent": 1.9567876070118222
+              }
+            },
+            {
+              "elapsed_seconds": 3.000633439,
+              "busy": {
+                "system_percent": 0.6239600665557404,
+                "own_percent": 0.04159733777038269,
+                "external_percent": 0.5823627287853578
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000597489,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000282009,
+              "busy": {
+                "system_percent": 1.7937219730941705,
+                "own_percent": 0.0,
+                "external_percent": 1.7937219730941705
+              }
+            },
+            {
+              "elapsed_seconds": 2.000440303,
+              "busy": {
+                "system_percent": 0.16645859342488556,
+                "own_percent": 0.0,
+                "external_percent": 0.16645859342488556
+              }
+            },
+            {
+              "elapsed_seconds": 3.000597489,
+              "busy": {
+                "system_percent": 1.8767849857201142,
+                "own_percent": 0.0,
+                "external_percent": 1.8767849857201142
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000568337,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000246007,
+              "busy": {
+                "system_percent": 0.9468917249897078,
+                "own_percent": 0.0,
+                "external_percent": 0.9468917249897078
+              }
+            },
+            {
+              "elapsed_seconds": 2.000407222,
+              "busy": {
+                "system_percent": 0.9492364836978952,
+                "own_percent": 0.0,
+                "external_percent": 0.9492364836978952
+              }
+            },
+            {
+              "elapsed_seconds": 3.000568337,
+              "busy": {
+                "system_percent": 1.0695187165775402,
+                "own_percent": 0.0,
+                "external_percent": 1.0695187165775402
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000618928,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000275268,
+              "busy": {
+                "system_percent": 0.41562759767248547,
+                "own_percent": 0.0,
+                "external_percent": 0.41562759767248547
+              }
+            },
+            {
+              "elapsed_seconds": 2.000456073,
+              "busy": {
+                "system_percent": 1.443298969072165,
+                "own_percent": 0.0,
+                "external_percent": 1.443298969072165
+              }
+            },
+            {
+              "elapsed_seconds": 3.000618928,
+              "busy": {
+                "system_percent": 0.24927295388450352,
+                "own_percent": 0.0,
+                "external_percent": 0.24927295388450352
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000584517,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000267978,
+              "busy": {
+                "system_percent": 1.8352365415986949,
+                "own_percent": 0.0,
+                "external_percent": 1.8352365415986949
+              }
+            },
+            {
+              "elapsed_seconds": 2.000438114,
+              "busy": {
+                "system_percent": 0.20815986677768525,
+                "own_percent": 0.0,
+                "external_percent": 0.20815986677768525
+              }
+            },
+            {
+              "elapsed_seconds": 3.000584517,
+              "busy": {
+                "system_percent": 1.9160211985324094,
+                "own_percent": 0.0,
+                "external_percent": 1.9160211985324094
+              }
+            }
+          ]
+        }
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 1,
+      "readers": 4,
+      "stage": "build",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.392541221,
+        0.393650418,
+        0.393641757,
+        0.392329547,
+        0.39206732
+      ],
+      "seconds_median": 0.392541221,
+      "mib_per_s_median": 394.5473503095169,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        0.6608839322593969,
+        0.3739094308267553,
+        1.7135862913096696,
+        2.2652388797364087,
+        0.4163197335553705
+      ],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 3.000598888,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000269538,
+              "busy": {
+                "system_percent": 0.6606110652353427,
+                "own_percent": 0.0,
+                "external_percent": 0.6606110652353427
+              }
+            },
+            {
+              "elapsed_seconds": 2.000438223,
+              "busy": {
+                "system_percent": 1.2741471434443075,
+                "own_percent": 0.0,
+                "external_percent": 1.2741471434443075
+              }
+            },
+            {
+              "elapsed_seconds": 3.000598888,
+              "busy": {
+                "system_percent": 0.6608839322593969,
+                "own_percent": 0.0,
+                "external_percent": 0.6608839322593969
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.00065521,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000319379,
+              "busy": {
+                "system_percent": 1.0792860107928601,
+                "own_percent": 0.0,
+                "external_percent": 1.0792860107928601
+              }
+            },
+            {
+              "elapsed_seconds": 2.000489235,
+              "busy": {
+                "system_percent": 1.553556827473426,
+                "own_percent": 0.0,
+                "external_percent": 1.553556827473426
+              }
+            },
+            {
+              "elapsed_seconds": 3.00065521,
+              "busy": {
+                "system_percent": 0.3739094308267553,
+                "own_percent": 0.0,
+                "external_percent": 0.3739094308267553
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000587258,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000270078,
+              "busy": {
+                "system_percent": 1.7565359477124183,
+                "own_percent": 0.0,
+                "external_percent": 1.7565359477124183
+              }
+            },
+            {
+              "elapsed_seconds": 2.000432783,
+              "busy": {
+                "system_percent": 0.041666666666666664,
+                "own_percent": 0.0,
+                "external_percent": 0.041666666666666664
+              }
+            },
+            {
+              "elapsed_seconds": 3.000587258,
+              "busy": {
+                "system_percent": 1.7135862913096696,
+                "own_percent": 0.0,
+                "external_percent": 1.7135862913096696
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000641018,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000282028,
+              "busy": {
+                "system_percent": 0.9449465899753492,
+                "own_percent": 0.0,
+                "external_percent": 0.9449465899753492
+              }
+            },
+            {
+              "elapsed_seconds": 2.000455063,
+              "busy": {
+                "system_percent": 1.0726072607260726,
+                "own_percent": 0.0,
+                "external_percent": 1.0726072607260726
+              }
+            },
+            {
+              "elapsed_seconds": 3.000641018,
+              "busy": {
+                "system_percent": 2.2652388797364087,
+                "own_percent": 0.0,
+                "external_percent": 2.2652388797364087
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000625528,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000277259,
+              "busy": {
+                "system_percent": 0.2494802494802495,
+                "own_percent": 0.0,
+                "external_percent": 0.2494802494802495
+              }
+            },
+            {
+              "elapsed_seconds": 2.000443942,
+              "busy": {
+                "system_percent": 1.7973856209150327,
+                "own_percent": 0.0,
+                "external_percent": 1.7973856209150327
+              }
+            },
+            {
+              "elapsed_seconds": 3.000625528,
+              "busy": {
+                "system_percent": 0.4163197335553705,
+                "own_percent": 0.0,
+                "external_percent": 0.4163197335553705
+              }
+            }
+          ]
+        }
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 4,
+      "readers": 4,
+      "stage": "build",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.392581162,
+        0.391124977,
+        0.391754483,
+        0.391605839,
+        0.39205286
+      ],
+      "seconds_median": 0.391754483,
+      "mib_per_s_median": 395.33969706432816,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        1.2340600575894694,
+        1.4857614527445315,
+        0.08326394671107411,
+        0.9913258983890955,
+        1.4072847682119205
+      ],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 3.000605849,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000289248,
+              "busy": {
+                "system_percent": 1.2330456226880395,
+                "own_percent": 0.0,
+                "external_percent": 1.2330456226880395
+              }
+            },
+            {
+              "elapsed_seconds": 2.000450764,
+              "busy": {
+                "system_percent": 0.7428807263722658,
+                "own_percent": 0.0,
+                "external_percent": 0.7428807263722658
+              }
+            },
+            {
+              "elapsed_seconds": 3.000605849,
+              "busy": {
+                "system_percent": 1.2340600575894694,
+                "own_percent": 0.0,
+                "external_percent": 1.2340600575894694
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.00063553,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000291148,
+              "busy": {
+                "system_percent": 1.440922190201729,
+                "own_percent": 0.0,
+                "external_percent": 1.440922190201729
+              }
+            },
+            {
+              "elapsed_seconds": 2.000455253,
+              "busy": {
+                "system_percent": 0.33264033264033266,
+                "own_percent": 0.0,
+                "external_percent": 0.33264033264033266
+              }
+            },
+            {
+              "elapsed_seconds": 3.00063553,
+              "busy": {
+                "system_percent": 1.4857614527445315,
+                "own_percent": 0.0,
+                "external_percent": 1.4857614527445315
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000595828,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000269287,
+              "busy": {
+                "system_percent": 0.08326394671107411,
+                "own_percent": 0.0,
+                "external_percent": 0.08326394671107411
+              }
+            },
+            {
+              "elapsed_seconds": 2.000436683,
+              "busy": {
+                "system_percent": 1.7944535073409462,
+                "own_percent": 0.0,
+                "external_percent": 1.7944535073409462
+              }
+            },
+            {
+              "elapsed_seconds": 3.000595828,
+              "busy": {
+                "system_percent": 0.08326394671107411,
+                "own_percent": 0.0,
+                "external_percent": 0.08326394671107411
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000621979,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000291859,
+              "busy": {
+                "system_percent": 0.9090909090909091,
+                "own_percent": 0.0,
+                "external_percent": 0.9090909090909091
+              }
+            },
+            {
+              "elapsed_seconds": 2.000461454,
+              "busy": {
+                "system_percent": 0.9864364981504316,
+                "own_percent": 0.0,
+                "external_percent": 0.9864364981504316
+              }
+            },
+            {
+              "elapsed_seconds": 3.000621979,
+              "busy": {
+                "system_percent": 0.9913258983890955,
+                "own_percent": 0.0,
+                "external_percent": 0.9913258983890955
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000625029,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000279848,
+              "busy": {
+                "system_percent": 1.8860188601886019,
+                "own_percent": 0.0,
+                "external_percent": 1.8860188601886019
+              }
+            },
+            {
+              "elapsed_seconds": 2.000445004,
+              "busy": {
+                "system_percent": 0.16632016632016633,
+                "own_percent": 0.0,
+                "external_percent": 0.16632016632016633
+              }
+            },
+            {
+              "elapsed_seconds": 3.000625029,
+              "busy": {
+                "system_percent": 1.4072847682119205,
+                "own_percent": 0.0,
+                "external_percent": 1.4072847682119205
+              }
+            }
+          ]
+        }
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 1,
+      "readers": 4,
+      "stage": "build",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.336078482,
+        0.336419451,
+        0.33513355,
+        0.335600021,
+        0.335859576
+      ],
+      "seconds_median": 0.335859576,
+      "mib_per_s_median": 461.13349060147834,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        0.49854590776900704,
+        0.6639004149377593,
+        3.2693093583980386,
+        1.031778786628147,
+        0.4562422231439237
+      ],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 3.000639069,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000288978,
+              "busy": {
+                "system_percent": 0.45700041545492315,
+                "own_percent": 0.0,
+                "external_percent": 0.45700041545492315
+              }
+            },
+            {
+              "elapsed_seconds": 2.000467334,
+              "busy": {
+                "system_percent": 1.2028204064703443,
+                "own_percent": 0.0,
+                "external_percent": 1.2028204064703443
+              }
+            },
+            {
+              "elapsed_seconds": 3.000639069,
+              "busy": {
+                "system_percent": 0.49854590776900704,
+                "own_percent": 0.0,
+                "external_percent": 0.49854590776900704
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000608698,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000275758,
+              "busy": {
+                "system_percent": 0.4975124378109453,
+                "own_percent": 0.0,
+                "external_percent": 0.4975124378109453
+              }
+            },
+            {
+              "elapsed_seconds": 2.000441163,
+              "busy": {
+                "system_percent": 1.3125512715340444,
+                "own_percent": 0.0,
+                "external_percent": 1.3125512715340444
+              }
+            },
+            {
+              "elapsed_seconds": 3.000608698,
+              "busy": {
+                "system_percent": 0.6639004149377593,
+                "own_percent": 0.0,
+                "external_percent": 0.6639004149377593
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.00064959,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000303899,
+              "busy": {
+                "system_percent": 2.0,
+                "own_percent": 0.0,
+                "external_percent": 2.0
+              }
+            },
+            {
+              "elapsed_seconds": 2.000467204,
+              "busy": {
+                "system_percent": 0.33264033264033266,
+                "own_percent": 0.0,
+                "external_percent": 0.33264033264033266
+              }
+            },
+            {
+              "elapsed_seconds": 3.00064959,
+              "busy": {
+                "system_percent": 3.2693093583980386,
+                "own_percent": 0.0,
+                "external_percent": 3.2693093583980386
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000549136,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000244406,
+              "busy": {
+                "system_percent": 0.6611570247933884,
+                "own_percent": 0.0,
+                "external_percent": 0.6611570247933884
+              }
+            },
+            {
+              "elapsed_seconds": 2.000393481,
+              "busy": {
+                "system_percent": 1.1522633744855968,
+                "own_percent": 0.0,
+                "external_percent": 1.1522633744855968
+              }
+            },
+            {
+              "elapsed_seconds": 3.000549136,
+              "busy": {
+                "system_percent": 1.031778786628147,
+                "own_percent": 0.0,
+                "external_percent": 1.031778786628147
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000589378,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000277837,
+              "busy": {
+                "system_percent": 0.4562422231439237,
+                "own_percent": 0.0,
+                "external_percent": 0.4562422231439237
+              }
+            },
+            {
+              "elapsed_seconds": 2.000438012,
+              "busy": {
+                "system_percent": 1.3530135301353015,
+                "own_percent": 0.0,
+                "external_percent": 1.3530135301353015
+              }
+            },
+            {
+              "elapsed_seconds": 3.000589378,
+              "busy": {
+                "system_percent": 0.4562422231439237,
+                "own_percent": 0.0,
+                "external_percent": 0.4562422231439237
+              }
+            }
+          ]
+        }
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 4,
+      "readers": 4,
+      "stage": "build",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.335263773,
+        0.336222865,
+        0.335220021,
+        0.336512603,
+        0.335093967
+      ],
+      "seconds_median": 0.335263773,
+      "mib_per_s_median": 461.95297883500376,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        1.7761255679471293,
+        0.540091400083091,
+        0.3740648379052369,
+        1.7565359477124183,
+        0.7841518778373917
+      ],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 3.000595487,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000249457,
+              "busy": {
+                "system_percent": 1.7973856209150327,
+                "own_percent": 0.0,
+                "external_percent": 1.7973856209150327
+              }
+            },
+            {
+              "elapsed_seconds": 2.000408731,
+              "busy": {
+                "system_percent": 0.16652789342214822,
+                "own_percent": 0.0,
+                "external_percent": 0.16652789342214822
+              }
+            },
+            {
+              "elapsed_seconds": 3.000595487,
+              "busy": {
+                "system_percent": 1.7761255679471293,
+                "own_percent": 0.0,
+                "external_percent": 1.7761255679471293
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000644309,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000294808,
+              "busy": {
+                "system_percent": 0.6229235880398671,
+                "own_percent": 0.0,
+                "external_percent": 0.6229235880398671
+              }
+            },
+            {
+              "elapsed_seconds": 2.000473693,
+              "busy": {
+                "system_percent": 1.2023217247097844,
+                "own_percent": 0.0,
+                "external_percent": 1.2023217247097844
+              }
+            },
+            {
+              "elapsed_seconds": 3.000644309,
+              "busy": {
+                "system_percent": 0.540091400083091,
+                "own_percent": 0.0,
+                "external_percent": 0.540091400083091
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.00063568,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000290978,
+              "busy": {
+                "system_percent": 0.29130253849354976,
+                "own_percent": 0.0,
+                "external_percent": 0.29130253849354976
+              }
+            },
+            {
+              "elapsed_seconds": 2.000471543,
+              "busy": {
+                "system_percent": 1.284175642087821,
+                "own_percent": 0.0,
+                "external_percent": 1.284175642087821
+              }
+            },
+            {
+              "elapsed_seconds": 3.00063568,
+              "busy": {
+                "system_percent": 0.3740648379052369,
+                "own_percent": 0.0,
+                "external_percent": 0.3740648379052369
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000571577,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000254597,
+              "busy": {
+                "system_percent": 1.4820913956360642,
+                "own_percent": 0.0,
+                "external_percent": 1.4820913956360642
+              }
+            },
+            {
+              "elapsed_seconds": 2.000413513,
+              "busy": {
+                "system_percent": 0.12479201331114809,
+                "own_percent": 0.0,
+                "external_percent": 0.12479201331114809
+              }
+            },
+            {
+              "elapsed_seconds": 3.000571577,
+              "busy": {
+                "system_percent": 1.7565359477124183,
+                "own_percent": 0.0,
+                "external_percent": 1.7565359477124183
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000596079,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000267279,
+              "busy": {
+                "system_percent": 0.7018992568125516,
+                "own_percent": 0.0,
+                "external_percent": 0.7018992568125516
+              }
+            },
+            {
+              "elapsed_seconds": 2.000429913,
+              "busy": {
+                "system_percent": 1.2340600575894694,
+                "own_percent": 0.0,
+                "external_percent": 1.2340600575894694
+              }
+            },
+            {
+              "elapsed_seconds": 3.000596079,
+              "busy": {
+                "system_percent": 0.7841518778373917,
+                "own_percent": 0.0,
+                "external_percent": 0.7841518778373917
+              }
+            }
+          ]
+        }
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 1,
+      "readers": 4,
+      "stage": "verify",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.390990454,
+        0.39206172,
+        0.391305282,
+        0.391130958,
+        0.3920383
+      ],
+      "seconds_median": 0.391305282,
+      "mib_per_s_median": 395.79352939276833,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        0.49875311720698257,
+        3.022875816993464,
+        1.4796547472256474,
+        0.04164931278633902,
+        1.4772260976610587
+      ],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 3.000658409,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000300809,
+              "busy": {
+                "system_percent": 0.49854590776900704,
+                "own_percent": 0.0,
+                "external_percent": 0.49854590776900704
+              }
+            },
+            {
+              "elapsed_seconds": 2.000481264,
+              "busy": {
+                "system_percent": 1.3670256835128418,
+                "own_percent": 0.0,
+                "external_percent": 1.3670256835128418
+              }
+            },
+            {
+              "elapsed_seconds": 3.000658409,
+              "busy": {
+                "system_percent": 0.49875311720698257,
+                "own_percent": 0.0,
+                "external_percent": 0.49875311720698257
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000665229,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000305178,
+              "busy": {
+                "system_percent": 1.7369727047146402,
+                "own_percent": 0.0,
+                "external_percent": 1.7369727047146402
+              }
+            },
+            {
+              "elapsed_seconds": 2.000482044,
+              "busy": {
+                "system_percent": 0.33264033264033266,
+                "own_percent": 0.0,
+                "external_percent": 0.33264033264033266
+              }
+            },
+            {
+              "elapsed_seconds": 3.000665229,
+              "busy": {
+                "system_percent": 3.022875816993464,
+                "own_percent": 0.0,
+                "external_percent": 3.022875816993464
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000642909,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000292708,
+              "busy": {
+                "system_percent": 0.9468917249897078,
+                "own_percent": 0.0,
+                "external_percent": 0.9468917249897078
+              }
+            },
+            {
+              "elapsed_seconds": 2.000457214,
+              "busy": {
+                "system_percent": 0.8677685950413223,
+                "own_percent": 0.0,
+                "external_percent": 0.8677685950413223
+              }
+            },
+            {
+              "elapsed_seconds": 3.000642909,
+              "busy": {
+                "system_percent": 1.4796547472256474,
+                "own_percent": 0.0,
+                "external_percent": 1.4796547472256474
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000560788,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000237347,
+              "busy": {
+                "system_percent": 0.041631973355537054,
+                "own_percent": 0.0,
+                "external_percent": 0.041631973355537054
+              }
+            },
+            {
+              "elapsed_seconds": 2.000403533,
+              "busy": {
+                "system_percent": 1.8775510204081634,
+                "own_percent": 0.0,
+                "external_percent": 1.8775510204081634
+              }
+            },
+            {
+              "elapsed_seconds": 3.000560788,
+              "busy": {
+                "system_percent": 0.04164931278633902,
+                "own_percent": 0.0,
+                "external_percent": 0.04164931278633902
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000550717,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000252197,
+              "busy": {
+                "system_percent": 1.4772260976610587,
+                "own_percent": 0.0,
+                "external_percent": 1.4772260976610587
+              }
+            },
+            {
+              "elapsed_seconds": 2.000399882,
+              "busy": {
+                "system_percent": 0.3728251864125932,
+                "own_percent": 0.0,
+                "external_percent": 0.3728251864125932
+              }
+            },
+            {
+              "elapsed_seconds": 3.000550717,
+              "busy": {
+                "system_percent": 1.4772260976610587,
+                "own_percent": 0.0,
+                "external_percent": 1.4772260976610587
+              }
+            }
+          ]
+        }
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "sha256",
+      "workers": 4,
+      "readers": 4,
+      "stage": "verify",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.390252147,
+        0.389296634,
+        0.38870982,
+        0.390315749,
+        0.38951733
+      ],
+      "seconds_median": 0.38951733,
+      "mib_per_s_median": 397.61029023487225,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        1.3519049569848423,
+        0.20815986677768525,
+        0.9128630705394191,
+        1.5320910973084887,
+        0.5804311774461028
+      ],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 3.000596277,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000267647,
+              "busy": {
+                "system_percent": 1.6366612111292962,
+                "own_percent": 0.0,
+                "external_percent": 1.6366612111292962
+              }
+            },
+            {
+              "elapsed_seconds": 2.000437982,
+              "busy": {
+                "system_percent": 0.37267080745341613,
+                "own_percent": 0.0,
+                "external_percent": 0.37267080745341613
+              }
+            },
+            {
+              "elapsed_seconds": 3.000596277,
+              "busy": {
+                "system_percent": 1.3519049569848423,
+                "own_percent": 0.0,
+                "external_percent": 1.3519049569848423
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000620408,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000293458,
+              "busy": {
+                "system_percent": 0.16604400166044,
+                "own_percent": 0.0,
+                "external_percent": 0.16604400166044
+              }
+            },
+            {
+              "elapsed_seconds": 2.000468524,
+              "busy": {
+                "system_percent": 1.760130986492018,
+                "own_percent": 0.0,
+                "external_percent": 1.760130986492018
+              }
+            },
+            {
+              "elapsed_seconds": 3.000620408,
+              "busy": {
+                "system_percent": 0.20815986677768525,
+                "own_percent": 0.0,
+                "external_percent": 0.20815986677768525
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000618748,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000264357,
+              "busy": {
+                "system_percent": 0.91324200913242,
+                "own_percent": 0.0,
+                "external_percent": 0.91324200913242
+              }
+            },
+            {
+              "elapsed_seconds": 2.000434014,
+              "busy": {
+                "system_percent": 0.7062733693394266,
+                "own_percent": 0.0,
+                "external_percent": 0.7062733693394266
+              }
+            },
+            {
+              "elapsed_seconds": 3.000618748,
+              "busy": {
+                "system_percent": 0.9128630705394191,
+                "own_percent": 0.0,
+                "external_percent": 0.9128630705394191
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000666959,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000292078,
+              "busy": {
+                "system_percent": 1.492537313432836,
+                "own_percent": 0.0,
+                "external_percent": 1.492537313432836
+              }
+            },
+            {
+              "elapsed_seconds": 2.000486354,
+              "busy": {
+                "system_percent": 0.2911813643926789,
+                "own_percent": 0.0,
+                "external_percent": 0.2911813643926789
+              }
+            },
+            {
+              "elapsed_seconds": 3.000666959,
+              "busy": {
+                "system_percent": 1.5320910973084887,
+                "own_percent": 0.0,
+                "external_percent": 1.5320910973084887
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000556627,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000244107,
+              "busy": {
+                "system_percent": 0.3325020781379884,
+                "own_percent": 0.0,
+                "external_percent": 0.3325020781379884
+              }
+            },
+            {
+              "elapsed_seconds": 2.000403062,
+              "busy": {
+                "system_percent": 1.3991769547325104,
+                "own_percent": 0.0,
+                "external_percent": 1.3991769547325104
+              }
+            },
+            {
+              "elapsed_seconds": 3.000556627,
+              "busy": {
+                "system_percent": 0.5804311774461028,
+                "own_percent": 0.0,
+                "external_percent": 0.5804311774461028
+              }
+            }
+          ]
+        }
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 1,
+      "readers": 4,
+      "stage": "verify",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.333263546,
+        0.333657685,
+        0.333579883,
+        0.33348751,
+        0.333174283
+      ],
+      "seconds_median": 0.33348751,
+      "mib_per_s_median": 464.41349072657175,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        0.5385252692626347,
+        1.8722018722018723,
+        0.49627791563275436,
+        0.5804311774461028,
+        1.4894497310715764
+      ],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 3.000655769,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000289188,
+              "busy": {
+                "system_percent": 0.7062733693394266,
+                "own_percent": 0.0,
+                "external_percent": 0.7062733693394266
+              }
+            },
+            {
+              "elapsed_seconds": 2.000480534,
+              "busy": {
+                "system_percent": 2.708247845711941,
+                "own_percent": 0.0,
+                "external_percent": 2.708247845711941
+              }
+            },
+            {
+              "elapsed_seconds": 3.000655769,
+              "busy": {
+                "system_percent": 0.5385252692626347,
+                "own_percent": 0.0,
+                "external_percent": 0.5385252692626347
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000646919,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000285179,
+              "busy": {
+                "system_percent": 1.7128874388254487,
+                "own_percent": 0.0,
+                "external_percent": 1.7128874388254487
+              }
+            },
+            {
+              "elapsed_seconds": 2.000467443,
+              "busy": {
+                "system_percent": 0.4993757802746567,
+                "own_percent": 0.0,
+                "external_percent": 0.4993757802746567
+              }
+            },
+            {
+              "elapsed_seconds": 3.000646919,
+              "busy": {
+                "system_percent": 1.8722018722018723,
+                "own_percent": 0.0,
+                "external_percent": 1.8722018722018723
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000581747,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000270288,
+              "busy": {
+                "system_percent": 0.49648324369052543,
+                "own_percent": 0.0,
+                "external_percent": 0.49648324369052543
+              }
+            },
+            {
+              "elapsed_seconds": 2.000424583,
+              "busy": {
+                "system_percent": 1.3152486642005754,
+                "own_percent": 0.0,
+                "external_percent": 1.3152486642005754
+              }
+            },
+            {
+              "elapsed_seconds": 3.000581747,
+              "busy": {
+                "system_percent": 0.49627791563275436,
+                "own_percent": 0.0,
+                "external_percent": 0.49627791563275436
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.00064546,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000296479,
+              "busy": {
+                "system_percent": 0.6208609271523179,
+                "own_percent": 0.0,
+                "external_percent": 0.6208609271523179
+              }
+            },
+            {
+              "elapsed_seconds": 2.000470494,
+              "busy": {
+                "system_percent": 1.4754098360655739,
+                "own_percent": 0.0,
+                "external_percent": 1.4754098360655739
+              }
+            },
+            {
+              "elapsed_seconds": 3.00064546,
+              "busy": {
+                "system_percent": 0.5804311774461028,
+                "own_percent": 0.0,
+                "external_percent": 0.5804311774461028
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000628889,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000281748,
+              "busy": {
+                "system_percent": 1.7142857142857142,
+                "own_percent": 0.0,
+                "external_percent": 1.7142857142857142
+              }
+            },
+            {
+              "elapsed_seconds": 2.000446403,
+              "busy": {
+                "system_percent": 0.12484394506866417,
+                "own_percent": 0.0,
+                "external_percent": 0.12484394506866417
+              }
+            },
+            {
+              "elapsed_seconds": 3.000628889,
+              "busy": {
+                "system_percent": 1.5308233347124534,
+                "own_percent": 0.04137360364087712,
+                "external_percent": 1.4894497310715764
+              }
+            }
+          ]
+        }
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    },
+    {
+      "algorithm": "blake3",
+      "workers": 4,
+      "readers": 4,
+      "stage": "verify",
+      "cache": "cold",
+      "seconds_each_rep": [
+        0.333301026,
+        0.334827992,
+        0.33344586,
+        0.334530416,
+        0.333124162
+      ],
+      "seconds_median": 0.33344586,
+      "mib_per_s_median": 464.47149960959933,
+      "bytes": 162399360,
+      "files": 1,
+      "chunks": 502,
+      "resident_fraction_before_each_rep": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "busy_percent_before_each_rep": [
+        0.457190357439734,
+        1.28470783257356,
+        1.7135862913096696,
+        0.865979381443299,
+        0.45662100456621
+      ],
+      "quiet_before_each_rep": [
+        {
+          "wait_seconds": 3.000624958,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000281268,
+              "busy": {
+                "system_percent": 0.6229235880398671,
+                "own_percent": 0.0,
+                "external_percent": 0.6229235880398671
+              }
+            },
+            {
+              "elapsed_seconds": 2.000453183,
+              "busy": {
+                "system_percent": 1.243781094527363,
+                "own_percent": 0.0,
+                "external_percent": 1.243781094527363
+              }
+            },
+            {
+              "elapsed_seconds": 3.000624958,
+              "busy": {
+                "system_percent": 0.457190357439734,
+                "own_percent": 0.0,
+                "external_percent": 0.457190357439734
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000620288,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000271977,
+              "busy": {
+                "system_percent": 0.45586406962287607,
+                "own_percent": 0.0,
+                "external_percent": 0.45586406962287607
+              }
+            },
+            {
+              "elapsed_seconds": 2.000438243,
+              "busy": {
+                "system_percent": 1.4742014742014742,
+                "own_percent": 0.0,
+                "external_percent": 1.4742014742014742
+              }
+            },
+            {
+              "elapsed_seconds": 3.000620288,
+              "busy": {
+                "system_percent": 1.28470783257356,
+                "own_percent": 0.0,
+                "external_percent": 1.28470783257356
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000645519,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000294138,
+              "busy": {
+                "system_percent": 1.7529555646147574,
+                "own_percent": 0.0,
+                "external_percent": 1.7529555646147574
+              }
+            },
+            {
+              "elapsed_seconds": 2.000471514,
+              "busy": {
+                "system_percent": 0.12494793835901707,
+                "own_percent": 0.0,
+                "external_percent": 0.12494793835901707
+              }
+            },
+            {
+              "elapsed_seconds": 3.000645519,
+              "busy": {
+                "system_percent": 1.7135862913096696,
+                "own_percent": 0.0,
+                "external_percent": 1.7135862913096696
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000597917,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000269078,
+              "busy": {
+                "system_percent": 0.5780346820809249,
+                "own_percent": 0.0,
+                "external_percent": 0.5780346820809249
+              }
+            },
+            {
+              "elapsed_seconds": 2.000426552,
+              "busy": {
+                "system_percent": 1.192924722336487,
+                "own_percent": 0.0,
+                "external_percent": 1.192924722336487
+              }
+            },
+            {
+              "elapsed_seconds": 3.000597917,
+              "busy": {
+                "system_percent": 0.865979381443299,
+                "own_percent": 0.0,
+                "external_percent": 0.865979381443299
+              }
+            }
+          ]
+        },
+        {
+          "wait_seconds": 3.000659109,
+          "ready": true,
+          "samples": [
+            {
+              "elapsed_seconds": 1.000297689,
+              "busy": {
+                "system_percent": 0.6221484861053505,
+                "own_percent": 0.0,
+                "external_percent": 0.6221484861053505
+              }
+            },
+            {
+              "elapsed_seconds": 2.000483854,
+              "busy": {
+                "system_percent": 3.031544448996313,
+                "own_percent": 0.0,
+                "external_percent": 3.031544448996313
+              }
+            },
+            {
+              "elapsed_seconds": 3.000659109,
+              "busy": {
+                "system_percent": 0.45662100456621,
+                "own_percent": 0.0,
+                "external_percent": 0.45662100456621
+              }
+            }
+          ]
+        }
+      ],
+      "cache_state_valid": true,
+      "cache_state": "valid",
+      "mismatches": 0
+    }
+  ],
+  "quiet_abort": null,
+  "micro": [
+    {
+      "algorithm": "sha256",
+      "threads": 1,
+      "piece_bytes": 65536,
+      "mib_per_s": 1722.4242013168598
+    },
+    {
+      "algorithm": "sha256",
+      "threads": 1,
+      "piece_bytes": 1048576,
+      "mib_per_s": 1725.353405789325
+    },
+    {
+      "algorithm": "sha256",
+      "threads": 4,
+      "piece_bytes": 65536,
+      "mib_per_s": 6844.4799276067915
+    },
+    {
+      "algorithm": "sha256",
+      "threads": 4,
+      "piece_bytes": 1048576,
+      "mib_per_s": 6839.55117275543
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 1,
+      "piece_bytes": 65536,
+      "mib_per_s": 4428.012635368649
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 1,
+      "piece_bytes": 1048576,
+      "mib_per_s": 4506.700482177342
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 4,
+      "piece_bytes": 65536,
+      "mib_per_s": 15962.897113991601
+    },
+    {
+      "algorithm": "blake3",
+      "threads": 4,
+      "piece_bytes": 1048576,
+      "mib_per_s": 16105.065927125395
+    }
+  ],
+  "notes": [
+    "Functional run; decision rule of the benchmark protocol needs the measurement protocol (quiet machine, physical reference without SHA-NI).",
+    "Before each repetition: join all reader/worker threads, release previous run allocations, prepare cache, then require three consecutive 1 s external CPU samples <= limit within 120 s. Recheck cache residency after waiting. busy_percent_before_each_rep is the final external CPU sample; quiet_before_each_rep records actual wait and every sample (system, own, external). Failed probes reset the quiet streak."
+  ]
+}

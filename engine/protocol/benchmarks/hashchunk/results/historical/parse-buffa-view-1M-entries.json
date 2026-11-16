@@ -1,0 +1,21 @@
+{
+  "source_revision": "64306afbd875",
+  "lib": "buffa-view",
+  "validated": "same checks on buffa views",
+  "file_bytes": 127959252,
+  "entries": 1001000,
+  "chunks": 1061212,
+  "prescan_seconds": 0.0771,
+  "decode_seconds_median": 0.1437,
+  "decode_seconds_all": [
+    0.147596474,
+    0.142654425,
+    0.13880804,
+    0.143924484,
+    0.143693059
+  ],
+  "validate_seconds_median": 0.0502,
+  "rss_after_read": 130236416,
+  "peak_rss_after_first_decode": 300724224,
+  "peak_rss_final": 318332928
+}

@@ -6,7 +6,7 @@ import { protocolSteps, protocolWorkflowIssues } from '../protocol-workflow.mjs'
 
 const source = () => yamlData(fileURLToPath(new URL('../../../.gitea/workflows/ci.yml', import.meta.url)));
 test('the real workflow satisfies all exact required execution blocks', () => {
-  assert.equal(protocolSteps.length, 23);
+  assert.equal(protocolSteps.length, 24);
   assert.deepEqual(protocolWorkflowIssues(source()), []);
 });
 const mutations = {

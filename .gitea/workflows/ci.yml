@@ -384,7 +384,7 @@ jobs:
           dnf -y install --setopt=install_weak_deps=False \
             nodejs24 nodejs24-bin git curl file gcc gcc-c++ make pkgconf-pkg-config perl \
             webkit2gtk4.1-devel openssl-devel libappindicator-gtk3-devel librsvg2-devel libxdo-devel \
-            libarchive-devel tar xz ca-certificates
+            libarchive-devel tar xz ca-certificates python3
           node --version
           node --version | grep -q '^v24\.'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -516,6 +516,16 @@ jobs:
           node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json "${previous[@]}" \
             --metadata "$RUNNER_TEMP/metadata.json" --input /work/results/hashchunk-clippy.jsonl \
             --package impluvium-hashchunk-bench --package impluvium-protocol
+      - name: Corpus loader, result data and tree digest tests
+        run: |
+          mkdir -p /work/results
+          python3 --version
+          python3 -B -m unittest discover \
+            -s engine/protocol/benchmarks/hashchunk/corpus \
+            -p 'test_*.py' -v > /work/results/hashchunk-loader-tests.txt 2>&1
+          cargo build --locked --offline -p impluvium-hashchunk-bench
+          python3 -B engine/protocol/benchmarks/hashchunk/corpus/compare_tree_digest.py \
+            --tool target/debug/chunkbench > /work/results/hashchunk-digest-comparison.txt 2>&1
       - name: Attest product source independently from Git objects
         run: node tools/ci/export-protocol-source.mjs --repository . --commit "$GITHUB_SHA" --receipt /work/results/source.json
       - name: Protocol package-feature evidence, contracts and separate ratchets
@@ -586,6 +596,8 @@ jobs:
             /work/results/xtask-clippy.jsonl
             /work/results/hashchunk-tests.txt
             /work/results/hashchunk-clippy.jsonl
+            /work/results/hashchunk-loader-tests.txt
+            /work/results/hashchunk-digest-comparison.txt
             !/work/results/**/target/**
             !/work/results/negative/**/source/**
           retention-days: 7
