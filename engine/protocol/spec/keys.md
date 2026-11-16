@@ -89,6 +89,9 @@ on the wire.
 | No two keys share a `key_id` (this includes the same key listed twice) | `trusted_key_id_collision` |
 | Depot ticket sets: at most one key has status *current*; every *retiring* key has a switch time | `invalid_ticket_key_set` |
 
+These configuration errors identify diagnostic field `""`; the caller's key set is not a schema field. Applying the
+same point check to a received schema field instead retains the field assigned by its chapter.
+
 ## 4. Depot-ticket key generations
 
 ### 4.1 Acceptance set
@@ -126,6 +129,8 @@ verifier requires `claims.iat < t_switch` of that key; the first signature that 
 (`ticket_key_retired`), even if another valid signature comes from the current key. This mirrors the envelope rule that
 a known key with an invalid signature rejects the envelope ([envelope.md §5](envelope.md#5-multiple-signatures)). A
 ticket is never accepted after its own `exp`, whatever the state of its keys.
+
+The diagnostic field for `ticket_key_retired` is `DepotTicketClaims.iat`, as in tickets.md §4.
 
 ### 4.4 Hard revocation
 

@@ -68,6 +68,21 @@ Steps 1 to 11 of [envelope.md §7](envelope.md#7-verification-procedure) run fir
 | 11 | If an expected `sub` or `user_id` is supplied, it is equal | `wrong_subject` |
 | 12 | The requested `manifest_id` is an element of `manifest_ids` | `ticket_scope` |
 
+Diagnostic fields are fixed as follows; these assignments do not split or reorder joint checks:
+
+| Check | Diagnostic field |
+|---|---|
+| 1, 2 (joint presence and validity window) | `""` |
+| 3 | `DepotTicketClaims.exp` |
+| 4, 5 | `DepotTicketClaims.iat` |
+| 6, 7 | `DepotTicketClaims.aud` |
+| 8 | `DepotTicketClaims.sub` or `DepotTicketClaims.user_id`, according to the failing field |
+| 9, 10, 12 | `DepotTicketClaims.manifest_ids` |
+| 11 (joint expected-subject comparison) | `""` |
+
+Timestamp range failures retain the containing timestamp field under encoding.md §5; these are distinct from the
+joint presence and validity-window checks here. Failures in the ticket envelope retain the envelope diagnostic.
+
 `iat` and `exp` have already passed the timestamp range check of [encoding.md §5](encoding.md#5-timestamps) during
 step 11 of the envelope procedure (the payload scan), so steps 2 to 5 compare valid timestamps only. A ticket is
 accepted exactly at times `iat ≤ now < exp`; at `now = exp` it is expired. There is no clock tolerance: issuer and depot

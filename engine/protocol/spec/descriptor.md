@@ -151,6 +151,11 @@ payload type `…release.v1…`, trusted set = the pinned content key); step 11 
 Platform-specific checks use the option or step's declared platform, not the verifier's host. In particular, the
 Windows environment-key collision check of §5.3 runs on every host, including for options the client will not execute.
 
+For diagnostics, `duplicate_requirement` and `self_requirement` identify `ReleaseDescriptor.requires`;
+`duplicate_launch_key` identifies `ReleaseDescriptor.launch_options`, `duplicate_setup_id` identifies
+`ReleaseDescriptor.setup_steps`, and `setup_only_with_launch_options` identifies `ReleaseDescriptor.launch_options`.
+The combined command-byte limit of §2 and §5 step 14 identifies `""`, not any one command field.
+
 ### 5.1 Checks per launch option
 
 1. `key`: 1–128 bytes of display text (`invalid_key`).
@@ -172,15 +177,18 @@ Windows environment-key collision check of §5.3 runs on every host, including f
 
 ### 5.3 Checks per command
 
-1. `executable`: base path rules of [paths.md §2](paths.md#2-base-profile), reported with the field `executable`.
+1. `executable`: base path rules of [paths.md §2](paths.md#2-base-profile), diagnostic field `Command.executable`.
 2. Each argument in order contains no U+0000 (`invalid_argument_text`).
-3. `working_dir`: empty, or base path rules, reported with the field `working_dir`.
+3. `working_dir`: empty, or base path rules, diagnostic field `Command.working_dir`.
 4. `env` in wire order: key 1–128 bytes of display text without `=` (`invalid_env_name`); value contains no U+0000
    (`invalid_env_value`).
 5. If the launch option or setup step has `PLATFORM_WINDOWS`: no two `env` keys have the same Windows collision key
    ([paths.md §4.4](paths.md#44-collisions)), because Windows treats environment names without regard to case; the
    second key in wire order is reported (`duplicate_env_name`). For other platforms keys are compared as bytes, and
    the map rule of [encoding.md §2.4](encoding.md#24-occurrence-rules) already rejects equal keys.
+
+Argument-element failures identify `Command.args`. Environment key, value and collision failures identify
+`Command.env`, without a key suffix; hint-map checks in §5.1 identify `LaunchOption.hints`.
 
 ## 6. Context checks
 
@@ -209,6 +217,20 @@ The checks run after the structural checks, in this order.
 | 8 | For each launch option, then each setup step, in order: `executable` names an entry (`executable_not_found`) of type `REGULAR` (`executable_not_regular`); `working_dir` is empty, a `DIRECTORY` entry, or a proper ancestor of an entry (`working_dir_not_found`) | as listed |
 | 9 | If any launch option or setup step has `PLATFORM_WINDOWS`: the manifest passes the Windows profile of [paths.md §4](paths.md#4-windows-profile) (publication variant before publication; installation variant for every receiving client, on every host), and the components of `executable` and `working_dir` of every Windows launch option and setup step pass [paths.md §4.1](paths.md#41-characters) to §4.3 | Windows reasons |
 
+The diagnostic field of each context check is fixed independently of which input supplied the expected value:
+
+| Check | Diagnostic field |
+|---|---|
+| 0a, 0b | `ReleaseDescriptor.version_id`, `ReleaseDescriptor.game_id`, respectively |
+| 1, 5 | `ReleaseDescriptor.manifest_id` |
+| 2 | `ReleaseDescriptor.manifest_size` |
+| 3 (the joint game/version binding) | `""` |
+| 4 | `ReleaseDescriptor.install_size` |
+| 6 | `ReleaseDescriptor.revision` |
+| 7 (whole-payload identity) | `""` |
+| 8 | `Command.executable` or `Command.working_dir`, according to the failing predicate |
+| 9 | The manifest-profile field from paths.md §4.6, or `Command.executable` / `Command.working_dir` for the command-component checks |
+
 Clients keep the last verified descriptor of each installed version to start games offline, and they reject a revision
 lower than the highest one they have seen for that `version_id`.
 
@@ -226,6 +248,8 @@ For `V` and then for every affected version (in ascending order of `version_id` 
 | 1 | Every version in the closure exists and has a published descriptor | `dependency_not_found` |
 | 2 | The closure contains no cycle | `dependency_cycle` |
 | 3 | The closure contains at most 8 distinct `manifest_id`s, the version's own included | `ticket_set_too_large` |
+
+These graph checks identify diagnostic field `""`: they concern a closure of documents, not one schema field.
 
 If any check fails for any affected version, the revision is not published, and the reason names the version that
 failed. The evaluation and the publication happen atomically with respect to other publications, so two concurrent

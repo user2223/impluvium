@@ -107,6 +107,7 @@ needs a computed value (a hash, a signature, a derived key), it uses a placehold
 - RFC 8594 and RFC 9745: `Sunset` and `Deprecation` response headers.
 - RFC 8628: OAuth 2.0 device authorization grant (shape of the pairing flow).
 - RFC 9110: HTTP semantics (status codes, `Range`, `Retry-After`, `ETag`).
+- RFC 9113 §6.5.2: HTTP/2 header-list size and `SETTINGS_MAX_HEADER_LIST_SIZE`.
 - RFC 9562: UUID text format.
 - FIPS 180-4: SHA-256 and SHA-512.
 - RFC 1321: MD5, used only in the rule that regenerates the FastCDC gear table.

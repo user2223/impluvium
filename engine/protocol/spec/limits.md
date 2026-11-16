@@ -38,7 +38,9 @@ element and an encoded budget. A schema change that adds such a field without an
     length is reported with the semantic reason (for example `invalid_uuid`), not as `byte_limit_exceeded`. In the tables
     they are written "fixed n".
 11. Exceeding an element limit is `element_limit_exceeded`; exceeding a value limit or an encoded budget is
-    `byte_limit_exceeded`. Both carry the field name.
+    `byte_limit_exceeded`. A limit on a field in one message instance, including all its wire segments, identifies its
+    `Message.field` under [errors.md §5](errors.md#5-local-reason-catalog). A counter shared by field instances in
+    different messages, or a whole-message or enclosing aggregate budget, identifies `""`.
 12. For a container of messages, the value limit "(none)" means that an element has no limit of its own; its encoded
     bytes count against the container's budget.
 
@@ -112,6 +114,12 @@ Names used for enclosing limits:
 | `PairingProof` | whole envelope | – | – | 4 096 |
 | `PairingProof` | `instance_id` | – | fixed 36 | enclosing |
 | `PairingProof` | `pairing_id` | – | fixed 16 | enclosing |
+
+The 16 000 000-element limit for `Entry.chunk_indexes` counts across all `Entry` messages of one manifest;
+exceeding it identifies diagnostic field `""`, not `Entry.chunk_indexes`. The combined envelope-metadata budget
+identifies `""` ([envelope.md §7](envelope.md#7-verification-procedure)), as does the command-byte sum across all
+launch options and setup steps ([descriptor.md §5](descriptor.md#5-structural-validation-order)). Named enclosing
+budgets bound the whole document or body and identify `""`; ordinary per-field limits retain their field name.
 
 ## 4. RPC bodies
 
@@ -205,7 +213,7 @@ by the response limit.
 | Chunk (`GET /depot/v2/…`) | the chunk's size from the manifest (at most 16 777 216), or the requested range length |
 | Error body (all surfaces, including event-stream open) | 65 536 |
 | One event of the event stream, all its lines | 65 536 |
-| Response header section | 65 536 |
+| Each response head received before the body (HTTP/1.1 octets or HTTP/2 header-list size; [transport.md §6.1](transport.md#61-response-head-size)) | 65 536 |
 | `Authorization` header value carrying a ticket | 5 469 |
 | Event stream resume point (`last_event_id`, `Last-Event-ID`) | 53 |
 

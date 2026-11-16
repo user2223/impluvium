@@ -243,6 +243,14 @@ applied state. A broken stream never deletes credentials.
 | 9 | Data events (`library_changed`, and unknown events with an `id:` line): `seq ≥ 1`, `prev_seq < seq`, and `seq` greater than the `seq` of every earlier data event of the stream; heartbeats: `seq` not lower than the `seq` of the last data event received on the stream | `event_sequence_invalid` |
 | 10 | `library_changed`: `game` present if and only if `deleted` is false (`event_payload_invalid`); `game.game_id = game_id` and `game.entry_version = seq` (`event_identity_mismatch`) | as listed |
 
+Diagnostic fields under errors.md §5 are `""` for whole-event size, framing, stream-order, event-name, event-id and
+joint sequence checks (steps 1, 2, 4, `event_name_mismatch` in 5, 8 and 9). The joint identity comparisons of step 10
+also identify `""`; they do not choose between the compared identities. `event_epoch_mismatch` identifies
+`ServerEvent.epoch`, and `event_payload_invalid` identifies `LibraryChanged.game`. A missing expected payload in
+step 5 identifies its known `ServerEvent` member, such as `ServerEvent.connected`, never the `payload` group name.
+Step 6 retains each nested field's declaring message; a timestamp-range failure identifies `ServerEvent.time`.
+Opening-stream URL, header and credential checks have no schema field and identify `""`.
+
 Steps 8 and 9 are the only receive checks of `seq` and `prev_seq`. The other values that §3 items 4 to 6 prescribe are
 server obligations that a receiver does not check: `prev_seq = last_written` of a data event (the receiver uses
 `prev_seq` only in §8 item 2), `prev_seq = 0` of a heartbeat, and `seq = 0` and `prev_seq = 0` of the other control

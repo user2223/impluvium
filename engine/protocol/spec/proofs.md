@@ -47,6 +47,24 @@ For `BeginSession`, `CompleteSession`, `StartPairing` and `PollPairing`, the ser
 The method-specific orders below follow this prefix. Their body-limit and profile rows refer to step 3 here and
 do not run a second time. A failure of the prefix changes no session, challenge or pairing state.
 
+Diagnostic fields follow errors.md §5. Header, whole-body, address-limit and capacity checks identify `""`.
+Request-field checks identify the declaring request message; proof-content checks retain their payload or envelope
+field, rather than inheriting the request's `proof` field. In particular:
+
+| Local check or reason | Diagnostic field |
+|---|---|
+| `unknown_device` in BeginSession / CompleteSession | `BeginSessionRequest.device_id` / `CompleteSessionRequest.device_id` |
+| Request proof presence or the 4 096-byte proof limit | `CompleteSessionRequest.proof` or `PollPairingRequest.proof`, according to the method |
+| `client_too_old` in CompleteSession | `CompleteSessionRequest.client_capabilities` |
+| Session-proof instance, device or challenge binding | `SessionProof.instance_id`, `SessionProof.device_id` or `SessionProof.challenge`, respectively |
+| CompleteSession device-state checks 4a and 4b | `CompleteSessionRequest.device_id` |
+| CompleteSession challenge-state checks 4c through 4e | `CompleteSessionRequest.challenge` |
+| Pairing-proof instance or pairing binding | `PairingProof.instance_id` or `PairingProof.pairing_id`, respectively |
+| PollPairing pairing-state and interval checks 4, 9 through 12 | `PollPairingRequest.pairing_id` |
+
+Atomic rechecks retain the same assignments. Access-token checks of §2.4 concern an HTTP credential, not a schema
+field, and identify `""`; they do not borrow a `device_id` from a response message.
+
 ## 2. Sessions
 
 ### 2.1 `BeginSession`

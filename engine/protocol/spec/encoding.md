@@ -128,6 +128,13 @@ Unknown fields pass steps 1 and 3 and count against the limits of the enclosing 
 lengths of fixed-size values, text syntax and cross-field relations are not part of the scan; they run afterwards in
 the order of §7 or of the chapter that defines the message.
 
+Diagnostic fields follow [errors.md §5](errors.md#5-local-reason-catalog). A complete tag with a known field number
+identifies that field, including a forbidden-wire-type failure at step 1; an undecodable tag or an unknown, invalid
+or zero field number identifies `""`. After a known tag, framing, packed-element and value failures identify the
+known field. On entering a nested message, its own schema applies: an unidentifiable inner tag does not inherit the
+outer field. Map-entry key and value checks identify the enclosing map field. A whole-input limit identifies `""`;
+entering a known message field beyond the depth limit identifies that field.
+
 ## 3. JSON profile
 
 The JSON profile applies to RPC bodies sent as `application/json`, to the discovery document and to event data. The
@@ -241,6 +248,15 @@ document order with steps 4 to 7 for each element. For a map member, first apply
 are strings, not schema field aliases: equal resolved keys are `duplicate_json_key`, not the binary map-entry reason
 `duplicate_map_key`.
 
+For diagnostics, known JSON field names are translated back to their schema `Message.field`, including aliases and
+repeated elements. Duplicate resolved keys and `oneof` conflicts identify `""`, even when the offending names are
+known; an unknown member or a failure in its unknown subtree identifies `""`. A map-entry failure identifies the map
+field, except that a duplicate resolved JSON key still identifies `""`. The rules do not add rejection of unknown names.
+
+Syntax failures in a schema member's name or in a schema message's object framing identify `""`. After a known member
+name, syntax failures in that field's value identify the field; entering a nested schema message resets this
+association to its own members. Arrays and map entries retain their containing field for syntax and depth failures.
+
 ## 4. Enums
 
 1. Every enum has the value 0 named `…_UNSPECIFIED`. Value 0 is never a valid selection for a field that the schema or a
@@ -262,6 +278,12 @@ are strings, not schema field aliases: equal resolved keys are `duplicate_json_k
 A `google.protobuf.Timestamp` is accepted if and only if `seconds` lies in `[-62135596800, 253402300799]`
 (`0001-01-01T00:00:00Z` to `9999-12-31T23:59:59Z`) and `nanos` lies in `[0, 999999999]`. This is checked on input, in
 both codecs, before the value is stored or forwarded (`invalid_timestamp`). Timestamps compare by `(seconds, nanos)`.
+
+For `invalid_timestamp`, the diagnostic field is the schema field containing the whole timestamp, in both codecs
+(for example `DepotTicketClaims.iat` or `ServerEvent.time`); with no containing schema field it is `""`. This range
+or timestamp-text check does not select between `seconds` and `nanos` or introduce an order between their bounds.
+Separate binary framing, occurrence and wire-type failures inside a timestamp still use `Timestamp.seconds` or
+`Timestamp.nanos`, as applicable.
 
 ## 6. Identifiers and text
 
@@ -365,6 +387,10 @@ columns apply in the order of this table:
 | 4 | a numeric bound, a fixed value or a restriction to listed enum values ("≥ 1", "1–60", "MUST be 3") | the reason the field table names, otherwise `value_out_of_range` |
 | 5 | "no duplicates", checked when an element equals an earlier one | the reason the field table names, otherwise `duplicate_element` |
 | 6 | "strictly ascending", checked when an element is not greater than the previous one by unsigned bytes | the reason the field table names |
+
+The diagnostic field is the declaring message and field of the failed row, not the root traversal path. For example,
+a nested `Header.chunking` presence check identifies `Header.chunking`, a repeated capability element identifies
+`CompleteSessionRequest.client_capabilities`, and a map key or value identifies its map field, not a synthetic entry.
 
 **Stage 2, cross-field rules.** After the whole top-level message, including every nested message, has passed stage
 1, the rules that relate two fields of one message ("present if and only if …", "equals field …") are checked in the

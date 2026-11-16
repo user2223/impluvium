@@ -95,6 +95,10 @@ A client reads discovery with the response rules of [transport.md §6](transport
 | 2 | The other fields of §2.2 in field-number order, each with the field rules (stage 1) of [encoding.md §7.2](encoding.md#72-the-generic-order): `server_name` and `server_version` (`missing_field`, `invalid_text`), `instance_id` (`invalid_uuid`), `protocol` and its three fields (`missing_field`, `value_out_of_range`), `manifest_formats` (`missing_field`, `duplicate_element`), `capabilities` and `required_client_capabilities` element by element (`invalid_name`, `duplicate_element`), `commit` (`invalid_text`), `source_url` (`missing_field`, `invalid_url`) | as listed |
 | 3 | `manifest_formats` contains 3 | `protocol_unsupported` |
 
+The joint `discovery`/`product` check identifies diagnostic field `""`; it does not choose one of the two fields.
+Step 2 uses each field's declaring message, including `ProtocolVersion.major`, `ProtocolVersion.revision` and
+`ProtocolVersion.min_client_revision` for the nested protocol fields. Step 3 identifies `Discovery.manifest_formats`.
+
 `key_fingerprints` entries are not validated beyond the scan: an entry with an unknown role or a `sha256` of another
 length is ignored.
 
@@ -112,6 +116,9 @@ decides in this order:
 3. `client.revision < server.min_client_revision` → `client_too_old`;
 4. otherwise the versions are compatible.
 
+For these local comparisons, diagnostic fields are `ProtocolVersion.major`, `ProtocolVersion.revision` and
+`ProtocolVersion.min_client_revision`, respectively.
+
 These states are typed and shown to the user. None of them signs the device out or deletes credentials. A server raises
 `revision` with every release that changes the schema or a normative rule; in the 0.x series a breaking change raises
 `min_client_revision`. This is a revision scheme, not a range of supported protocol versions.
@@ -128,6 +135,8 @@ response headers; clients log them and never change behaviour because of them.
 3. Unknown capabilities are ignored by both sides.
 4. If discovery lists `required_client_capabilities` that the client does not implement, the client is too old
    (`client_too_old`); the server enforces the same in `CompleteSession` with `CLIENT_TOO_OLD`.
+
+The local capability comparison identifies diagnostic field `Discovery.required_client_capabilities`.
 
 Registry of this revision:
 
@@ -401,6 +410,10 @@ Summaries list only content the calling user may access, and never contain stora
 |---|---|---|---|---|---|
 | 1 | `version` | `VersionSummary` | required | context: `version.version_id` equals the requested `version_id` (`response_identity_mismatch`) | The version. |
 
+For `response_identity_mismatch`, the diagnostic field is `GameSummary.game_id` in `GetGameResponse`,
+`VersionSummary.game_id` in `ListVersionsResponse`, or `VersionSummary.version_id` in `GetVersionResponse`.
+These context comparisons identify the nested identity field, not the enclosing response field or an element index.
+
 ### 6.4 `DownloadService`
 
 | Method | Auth | Request → response | Errors |
@@ -455,6 +468,9 @@ is the complete check order of `OpenDownloadResponse` and `DepotEndpoint`
 | 4 | The descriptor's `manifest_id` is an element of `manifest_ids` | `manifest_set_mismatch` |
 | 5 | Every `depot_endpoints[i].base_url` is a valid depot base URL ([transport.md §2](transport.md#2-base-url-and-origins)) | `invalid_url` |
 
+For diagnostics, step 4 identifies `OpenDownloadResponse.manifest_ids` and step 5 identifies `DepotEndpoint.base_url`.
+Descriptor checks retain the diagnostic fields of envelope.md and descriptor.md, not `OpenDownloadResponse.descriptor`.
+
 It then fetches the manifest by `manifest_id` (§8.1), runs the remaining context checks of
 [descriptor.md §6](descriptor.md#6-context-checks), and contacts a depot only under
 [transport.md §5](transport.md#5-depot-origins-and-credentials). Descriptors of required versions are fetched with §8.2
@@ -475,6 +491,9 @@ replaces the old one for later depot requests.
 6. A token is valid for one hour after the server issued it: it is accepted while `now < issued + 3 600 s` and refused
    from then on with `failed_precondition` and `PAGE_TOKEN_EXPIRED`. A malformed token, or one used with other request
    fields, yields `invalid_argument` (`invalid_page_token`).
+
+Page-token validation diagnostics identify `ListDevicesRequest.page_token`, `ListLibraryRequest.page_token` or
+`ListVersionsRequest.page_token`, according to the method.
 
 ## 8. Document and object routes
 
@@ -502,6 +521,8 @@ The server processes all three routes in this order; the first failing step dete
 lowercase hexadecimal digits, an unknown manifest and a manifest the user may not access yield 404. The client verifies
 the envelope ([manifest.md](manifest.md)) and checks that `SHA-256(payload)` equals the requested `manifest_id`
 (`manifest_id_mismatch`).
+
+This document/URL identity check identifies diagnostic field `""`; the URL identifier is not a schema field.
 
 ### 8.2 Descriptors
 

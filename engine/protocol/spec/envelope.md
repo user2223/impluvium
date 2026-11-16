@@ -157,6 +157,20 @@ The checks run in this order; the first failing check determines the reason.
 | 12 | Payload: time window, if the payload type has one (tickets) | payload chapter | time |
 | 13 | Payload: semantic rules in the order of the payload chapter | payload chapter | semantic |
 
+Diagnostic fields under [errors.md §5](errors.md#5-local-reason-catalog) are:
+
+| Check or reason | Diagnostic field |
+|---|---|
+| Whole-envelope size (step 1) or combined metadata budget (step 3) | `""` |
+| Signature count, `no_signatures`, `malformed_signature_entry`, `duplicate_signature_key_id` | `Envelope.signatures` |
+| `invalid_payload_type`, `unknown_payload_type`, `unexpected_payload_type` | `Envelope.payload_type` |
+| `invalid_signature` | `Signature.sig` |
+| `no_trusted_signature` | `""` |
+
+The signature-entry length check labels the repeated element as a whole; it does not add an order between its two
+length predicates. Binary-profile failures within a `Signature` instead identify its own known field. Payload checks
+retain the payload schema's diagnostic field, or `""`, rather than inheriting `Envelope.payload`.
+
 Step 12 comes immediately after the bounded read of the signed claims: expiry can only be read from the signed payload,
 so it cannot be checked earlier, and it is checked before every other semantic rule of that payload. Timestamps that
 step 12 compares have passed their range check in step 11.

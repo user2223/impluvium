@@ -59,14 +59,14 @@ Envelope length: 53 + 112 + 78 = **243** bytes, below the 4 096-byte limit. Meta
 
 ## 3. Rejected envelope encodings
 
-| Input (start) | Result | Rule |
-|---|---|---|
-| `0a 01 41 0a 01 41 12 …` (`payload_type` twice, equal values) | `duplicate_field` | [encoding.md §2.4](encoding.md#24-occurrence-rules) |
-| `08 05 …` (field 1 with wire type VARINT) | `wrong_wire_type` | [encoding.md §2.1](encoding.md#21-tags-and-wire-types) |
-| `1a 4c 0a 08 …` and a second `1a 4c 0a 08 …` with the same 8 `key_id` bytes | `duplicate_signature_key_id` | [envelope.md §5](envelope.md#5-multiple-signatures) |
-| a valid envelope whose only signature has a `key_id` not in the trusted set | `no_trusted_signature` | [envelope.md §5](envelope.md#5-multiple-signatures) |
-| an envelope with payload type `application/vnd.impluvium.revocation-list.v1+protobuf` | `unknown_payload_type` (payload not read) | [envelope.md §2](envelope.md#2-payload-types) |
-| `0b …` (field 1 with wire type 3, a group) | `malformed_wire` | [encoding.md §2.1](encoding.md#21-tags-and-wire-types) |
+| Input (start) | Result | Rule | Diagnostic field on rejection |
+|---|---|---|---|
+| `0a 01 41 0a 01 41 12 …` (`payload_type` twice, equal values) | `duplicate_field` | [encoding.md §2.4](encoding.md#24-occurrence-rules) | `Envelope.payload_type` |
+| `08 05 …` (field 1 with wire type VARINT) | `wrong_wire_type` | [encoding.md §2.1](encoding.md#21-tags-and-wire-types) | `Envelope.payload_type` |
+| `1a 4c 0a 08 …` and a second `1a 4c 0a 08 …` with the same 8 `key_id` bytes | `duplicate_signature_key_id` | [envelope.md §5](envelope.md#5-multiple-signatures) | `Envelope.signatures` |
+| a valid envelope whose only signature has a `key_id` not in the trusted set | `no_trusted_signature` | [envelope.md §5](envelope.md#5-multiple-signatures) | `""` |
+| an envelope with payload type `application/vnd.impluvium.revocation-list.v1+protobuf` | `unknown_payload_type` (payload not read) | [envelope.md §2](envelope.md#2-payload-types) | `Envelope.payload_type` |
+| `0b …` (field 1 with wire type 3, a group) | `malformed_wire` | [encoding.md §2.1](encoding.md#21-tags-and-wire-types) | `Envelope.payload_type` |
 
 ## 4. Depot ticket sizes
 
@@ -123,31 +123,31 @@ as `3a 04 00 01 ac 02` (300 = `ac 02`).
 
 ## 6. Paths
 
-| Path | Base profile | Windows profile |
-|---|---|---|
-| `bin/game` | accepted | accepted |
-| `aux.c` | accepted | `windows_reserved_name` |
-| `Readme` next to `README` | accepted (distinct bytes) | `windows_case_collision` |
-| `A/x` next to `a/y` | accepted | `windows_case_collision` (ancestors `A` and `a`) |
-| `notes.` | accepted | `windows_trailing_dot_or_space` |
-| `ab:c` | accepted | `windows_forbidden_character` |
-| `c:/x` | `path_drive_prefix` | – |
-| `/etc/passwd` | `path_absolute` | – |
-| `a//b` | `path_empty_component` | – |
-| `a/../b` | `path_dot_component` | – |
-| `dir\file` | `path_forbidden_character` | – |
-| `bad<U+0007>name` | `path_forbidden_character` | – |
+| Path | Base profile | Windows profile | Diagnostic field on rejection |
+|---|---|---|---|
+| `bin/game` | accepted | accepted | – |
+| `aux.c` | accepted | `windows_reserved_name` | `Entry.path` |
+| `Readme` next to `README` | accepted (distinct bytes) | `windows_case_collision` | `Entry.path` |
+| `A/x` next to `a/y` | accepted | `windows_case_collision` (ancestors `A` and `a`) | `Entry.path` |
+| `notes.` | accepted | `windows_trailing_dot_or_space` | `Entry.path` |
+| `ab:c` | accepted | `windows_forbidden_character` | `Entry.path` |
+| `c:/x` | `path_drive_prefix` | – | `Entry.path` |
+| `/etc/passwd` | `path_absolute` | – | `Entry.path` |
+| `a//b` | `path_empty_component` | – | `Entry.path` |
+| `a/../b` | `path_dot_component` | – | `Entry.path` |
+| `dir\file` | `path_forbidden_character` | – | `Entry.path` |
+| `bad<U+0007>name` | `path_forbidden_character` | – | `Entry.path` |
 
 ## 7. Symbolic-link targets
 
-| Link path | Target | Resolution | Result |
-|---|---|---|---|
-| `a/b/l` | `../x` | `[a, b]` → `[a]` → `[a, x]` | accepted |
-| `a/b/l` | `../../x` | `[a, b]` → `[a]` → `[]` → `[x]` | accepted |
-| `a/b/l` | `../../../x` | `[a, b]` → `[a]` → `[]` → escape | `symlink_escape` |
-| `l` | `.` | `[]` → `[]` (top of the tree) | accepted |
-| `l` | `..` | `[]` → escape | `symlink_escape` |
-| `l` | `/usr/bin` | – | `path_absolute` |
+| Link path | Target | Resolution | Result | Diagnostic field on rejection |
+|---|---|---|---|---|
+| `a/b/l` | `../x` | `[a, b]` → `[a]` → `[a, x]` | accepted | – |
+| `a/b/l` | `../../x` | `[a, b]` → `[a]` → `[]` → `[x]` | accepted | – |
+| `a/b/l` | `../../../x` | `[a, b]` → `[a]` → `[]` → escape | `symlink_escape` | `Entry.symlink_target` |
+| `l` | `.` | `[]` → `[]` (top of the tree) | accepted | – |
+| `l` | `..` | `[]` → escape | `symlink_escape` | `Entry.symlink_target` |
+| `l` | `/usr/bin` | – | `path_absolute` | `Entry.symlink_target` |
 
 ## 8. User code
 
@@ -169,18 +169,18 @@ The path has 10 + 64 + 1 + 64 = 139 bytes. A successful answer is `206` with
 
 ## 10. JSON input rules
 
-| Request body (fragment) | Result |
-|---|---|
-| `{"deviceId":"…","device_id":"…"}` in `CompleteSessionRequest` | `duplicate_field` (two names of one field) |
-| `{"scope":"SESSION_SCOPE_API","sc\u006fpe":"SESSION_SCOPE_API"}` | `duplicate_json_key` (same name after escape resolution) |
-| `{"scope":"SESSION_SCOPE_FUTURE"}` | reads as `SESSION_SCOPE_UNSPECIFIED`, then `unsupported_session_scope` |
-| `{"scope":true}` | `json_type_mismatch` |
-| `{"clientCapabilities":["events.v1",null]}` | `json_type_mismatch` |
-| `{"pageSize":"1e2"}` in `ListLibraryRequest` | accepted as 100 (a standard ProtoJSON integer form) |
-| `{"pageSize":"1.5"}` | `invalid_number` |
+| Request body (fragment) | Result | Diagnostic field on rejection |
+|---|---|---|
+| `{"deviceId":"…","device_id":"…"}` in `CompleteSessionRequest` | `duplicate_field` (two names of one field) | `CompleteSessionRequest.device_id` |
+| `{"scope":"SESSION_SCOPE_API","sc\u006fpe":"SESSION_SCOPE_API"}` | `duplicate_json_key` (same name after escape resolution) | `""` |
+| `{"scope":"SESSION_SCOPE_FUTURE"}` | reads as `SESSION_SCOPE_UNSPECIFIED`, then `unsupported_session_scope` | `CompleteSessionRequest.scope` |
+| `{"scope":true}` | `json_type_mismatch` | `CompleteSessionRequest.scope` |
+| `{"clientCapabilities":["events.v1",null]}` | `json_type_mismatch` | `CompleteSessionRequest.client_capabilities` |
+| `{"pageSize":"1e2"}` in `ListLibraryRequest` | accepted as 100 (a standard ProtoJSON integer form) | – |
+| `{"pageSize":"1.5"}` | `invalid_number` | `ListLibraryRequest.page_size` |
 
-In a response, `{"platforms":["PLATFORM_LINUX","PLATFORM_FUTURE"]}` reads as `[PLATFORM_LINUX]`, while
-`{"platforms":["PLATFORM_LINUX",true]}` is rejected (`json_type_mismatch`).
+In a `GameSummary` response, `{"platforms":["PLATFORM_LINUX","PLATFORM_FUTURE"]}` reads as `[PLATFORM_LINUX]`, while
+`{"platforms":["PLATFORM_LINUX",true]}` is rejected (`json_type_mismatch`, diagnostic field `GameSummary.platforms`).
 
 ## 11. Event stream
 
@@ -214,7 +214,7 @@ received this body from the pinned server origin deletes the credentials of that
 ([errors.md §7](errors.md#7-credential-cleanup)). The same JSON from another origin, or a `502` HTML page, never does.
 
 For these responses to `ListDevices`, the success-body read limit is 1 048 576 bytes and the error-body read limit is
-65 536 bytes ([limits.md §4–5](limits.md#4-rpc-bodies)). Header-size and content-coding checks pass. HTML pages have
+65 536 bytes ([limits.md §4–5](limits.md#4-rpc-bodies)). Response-head-size and content-coding checks pass. HTML pages have
 `Content-Type: text/html`; JSON bodies have `Content-Type: application/json`. Any body read completes within its
 deadline unless the read limit is exceeded. The transport checks precede the status mapping of
 [errors.md §6](errors.md#6-responses-without-a-valid-error-body):
@@ -314,7 +314,8 @@ Body:
 
 [proofs.md §1.3](proofs.md#13-common-request-checks) step 1 returns 501, `unimplemented`, without a wire reason.
 The server does not decompress, scan the `00` tag or check a proof. With `Content-Encoding: identity` instead,
-step 3 rejects tag zero as `malformed_wire`, reported as 400, `invalid_argument`, without a wire reason.
+step 3 rejects tag zero as `malformed_wire` with diagnostic field `""`, reported as 400, `invalid_argument`, without
+a wire reason.
 The same coding-before-body order applies to `BeginSession`, `StartPairing` and `PollPairing`.
 
 ### 13.5 Ambiguous stream credentials do not select an owner
@@ -361,28 +362,28 @@ This `ServerEvent` input is checked at the JSON-profile stage, before semantic f
 
 The first member occupies `payload` through `resync_required`. At the second member, the resolved names differ,
 so [encoding.md §3.10](encoding.md#310-check-order) step 2 passes. Both names select the same `oneof` member;
-step 3 returns `oneof_conflict`, including when the second value is `null`. It never reaches the value-type check
-or the missing semantic fields of `ServerEvent`.
+step 3 returns `oneof_conflict` with diagnostic field `""`, including when the second value is `null`. It never reaches
+the value-type check or the missing semantic fields of `ServerEvent`.
 
 The following fragments illustrate only JSON-profile scanning; a scan success does not assert complete message
 validity. Each result is determined while processing the input in document order:
 
-| Input | Profile result | First failing check |
-|---|---|---|
-| `{"resync_required":null,"resyncRequired":{}}` in `ServerEvent` | `oneof_conflict` | Step 3; `null` still counts as a `oneof` occurrence. |
-| `{"resyncRequired":{},"resyncRequired":null}` in `ServerEvent` | `duplicate_json_key` | Step 2, before the `oneof` check. |
-| `{"resyncRequired":{},"resync\u0052equired":null}` in `ServerEvent` | `duplicate_json_key` | Step 2; escape resolution makes the names equal. |
-| `{"resyncRequired":{},"session_ended":false}` in `ServerEvent` | `oneof_conflict` | Step 3, before checking the second member's value type. |
-| `{"resyncRequired":false,"resync_required":{}}` in `ServerEvent` | `json_type_mismatch` | Step 4 of the first member, before the second name is read. |
-| `{"deviceId":"x","device_id":null}` in `CompleteSessionRequest` | `duplicate_field` | Step 3; a non-`oneof` field under both names, even with `null`. |
-| `{"keyFingerprints":[],"key_fingerprints":[]}` in `Discovery` | `duplicate_field` | Step 3; aliases of a repeated field are not concatenated. |
-| `{"protocol":{},"protocol":{}}` in `Discovery` | `duplicate_json_key` | Step 2; repeating a message-valued JSON key does not use the binary `split_message` rule. |
-| `{"scope":null,"scope":null}` in `CompleteSessionRequest` | `duplicate_json_key` | Step 2; the schema name and ProtoJSON name are identical. |
-| `{"future":{"resyncRequired":{},"resync_required":null}}` in `ServerEvent` | scan passes | The nested names are unknown members, not aliases of schema fields. |
+| Input | Profile result | First failing check | Diagnostic field on rejection |
+|---|---|---|---|
+| `{"resync_required":null,"resyncRequired":{}}` in `ServerEvent` | `oneof_conflict` | Step 3; `null` still counts as a `oneof` occurrence. | `""` |
+| `{"resyncRequired":{},"resyncRequired":null}` in `ServerEvent` | `duplicate_json_key` | Step 2, before the `oneof` check. | `""` |
+| `{"resyncRequired":{},"resync\u0052equired":null}` in `ServerEvent` | `duplicate_json_key` | Step 2; escape resolution makes the names equal. | `""` |
+| `{"resyncRequired":{},"session_ended":false}` in `ServerEvent` | `oneof_conflict` | Step 3, before checking the second member's value type. | `""` |
+| `{"resyncRequired":false,"resync_required":{}}` in `ServerEvent` | `json_type_mismatch` | Step 4 of the first member, before the second name is read. | `ServerEvent.resync_required` |
+| `{"deviceId":"x","device_id":null}` in `CompleteSessionRequest` | `duplicate_field` | Step 3; a non-`oneof` field under both names, even with `null`. | `CompleteSessionRequest.device_id` |
+| `{"keyFingerprints":[],"key_fingerprints":[]}` in `Discovery` | `duplicate_field` | Step 3; aliases of a repeated field are not concatenated. | `Discovery.key_fingerprints` |
+| `{"protocol":{},"protocol":{}}` in `Discovery` | `duplicate_json_key` | Step 2; repeating a message-valued JSON key does not use the binary `split_message` rule. | `""` |
+| `{"scope":null,"scope":null}` in `CompleteSessionRequest` | `duplicate_json_key` | Step 2; the schema name and ProtoJSON name are identical. | `""` |
+| `{"future":{"resyncRequired":{},"resync_required":null}}` in `ServerEvent` | scan passes | The nested names are unknown members, not aliases of schema fields. | – |
 
 Within a JSON object encoding a `map<string, string>`, `{"deviceId":"a","device_id":"b"}` has two distinct keys;
 they are not field aliases. `{"a":"x","\u0061":"y"}` instead fails step 2 with `duplicate_json_key`, because
-both keys resolve to `a`; `duplicate_map_key` is the binary map-entry result.
+both keys resolve to `a`, with diagnostic field `""`; `duplicate_map_key` is the binary map-entry result.
 
 ### 14.2 Windows-target descriptor on every receiving host
 
@@ -399,19 +400,19 @@ Signatures, identities, hashes, sizes and [descriptor.md §6](descriptor.md#6-co
 all pass. At check 9, a receiving client uses the installation variant of the Windows profile on Linux, macOS and
 Windows alike. `A` has collision key `a` (`upper(A) = A`, `fold(A) = a`); `a` has the same key
 (`upper(a) = A`, `fold(A) = a`). The second directory therefore rejects the descriptor with
-`windows_case_collision`, before `bin/game` is considered. Receiving it through a descriptor GET or `OpenDownload`
-does not change this context result.
+`windows_case_collision` with diagnostic field `Entry.path`, before `bin/game` is considered. Receiving it through a
+descriptor GET or `OpenDownload` does not change this context result.
 
 Related cases, with all unmentioned checks passing:
 
-| Context | Result |
-|---|---|
-| The same manifest, but only a Linux launch option | Descriptor context passes on every receiving host; no Windows target activates check 9. Installing on Windows still requires its separate installation check. |
-| The same manifest with a Windows setup step instead of the launch option | `windows_case_collision` on every receiving host; setup steps also activate check 9. |
-| A Windows command with environment keys `Path` and `PATH` | `duplicate_env_name` on every host during structural validation; both keys fold to `path`. |
-| A Linux command with the same two environment keys | The keys are distinct bytes and pass that structural check, even on a Windows receiving host. |
-| A command naming `BIN/game` when the manifest contains only `bin/game` | `executable_not_found` on every host at context check 8; entry names are compared as exact bytes, even if a native file system would treat them as equal. |
-| A Windows-target descriptor with an otherwise valid, collision-free manifest containing a symbolic link | Every receiving client rejects with `unsupported_symlink`; the publisher's publication variant instead reports `windows_symlink` without rejecting. |
+| Context | Result | Diagnostic field on rejection |
+|---|---|---|
+| The same manifest, but only a Linux launch option | Descriptor context passes on every receiving host; no Windows target activates check 9. Installing on Windows still requires its separate installation check. | – |
+| The same manifest with a Windows setup step instead of the launch option | `windows_case_collision` on every receiving host; setup steps also activate check 9. | `Entry.path` |
+| A Windows command with environment keys `Path` and `PATH` | `duplicate_env_name` on every host during structural validation; both keys fold to `path`. | `Command.env` |
+| A Linux command with the same two environment keys | The keys are distinct bytes and pass that structural check, even on a Windows receiving host. | – |
+| A command naming `BIN/game` when the manifest contains only `bin/game` | `executable_not_found` on every host at context check 8; entry names are compared as exact bytes, even if a native file system would treat them as equal. | `Command.executable` |
+| A Windows-target descriptor with an otherwise valid, collision-free manifest containing a symbolic link | Every receiving client rejects with `unsupported_symlink`; the publisher's publication variant instead reports `windows_symlink` without rejecting. | `Entry.type` (rejection or warning) |
 
 Every host uses the Unicode 16.0.0 mappings of [paths.md §4.4](paths.md#44-collisions) for these checks, including
 non-ASCII names; the host's file system, Unicode version and native ability to create links do not select the variant.
@@ -433,5 +434,68 @@ The client-address rate limit is reached. The method is `POST`, and the absent `
 so [proofs.md §1.3](proofs.md#13-common-request-checks) step 1 passes. Step 2 returns 429, `resource_exhausted`,
 `RATE_LIMITED`, before reading `{}` or checking its absent fields. No pairing is created. If the address limit is
 not reached, step 3 accepts the body size and JSON profile, then
-[proofs.md §3.1](proofs.md#31-startpairing) field check 1 rejects the absent `device_name` as `invalid_text`
-(400, `invalid_argument`, without a wire reason).
+[proofs.md §3.1](proofs.md#31-startpairing) field check 1 rejects the absent `device_name` as `invalid_text` with
+diagnostic field `StartPairingRequest.device_name` (400, `invalid_argument`, without a wire reason).
+
+## 15. Local diagnostic fields and response-head limits
+
+### 15.1 Diagnostic labels
+
+These are local diagnostics, not members of a wire error body. Each row describes the indicated failing check;
+it does not bypass earlier checks when validating a complete input.
+
+| Failing check | Local reason | Diagnostic field |
+|---|---|---|
+| Tag `00` at a message boundary | `malformed_wire` | `""` |
+| Envelope field 1 encoded as `08 05` | `wrong_wire_type` | `Envelope.payload_type` |
+| Envelope field 1 encoded with forbidden wire type 3 (`0b`) | `malformed_wire` | `Envelope.payload_type` |
+| Malformed value framing of an unknown field | `malformed_wire` | `""` |
+| `{"deviceName":"\ud800"}` in StartPairingRequest | `invalid_json` | `StartPairingRequest.device_name` |
+| `{"future":"\ud800"}` in StartPairingRequest | `invalid_json` | `""` |
+| Missing `chunking` in a nested manifest header | `missing_chunking` | `Header.chunking` |
+| Invalid capability element in CompleteSession | `invalid_name` | `CompleteSessionRequest.client_capabilities` |
+| A command environment key contains `=` | `invalid_env_name` | `Command.env` |
+| Range failure of the ticket's `iat` timestamp | `invalid_timestamp` | `DepotTicketClaims.iat` |
+| Wrong binary wire type for `seconds` inside that timestamp | `wrong_wire_type` | `Timestamp.seconds` |
+| Invalid timestamp text in `ServerEvent.time` | `invalid_timestamp` | `ServerEvent.time` |
+| Ticket's joint `iat`/`exp` presence check fails | `missing_field` | `""` |
+| Ticket's joint validity-window check fails | `invalid_validity_window` | `""` |
+| Returned game's id differs from the requested id in GetGame | `response_identity_mismatch` | `GameSummary.game_id` |
+| An absolute symbolic-link target | `path_absolute` | `Entry.symlink_target` |
+| An absolute command executable | `path_absolute` | `Command.executable` |
+| Combined envelope metadata exceeds its budget | `byte_limit_exceeded` | `""` |
+| Two manifest entries contain 8 000 000 and 8 000 001 chunk indexes; the shared counter reaches 16 000 001 | `element_limit_exceeded` | `""` |
+| An isolated manifest sum overflows | `size_overflow` | `""` |
+| A manifest chunk has no reference | `unreferenced_chunk` | `Manifest.chunks` |
+| A signature fails cryptographic verification | `invalid_signature` | `Signature.sig` |
+| A signature entry fails its joint length check | `malformed_signature_entry` | `Envelope.signatures` |
+| A configured trusted key fails the point check | `invalid_trusted_key` | `""` |
+| A pairing response's content public key fails the same point check | `invalid_trusted_key` | `PollPairingResponse.content_public_key` |
+
+No repeated-element index or map key is appended. For example, the second bad environment key still identifies
+`Command.env`, not `Command.env[1]` or `Command.env.PATH`. A repeated resolved JSON key and a `oneof` conflict both
+identify `""`, even when all names are known. An otherwise valid unknown JSON member is ignored; it creates no failure.
+
+### 15.2 Counting response heads
+
+The following calculations exercise only the size check of [transport.md §6.1](transport.md#61-response-head-size).
+Passing this check does not assert that the other response checks pass. Here `a` is one ASCII octet and `n` is its
+repetition count; `\r\n` denotes the two octets CR LF.
+
+For HTTP/1.1, let the status line be `HTTP/1.1 200 Available\r\n`, exactly 24 octets. Follow it by
+`X: `, then `n` copies of `a`, then `\r\n\r\n`. The complete response head has
+24 + 3 + n + 4 = **n + 31** octets; the status line is included, not discarded before counting.
+
+For HTTP/2, let the decoded header block contain exactly `:status: 200` and `x: ` followed by `n` copies of `a`.
+Its header-list size is (7 + 3 + 32) + (1 + n + 32) = **n + 75**, regardless of HPACK or frame size.
+
+| Section | `n` | Counted size | Size-check result |
+|---|---:|---:|---|
+| HTTP/1.1 response head above | 65 505 | 65 536 | passes |
+| HTTP/1.1 response head above | 65 506 | 65 537 | `headers_too_large`, diagnostic field `""` |
+| HTTP/2 header block above | 65 461 | 65 536 | passes |
+| HTTP/2 header block above | 65 462 | 65 537 | `headers_too_large`, diagnostic field `""` |
+
+Each informational response head is checked separately. For example, a 103 head above the limit fails with
+`headers_too_large` even if the final head is small. Two response heads of 65 536 each pass their separate size checks;
+their sizes are not added into a shared allowance.

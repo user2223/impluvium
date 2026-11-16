@@ -407,6 +407,28 @@ following checks; the first failing check determines the reason.
 | 16 | Every chunk is referenced; the first unreferenced index in table order is reported | `unreferenced_chunk` |
 | 17 | If the Windows profile is requested: [paths.md §4](paths.md#4-windows-profile) | Windows reasons |
 
+Diagnostic fields follow [errors.md §5](errors.md#5-local-reason-catalog). Nested header checks identify
+`Header.hash_algorithm`, `Header.chunking` or `Chunking.algorithm`, not a root path. Chunk value checks identify
+`Chunk.id` or `Chunk.size`. The manifest-wide `Entry.chunk_indexes` element limit identifies `""` under
+[limits.md §3](limits.md#3-signed-documents); other failures specific to that field retain `Entry.chunk_indexes`.
+The following chapter-rule assignments also apply to §5 and §10.1:
+
+| Reason | Diagnostic field |
+|---|---|
+| `unsorted_chunks`, `unreferenced_chunk` | `Manifest.chunks` |
+| `unsorted_entries` | `Manifest.entries` |
+| `path_parent_conflict` and entry-path profile failures | `Entry.path` |
+| `invalid_entry_type`, `invalid_mode` | `Entry.type`, `Entry.mode`, respectively |
+| `invalid_entry_fields` | The prohibited `Entry.size`, `Entry.hash`, `Entry.symlink_target` or `Entry.chunk_indexes` found by the existing order of §10.1 step 5 |
+| `invalid_hash_length`, `empty_file_hash_mismatch`, `single_chunk_hash_mismatch` | `Entry.hash` |
+| `chunk_index_out_of_range` | `Entry.chunk_indexes` |
+| `chunk_size_mismatch` | `Entry.size` |
+| `total_size_mismatch` | `Manifest.total_size` |
+| `size_overflow` in either running sum | `""` |
+
+Symbolic-link target failures identify `Entry.symlink_target`; Windows-profile failures retain the assignments of
+[paths.md §4.6](paths.md#46-check-order). Aggregate sums do not inherit the last summand's field.
+
 ### 10.1 Checks per entry
 
 For entry `i`, in this order:

@@ -114,7 +114,8 @@ A client never hands a response body to a general-purpose decoder before these c
 1. **Binding before sending.** Before a request is sent, the client binds it to the expected response schema and the
    limits of [limits.md](limits.md) for that route or method. A method without an entry has no fallback limit and is not
    called. Response headers never widen a schema or a limit.
-2. **Status and headers.** The total size of the response header section is at most 65 536 bytes (`headers_too_large`).
+2. **Status and response head.** Each response head received before the body is at most 65 536 bytes under §6.1
+   (`headers_too_large`, diagnostic field `""`).
    A `3xx` status on a route without redirects is an error (`redirect_not_allowed`).
 3. **Content coding.** A `Content-Encoding` other than `identity` is rejected (`unsupported_content_encoding`). No
    decompression happens.
@@ -132,6 +133,26 @@ A client never hands a response body to a general-purpose decoder before these c
    independent of the codec of the request.
 7. **Semantic checks.** Timestamps and the field rules of the schema are checked before the decoded value reaches the
    caller.
+
+### 6.1 Response-head size
+
+The 65 536-byte limit applies separately to every response head received before the body: each informational (`1xx`)
+head and the final head. It is not a combined allowance for several heads. Exceeding it yields
+`headers_too_large`, with diagnostic field `""`; neither the status nor an error body overrides this transport
+failure ([errors.md §6](errors.md#6-responses-without-a-valid-error-body)).
+
+- **HTTP/1.1 response head:** count every received octet from the first octet of the status line through the CRLF of
+  the empty line terminating the head: the status line, all field lines and all line endings. Do not remove or
+  normalise whitespace or line endings before counting. Including the status line prevents an unbounded status line
+  and bounds the head the client must buffer before interpreting its fields.
+- **HTTP/2:** use the header-list size of RFC 9113 §6.5.2 for each response-head block: for every decoded field line,
+  add the name's octet length, the value's octet length and 32. Include pseudo-header fields and count repeated field
+  lines separately, before any combination. A block includes all its HEADERS and CONTINUATION fragments; frame,
+  compression and padding bytes do not enter this measure. Apply the same calculation to each informational or final
+  response block received before the body.
+
+*(Informative.) A client can advertise `SETTINGS_MAX_HEADER_LIST_SIZE = 65536`; advertising the setting does not
+replace the local check.*
 
 ## 7. Redirects
 

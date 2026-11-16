@@ -43,6 +43,9 @@ The pairing result is trusted because it arrives over the transport that [transp
 because the user confirmed the pairing code in an authenticated browser session. The first pairing is a
 trust-on-first-use step; [security.md §3](security.md#3-trust-on-first-use) states its limits.
 
+In step 3, `instance_mismatch` identifies diagnostic field `PollPairingResponse.instance_id`; both the public-key
+point check and the fingerprint comparison identify `PollPairingResponse.content_public_key`.
+
 ## 3. States
 
 | State | Condition | Effect |
@@ -73,6 +76,11 @@ The **pin checks** are the following checks, in this order; the first failing ch
 5. Protocol version comparison ([api.md §3](api.md#3-version-check)): `protocol_unsupported`, `server_too_old`,
    `client_too_old`.
 6. Required client capabilities ([api.md §4](api.md#4-capabilities)): `client_too_old`.
+
+For the discovery pin comparisons, `instance_mismatch` identifies `Discovery.instance_id` and `content_key_changed`
+identifies `Discovery.key_fingerprints`. Refusing a request because its stored trust context is already stopped
+instead identifies `""`; no received schema field is being checked then. Version and capability comparisons retain
+the diagnostic fields assigned in api.md.
 
 None of the states of steps 3 to 6 deletes credentials or signs the device out. They are typed states that the user
 interface explains.

@@ -118,6 +118,10 @@ client abandons the body and classifies the response under §6.
 Unknown members and details of other types are ignored within these limits. If any check fails, the body is a broken
 body (§6): it never reaches the internal error decoder, and the client produces a local bounded error instead.
 
+The Connect JSON wrapper's `code`, `message`, `details`, `type` and `value` are not schema fields; their pre-check
+diagnostics identify `""`. Checks inside a decoded `ErrorInfo` instead use its own schema fields, for example
+`ErrorInfo.metadata`. The resulting transport classification of §6 identifies `""`, without inheriting an inner field.
+
 ## 4. Mapping of local reasons to Connect codes
 
 When a server reports a local reason, it uses the Connect code of the reason's class, and the wire reason where the
@@ -137,8 +141,33 @@ table names one.
 
 ## 5. Local reason catalog
 
-Each reason lists its class and the chapter that defines when it occurs. A reason that a rule reports for a specific
-field carries that field's name (for example `path_empty` on `symlink_target`).
+Each reason lists its class and the chapter that defines when it occurs. A local diagnostic also has a **field**
+string, determined by the failing rule:
+
+1. A schema field is written `Message.field`: the short name of the message that declares it, without a package,
+   followed by a dot and the schema's `snake_case` field name. Both codecs use this spelling, never the JSON alias.
+   For example, a symbolic-link target failure is `path_empty` with field `Entry.symlink_target`.
+2. A field-table rule identifies its row's field, except for aggregate limits assigned `""` in
+   [limits.md §1](limits.md#1-principles). A nested message's own field uses its declaring message, not a path
+   from the root. An element rule of a repeated field, or a map-entry rule, identifies the repeated or map field,
+   without an index or key. Synthetic map-entry messages and their `key` and `value` fields are not diagnostic names.
+3. Cross-field and chapter rules use the diagnostic field explicitly assigned by that chapter. If no particular
+   schema field is identified, the field is the empty string `""`. An enclosing field is not inherited when a nested
+   message or a separately decoded document fails its own checks.
+4. Whole-message, document and transport checks use `""`, including whole-input byte limits, sums over multiple
+   fields and counters shared by field instances in different messages. An undecodable tag, unknown or forbidden
+   field number, zero tag, duplicate resolved JSON key or `oneof` conflict also uses `""`; an unknown JSON name never
+   supplies a schema field. Once a known field is identified,
+   framing and value failures, a wrong wire type, a repeated ordinary field, a JSON value-type failure and that
+   field's own element or byte limits identify that field. A complete tag identifying a known field retains that field
+   even if its wire type is forbidden; its reason remains `malformed_wire`. Failures while scanning an unknown field
+   or unknown JSON subtree use `""`. These rules label existing failures; unknown fields and members remain accepted
+   where specified.
+5. The field belongs only to the local diagnostic: it is never sent on the wire, including in `ErrorInfo` metadata,
+   and clients never branch on it. Test vectors compare it exactly. The same naming rules apply to local warnings.
+
+These labels do not change any reason, acceptance rule or check order. A diagnostic field is not a position in the
+input, an HTTP field name, a JSON pointer or the name of a `oneof` group.
 
 ### 5.1 Encoding and limits
 
@@ -250,8 +279,8 @@ the underlying reason.
 A response whose status is not 200 (for RPC) or not the expected success status (for other routes), and whose body
 fails the pre-check of §3.2, is classified by the table below, subject to the transport checks of
 [transport.md §6](transport.md#6-response-protection) and the redirect rules of
-[transport.md §7](transport.md#7-redirects). Header-size, redirect and content-coding failures take precedence over
-this table.
+[transport.md §7](transport.md#7-redirects). Size failures in response heads received before the body, redirect and
+content-coding failures take precedence over this table.
 
 For an error response, a wrong `Content-Type` at transport step 4 is a failure of §3.2's first check and uses this
 table without reading the body. Otherwise, transport step 5 reads the body under the 65 536-byte error-body limit

@@ -38,6 +38,10 @@ following checks run in this order; the first failing check determines the reaso
 
 The forbidden characters of rule 3 are forbidden on all platforms, in paths and in symbolic-link targets alike.
 
+For manifest-entry path checks, the diagnostic field is `Entry.path`. For command paths it is `Command.executable`
+or `Command.working_dir`, as selected by the invoking rule in descriptor.md. A path check with no containing schema
+field identifies `""`; it does not invent a field named `path`.
+
 ## 3. Symbolic-link targets
 
 A symbolic-link target is relative and is resolved lexically, from the directory that contains the link. The builder
@@ -60,8 +64,8 @@ target component in order: `.` changes nothing; `..` removes the last element of
 empty the target escapes the tree (`symlink_escape`); any other component is appended. A target that resolves to the
 top of the tree itself does not escape. The target does not need to name an existing entry.
 
-Reasons from this table are reported with the field `symlink_target`, so that a vector can tell them apart from the same
-reason on `path`.
+Reasons from this table identify diagnostic field `Entry.symlink_target`, so that they differ from the same reason
+on `Entry.path`.
 
 ## 4. Windows profile
 
@@ -118,6 +122,10 @@ contains a `SYMLINK` entry is rejected (`unsupported_symlink`), including during
 For each entry in manifest order: for each component of its path in order, §4.1, §4.2, §4.3; then §4.4 for the entry's
 ancestors (shortest first) and then the entry path, each compared with the keys of all closure paths seen so far; then
 §4.5. The first rejection determines the reason; warnings are collected and do not stop the checks.
+
+Manifest path-component and collision checks identify `Entry.path`, including collisions of ancestor directories;
+the symbolic-link rejection or warning of §4.5 identifies `Entry.type`. Windows component checks invoked for command
+paths retain `Command.executable` or `Command.working_dir`. No index, ancestor suffix or map key is appended.
 
 ### 4.7 When the Windows profile applies
 
