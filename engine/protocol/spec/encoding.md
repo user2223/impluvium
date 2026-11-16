@@ -147,8 +147,9 @@ so that every implementation reads them the same way.
 ### 3.2 Field names
 
 1. A known field is accepted under exactly two names: its schema name (`snake_case`) and its ProtoJSON name
-   (`lowerCamelCase`). Any other spelling is an unknown member.
-2. If one object contains a field under both names, the input is rejected (`duplicate_field`), whatever the values.
+   (`lowerCamelCase`); these names may be identical. Any other spelling is an unknown member.
+2. After the duplicate-JSON-key check (§3.10 step 2), a non-`oneof` field under both distinct names is rejected
+   (`duplicate_field`), whatever the values. For a `oneof` member, only the `oneof` occurrence rule of §3.3 applies.
 3. Unknown members are ignored after their value has been checked against §3.1 and the limits of §3.9.
 
 ### 3.3 Null
@@ -156,6 +157,9 @@ so that every implementation reads them the same way.
 `null` as the value of a known field means "absent". `null` as an element of an array or as a map value is rejected
 (`json_type_mismatch`). Two members of one `oneof`, including members with value `null` or a default value, are rejected
 (`oneof_conflict`).
+
+This includes the same `oneof` member under both accepted field names: it is `oneof_conflict`, not `duplicate_field`.
+A repeated resolved JSON key fails earlier (§3.10 step 2: `duplicate_json_key`), also for a `oneof` member.
 
 ### 3.4 Value types
 
@@ -226,14 +230,16 @@ check determines the reason.
 |---:|---|---|
 | 1 | JSON syntax of the name and of each value token as it is read (§3.1) | `invalid_json` |
 | 2 | The resolved name does not occur earlier in the same object | `duplicate_json_key` |
-| 3 | For a known field: the other name of the same field does not occur earlier (§3.2); for a `oneof` member: no member of the same `oneof` occurs earlier (§3.3) | `duplicate_field`, `oneof_conflict` |
+| 3 | For a known `oneof` member: no member of the same `oneof` occurs earlier (§3.3); for any other known field: its other name does not occur earlier (§3.2) | `oneof_conflict`, `duplicate_field`, respectively |
 | 4 | The JSON type of the value fits the field type (§3.4); `null` only as a whole-field value (§3.3) | `json_type_mismatch` |
 | 5 | Opening an object or array does not exceed the depth limit (§3.9) | `nesting_too_deep` |
 | 6 | Element count and byte length of the field ([limits.md](limits.md)) | `element_limit_exceeded`, `byte_limit_exceeded` |
 | 7 | Value content: integers (§3.5), bytes (§3.6), timestamps (§3.7 and §5), UTF-8 of strings | `invalid_number`, `integer_out_of_range`, `invalid_base64`, `invalid_timestamp` |
 
 Unknown members pass steps 1, 2 and 5 and count against the body limit. Array elements and map members are checked in
-document order with steps 4 to 7 for each element.
+document order with steps 4 to 7 for each element. For a map member, first apply steps 1 and 2 to its name. Map keys
+are strings, not schema field aliases: equal resolved keys are `duplicate_json_key`, not the binary map-entry reason
+`duplicate_map_key`.
 
 ## 4. Enums
 

@@ -148,6 +148,9 @@ payload type `…release.v1…`, trusted set = the pinned content key); step 11 
 | 13 | `kind = RELEASE_KIND_SETUP_ONLY` implies no launch options | `setup_only_with_launch_options` |
 | 14 | Command bytes ≤ 262 144 (§2) | `byte_limit_exceeded` |
 
+Platform-specific checks use the option or step's declared platform, not the verifier's host. In particular, the
+Windows environment-key collision check of §5.3 runs on every host, including for options the client will not execute.
+
 ### 5.1 Checks per launch option
 
 1. `key`: 1–128 bytes of display text (`invalid_key`).
@@ -204,7 +207,7 @@ The checks run after the structural checks, in this order.
 | 6 | If a revision is already known: `revision` is not lower | `stale_revision` |
 | 7 | If the known revision equals `revision`: the payload bytes are identical | `revision_conflict` |
 | 8 | For each launch option, then each setup step, in order: `executable` names an entry (`executable_not_found`) of type `REGULAR` (`executable_not_regular`); `working_dir` is empty, a `DIRECTORY` entry, or a proper ancestor of an entry (`working_dir_not_found`) | as listed |
-| 9 | If any launch option or setup step has `PLATFORM_WINDOWS`: the manifest passes the Windows profile of [paths.md §4](paths.md#4-windows-profile) (publication variant on the server, installation variant on a Windows host), and the components of `executable` and `working_dir` of every Windows launch option and setup step pass [paths.md §4.1](paths.md#41-characters) to §4.3 | Windows reasons |
+| 9 | If any launch option or setup step has `PLATFORM_WINDOWS`: the manifest passes the Windows profile of [paths.md §4](paths.md#4-windows-profile) (publication variant before publication; installation variant for every receiving client, on every host), and the components of `executable` and `working_dir` of every Windows launch option and setup step pass [paths.md §4.1](paths.md#41-characters) to §4.3 | Windows reasons |
 
 Clients keep the last verified descriptor of each installed version to start games offline, and they reject a revision
 lower than the highest one they have seen for that `version_id`.

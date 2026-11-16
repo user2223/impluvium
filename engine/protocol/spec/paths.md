@@ -6,9 +6,9 @@ SPDX-License-Identifier: 0BSD
 # Paths and symbolic links
 
 Two profiles govern names in the content tree. The **base profile** applies everywhere, on every platform, to producers
-and consumers. The **Windows profile** applies in addition when content is published for Windows or installed on
-Windows. Content that is valid only on Linux keeps its Linux names: the base profile does not restrict names to what
-Windows can represent.
+and consumers. The **Windows profile** applies in addition to publication for Windows, descriptor reception for a
+Windows target on any host, and installation on Windows (§4.7). Content that is valid only on Linux keeps its Linux
+names: the base profile does not restrict names to what Windows can represent.
 
 Names are compared as exact bytes. There is no Unicode normalisation and no case folding in the base profile.
 
@@ -16,7 +16,7 @@ Names are compared as exact bytes. There is no Unicode normalisation and no case
 
 | Value | Base profile | Windows profile |
 |---|---|---|
-| `Entry.path` | always | Windows publication and Windows installation |
+| `Entry.path` | always | Windows publication, Windows-target descriptor reception on any host, and Windows installation (§4.7) |
 | `Entry.symlink_target` | always (§3) | not applicable (§4.5) |
 | `Command.executable`, `Command.working_dir` of a descriptor | always ([descriptor.md](descriptor.md)) | for launch options and setup steps with `PLATFORM_WINDOWS` |
 
@@ -109,8 +109,9 @@ entry path. For example `A/x` and `a/y` collide, because their ancestors `A` and
 ### 4.5 Symbolic links
 
 In the **publication** variant of the profile, every `SYMLINK` entry yields the warning `windows_symlink`, which is
-reported to the publisher and does not reject the manifest. In the **installation** variant, an installation that
-contains a `SYMLINK` entry is rejected (`unsupported_symlink`). Targets are not checked against §4.1 to §4.4.
+reported to the publisher and does not reject the manifest. In the **installation** variant, a manifest that
+contains a `SYMLINK` entry is rejected (`unsupported_symlink`), including during descriptor reception on any host
+(§4.7). Targets are not checked against §4.1 to §4.4.
 
 ### 4.6 Check order
 
@@ -123,9 +124,13 @@ ancestors (shortest first) and then the entry path, each compared with the keys 
 1. **Publication.** If the release descriptor of a version has at least one launch option or setup step with
    `PLATFORM_WINDOWS`, the server validates the version's manifest with the publication variant before it publishes the
    descriptor. A rejection prevents publication.
-2. **Installation.** An engine that installs on Windows validates the manifest with the installation variant before it
+2. **Descriptor reception.** Under [descriptor.md §6](descriptor.md#6-context-checks) step 9, every receiving client
+   validates the manifest with the installation variant when any launch option or setup step has `PLATFORM_WINDOWS`,
+   even on Linux or macOS. The same manifest and descriptor yield the same result on every receiving host; use the
+   fixed Unicode 16.0.0 mappings of §4.4, never the host's file-system comparison or Unicode version.
+3. **Installation.** An engine that installs on Windows validates the manifest with the installation variant before it
    writes anything.
-3. Neither variant is applied to content that is only published and installed for other platforms.
+4. Neither variant is applied to content that is only published and installed for other platforms.
 
 ### 4.8 Out of scope
 

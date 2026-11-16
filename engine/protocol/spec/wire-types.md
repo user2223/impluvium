@@ -59,12 +59,12 @@ local reason). The column "Cross-codec" requires vectors that are written in one
 | enum | every listed value; unknown number, including a negative one and a binary varint above 2^31 − 1 (low 32 bits as two's complement); unknown JSON name in singular field (reads as 0) and in repeated field (element removed) | JSON `true`, `{}`, `[]` as value or as list element (`json_type_mismatch`); JSON number 2^31 (`integer_out_of_range`) | yes |
 | `string` | empty, ASCII, multi-byte UTF-8 at the byte limit | limit + 1 byte; overlong UTF-8; encoded surrogate; JSON unpaired `\ud800` | yes |
 | `bytes` | empty, length 1, length at the field limit; JSON with and without padding, both alphabets, non-zero trailing bits (ignored) | wrong fixed length (where fixed); mixed alphabets; whitespace or line break inside the value; incomplete padding | yes |
-| message | present with all fields default; absent | duplicate occurrence (`split_message`); wrong wire type | yes |
-| `map<string, string>` | empty; one entry; entry without key (key `""`, then key rules) | duplicate key (`duplicate_map_key`); key limit + 1; entry count limit + 1 | yes |
+| message | present with all fields default; absent | duplicate occurrence outside a `oneof` (`split_message` in binary; JSON name rules below); wrong wire type | yes |
+| `map<string, string>` | empty; one entry; entry without key (key `""`, then key rules) | duplicate key (`duplicate_map_key` in binary, `duplicate_json_key` in JSON); key limit + 1; entry count limit + 1 | yes |
 | `oneof` | each member alone, including a member with all fields default | two members; same member twice; one member plus a `null` member in JSON | yes |
 | `Timestamp` | minimum, maximum, maximum with `nanos` 999 999 999; JSON with `Z`, with lowercase `t` and `z`, with a `+01:00` offset | `seconds` 253 402 300 800 in binary; `nanos` −1 and 1 000 000 000; JSON year 10000, second 60, 10 fraction digits, missing offset | yes |
 | unknown field | each accepted wire type 0, 1, 2, 5 in each message; many unknown fields up to the body limit | wire type 3, 4, 6, 7; field number 0; truncated length | binary only |
-| JSON names | `snake_case` alone; `lowerCamelCase` alone | both names in one object; duplicate key, also after escape resolution (`"ab"` and `"ab"`) | JSON only |
+| JSON names | `snake_case` alone; `lowerCamelCase` alone | both names of a non-`oneof` field (`duplicate_field`); aliases of one `oneof` member (`oneof_conflict`); duplicate resolved key (`duplicate_json_key`), also after escape resolution | JSON only |
 | typed error detail | `ErrorInfo` in an error body with every listed reason and an unknown reason | detail value above 8 KiB decoded; second `ErrorInfo` detail | JSON error body |
 
 Signed-document byte vectors (PAE, signatures, `manifest_id`, `key_id`, golden manifests and descriptors, tickets,

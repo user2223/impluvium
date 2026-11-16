@@ -348,3 +348,90 @@ not its token or the cookie session, as owner.
 | Stream GET with two occurrences of the session cookie, even with equal values | 401, `unauthenticated`, no wire reason | Credential selection rejects ambiguity before authentication. |
 | Valid stream GET with an existing supersession key and a full client table | 200; supersede the old stream and reuse its entry | No new table entry is needed. A bearer stream without `client` also needs no entry. |
 | A sixth chunk redirect whose target also has another origin | `redirect_limit` | The redirect-count check precedes target checks and the repeated preflight. |
+
+## 14. Aliases and descriptor context
+
+### 14.1 JSON occurrence precedence
+
+This `ServerEvent` input is checked at the JSON-profile stage, before semantic field validation:
+
+```json
+{"resyncRequired":{},"resync_required":null}
+```
+
+The first member occupies `payload` through `resync_required`. At the second member, the resolved names differ,
+so [encoding.md §3.10](encoding.md#310-check-order) step 2 passes. Both names select the same `oneof` member;
+step 3 returns `oneof_conflict`, including when the second value is `null`. It never reaches the value-type check
+or the missing semantic fields of `ServerEvent`.
+
+The following fragments illustrate only JSON-profile scanning; a scan success does not assert complete message
+validity. Each result is determined while processing the input in document order:
+
+| Input | Profile result | First failing check |
+|---|---|---|
+| `{"resync_required":null,"resyncRequired":{}}` in `ServerEvent` | `oneof_conflict` | Step 3; `null` still counts as a `oneof` occurrence. |
+| `{"resyncRequired":{},"resyncRequired":null}` in `ServerEvent` | `duplicate_json_key` | Step 2, before the `oneof` check. |
+| `{"resyncRequired":{},"resync\u0052equired":null}` in `ServerEvent` | `duplicate_json_key` | Step 2; escape resolution makes the names equal. |
+| `{"resyncRequired":{},"session_ended":false}` in `ServerEvent` | `oneof_conflict` | Step 3, before checking the second member's value type. |
+| `{"resyncRequired":false,"resync_required":{}}` in `ServerEvent` | `json_type_mismatch` | Step 4 of the first member, before the second name is read. |
+| `{"deviceId":"x","device_id":null}` in `CompleteSessionRequest` | `duplicate_field` | Step 3; a non-`oneof` field under both names, even with `null`. |
+| `{"keyFingerprints":[],"key_fingerprints":[]}` in `Discovery` | `duplicate_field` | Step 3; aliases of a repeated field are not concatenated. |
+| `{"protocol":{},"protocol":{}}` in `Discovery` | `duplicate_json_key` | Step 2; repeating a message-valued JSON key does not use the binary `split_message` rule. |
+| `{"scope":null,"scope":null}` in `CompleteSessionRequest` | `duplicate_json_key` | Step 2; the schema name and ProtoJSON name are identical. |
+| `{"future":{"resyncRequired":{},"resync_required":null}}` in `ServerEvent` | scan passes | The nested names are unknown members, not aliases of schema fields. |
+
+Within a JSON object encoding a `map<string, string>`, `{"deviceId":"a","device_id":"b"}` has two distinct keys;
+they are not field aliases. `{"a":"x","\u0061":"y"}` instead fails step 2 with `duplicate_json_key`, because
+both keys resolve to `a`; `duplicate_map_key` is the binary map-entry result.
+
+### 14.2 Windows-target descriptor on every receiving host
+
+Consider a structurally valid descriptor with one Windows launch option whose executable is `bin/game` and whose
+working directory is empty. Its verified manifest has these entries, in byte order:
+
+| Path | Type |
+|---|---|
+| `A` | `DIRECTORY` (empty) |
+| `a` | `DIRECTORY` (empty) |
+| `bin/game` | `REGULAR` (valid file fields) |
+
+Signatures, identities, hashes, sizes and [descriptor.md §6](descriptor.md#6-context-checks) checks 0a through 8
+all pass. At check 9, a receiving client uses the installation variant of the Windows profile on Linux, macOS and
+Windows alike. `A` has collision key `a` (`upper(A) = A`, `fold(A) = a`); `a` has the same key
+(`upper(a) = A`, `fold(A) = a`). The second directory therefore rejects the descriptor with
+`windows_case_collision`, before `bin/game` is considered. Receiving it through a descriptor GET or `OpenDownload`
+does not change this context result.
+
+Related cases, with all unmentioned checks passing:
+
+| Context | Result |
+|---|---|
+| The same manifest, but only a Linux launch option | Descriptor context passes on every receiving host; no Windows target activates check 9. Installing on Windows still requires its separate installation check. |
+| The same manifest with a Windows setup step instead of the launch option | `windows_case_collision` on every receiving host; setup steps also activate check 9. |
+| A Windows command with environment keys `Path` and `PATH` | `duplicate_env_name` on every host during structural validation; both keys fold to `path`. |
+| A Linux command with the same two environment keys | The keys are distinct bytes and pass that structural check, even on a Windows receiving host. |
+| A command naming `BIN/game` when the manifest contains only `bin/game` | `executable_not_found` on every host at context check 8; entry names are compared as exact bytes, even if a native file system would treat them as equal. |
+| A Windows-target descriptor with an otherwise valid, collision-free manifest containing a symbolic link | Every receiving client rejects with `unsupported_symlink`; the publisher's publication variant instead reports `windows_symlink` without rejecting. |
+
+Every host uses the Unicode 16.0.0 mappings of [paths.md §4.4](paths.md#44-collisions) for these checks, including
+non-ASCII names; the host's file system, Unicode version and native ability to create links do not select the variant.
+
+### 14.3 StartPairing address limit before absent fields
+
+The header block below uses CRLF line endings and ends with an empty line. It is followed by exactly the two body
+bytes `7b7d` (hex), namely `{}`, with no trailing newline:
+
+```http
+POST /api/v2/impluvium.v2.AuthService/StartPairing HTTP/1.1
+Host: reference.invalid
+Content-Type: application/json
+Content-Length: 2
+
+```
+
+The client-address rate limit is reached. The method is `POST`, and the absent `Content-Encoding` means identity,
+so [proofs.md §1.3](proofs.md#13-common-request-checks) step 1 passes. Step 2 returns 429, `resource_exhausted`,
+`RATE_LIMITED`, before reading `{}` or checking its absent fields. No pairing is created. If the address limit is
+not reached, step 3 accepts the body size and JSON profile, then
+[proofs.md §3.1](proofs.md#31-startpairing) field check 1 rejects the absent `device_name` as `invalid_text`
+(400, `invalid_argument`, without a wire reason).
