@@ -215,12 +215,24 @@ this order:
 | 8 | `proof.pairing_id` equals the request's `pairing_id` | `proof_pairing_mismatch` | `unauthenticated`, `CHALLENGE_INVALID` |
 | 9 | `now < expires_at` of the pairing | `pairing_expired` | `failed_precondition`, `PAIRING_EXPIRED` |
 | 10 | The pairing was not denied | `pairing_denied` | `permission_denied`, `PAIRING_DENIED` |
-| 11 | The previous accepted poll lies at least the current interval in the past | `slow_down` | `resource_exhausted`, `SLOW_DOWN`, `retry_after_seconds` = new interval |
+| 11 | The interval in effect before this step has elapsed since the previous accepted poll; then update the interval and accepted-poll time as specified below | `slow_down` | `resource_exhausted`, `SLOW_DOWN`, `retry_after_seconds` = new interval |
 | 12 | The pairing is approved; otherwise it is pending | `pairing_pending` | `failed_precondition`, `PAIRING_PENDING` |
 | 13 | In one atomic operation, with the current server time, the checks of steps 4, 9, 10 and 12 run again in this order; if all pass, the device is registered and the pairing becomes completed | as in steps 4, 9, 10, 12 | as in steps 4, 9, 10, 12 |
 | 14 | Return `device_id`, `instance_id` and `content_public_key` | – | success |
 
-Polls that end at step 11 or 12 are accepted polls and are repeatable. A failure at steps 1 to 8 changes no pairing state.
+Every poll that reaches step 11 is an **accepted poll**, whether it ends at step 11, 12 or 13 or succeeds. Step 11 is
+one atomic operation per `pairing_id`: read the current server time `t`, the recorded accepted-poll time and interval;
+first compare `t` with that recorded time using the interval
+before this step; if too early, increase that interval by 5 seconds; then write `t` as the last accepted-poll time,
+before returning `SLOW_DOWN` or proceeding to step 12. A failure at step 13 does not roll back this timestamp and
+makes no other pairing-state change beyond any change already specified for its rejection reason. Accepted polls
+remain repeatable while the pairing is open.
+
+Concurrent polls of the same pairing execute step 11 one after another. Step 13 is a separate atomic operation with
+its own current server time.
+
+A poll that ends at steps 1 to 10 is not accepted and does not write the last accepted-poll time.
+A failure at steps 1 to 8 changes no pairing state.
 On `SLOW_DOWN` the device adds 5 seconds to its polling interval for all later polls of this pairing. After the single
 successful completion, every further poll with the same `pairing_id` ends at step 4. A pairing that has been deleted or
 has expired is never recreated from a proof.

@@ -499,3 +499,23 @@ Its header-list size is (7 + 3 + 32) + (1 + n + 32) = **n + 75**, regardless of 
 Each informational response head is checked separately. For example, a 103 head above the limit fails with
 `headers_too_large` even if the final head is small. Two response heads of 65 536 each pass their separate size checks;
 their sizes are not added into a shared allowance.
+
+## 16. Accepted poll time after an atomic recheck fails
+
+All times below are server-clock seconds after `StartPairing`. The pairing expires at time 600, is not denied or
+completed, and its last accepted-poll time is 10 with an interval of 5 seconds. Every request has a valid proof and
+passes steps 1 to 10 of [proofs.md §3.4](proofs.md#34-pollpairing).
+
+| Time | Check and result | Last accepted-poll time afterwards | Interval afterwards |
+|---:|---|---:|---:|
+| 20 | Poll A reaches step 11: 20 − 10 = 10 ≥ 5, so it passes and records 20. Step 12 finds approval. | 20 | 5 |
+| 21 | Poll A's atomic step 13 still passes steps 4, 9 and 10, but finds approval has been withdrawn at the repeated step 12: `pairing_pending`, `failed_precondition`, `PAIRING_PENDING`. | 20 | 5 |
+| 23 | Poll B reaches step 11: 23 − 20 = 3 < 5. The interval becomes 10, then the recorded time becomes 23: `slow_down`, `resource_exhausted`, `SLOW_DOWN`, `retry_after_seconds = 10`. | 23 | 10 |
+| 33 | Poll C reaches step 11: 33 − 23 = 10 ≥ 10. It records 33, then step 12 returns `PAIRING_PENDING` because approval is still absent. | 33 | 10 |
+
+Poll A's failed atomic recheck retains the time written at step 11, 20; it neither restores 10 nor records 21.
+
+In a separate case, an open, unapproved pairing has last accepted-poll time 10 and interval 5, and two valid polls
+both read server time 20 in their serialized step 11 operations: the first passes and returns `PAIRING_PENDING`,
+while the second sees 20 − 20 = 0 < 5 and returns `SLOW_DOWN` with `retry_after_seconds = 10`.
+The final accepted-poll time is 20 and the interval is 10.
