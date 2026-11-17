@@ -43,6 +43,9 @@ export function assertCaseConfirmation(entry:Case):void {
 export function attachCaseAcceptance<T extends{id:string;result:string}>(results:T[]):void {
   for(const result of results){const review=caseReview.get(result.id);if(review)Object.assign(result,{expectationReview:{...review,accepted:review.pending===0}});}
 }
+export function assertConfirmedCase(id:string):void {
+  const review=caseReview.get(id);if(!review||review.pending)throw Error('counterexample_witness_confirmation_prerequisite:'+id);
+}
 export function validateProvenance(data:any):void {
   if(data?.format!=='field-calculations-v1'||!data.sources||!data.rules||!data.methods||!Array.isArray(data.fields)||!data.fields.length)throw Error('invalid_calculation_metadata');
   for(const source of Object.values(data.sources) as any[])if(typeof source.document!=='string'||!source.document||!Array.isArray(source.sections)||!source.sections.length||source.sections.some((s:any)=>typeof s!=='string'||!s)||!/^[a-f0-9]{64}$/.test(source.sha256))throw Error('invalid_calculation_source');

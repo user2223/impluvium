@@ -6,7 +6,7 @@ import { genericFields, absoluteUrl, versionDecision } from './api.ts';
 import { verifyEnvelope, descriptorSemantics, manifestSemantics } from './documents.ts';
 import type { UnicodeMaps } from './paths.ts';
 export function downloadResponse(model: any, context: any, schema: Schema, unicode: UnicodeMaps): void {
-  genericFields('OpenDownloadResponse', model, schema);
+  genericFields('OpenDownloadResponse', model, schema, {deferDepotUrl:true});
   const descriptor = verifyEnvelope(fromHex(model.descriptor), 'descriptor', context.keys, schema);
   descriptorSemantics(descriptor.model, unicode);
   if (descriptor.model.version_id !== context.versionId) reject('descriptor_version_mismatch', 'ReleaseDescriptor.version_id');

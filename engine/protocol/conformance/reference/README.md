@@ -14,6 +14,8 @@ launcher requires an independently supplied `--source-sha`. It forwards
 `--out` to the checker commands and `--stage 4` only to the vector selection.
 The caller must provide a fresh result directory outside source and data.
 The separate container entry exercises the pinned BLAKE3 dependency.
+The coverage package command uses that same entry so coverage includes actual
+BLAKE3 execution; the source-only command reports those cases as pending.
 
 `MODULES.md` describes the checker modules and `FORMAT.md` describes data,
 reports and field-level provenance. Pending independent calculations and

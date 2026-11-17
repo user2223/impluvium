@@ -53,7 +53,12 @@ export const expectedPolicy = {
       },
       "src/gates.ts": {
         "builtins": [
-          "node:assert"
+          "node:assert",
+          "node:crypto"
+        ],
+        "cryptoImports": [
+          "createPrivateKey",
+          "sign"
         ]
       },
       "src/get-routes.ts": {
@@ -206,6 +211,14 @@ export const expectedPolicy = {
       "src/counterexamples.ts": {
         "builtins": [
           "node:assert"
+        ]
+      },
+      "src/coverage.ts": {
+        "builtins": [
+          "node:crypto"
+        ],
+        "cryptoImports": [
+          "createHash"
         ]
       }
     },

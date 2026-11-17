@@ -56,11 +56,12 @@ for (const change of [
 });
 test('the exact delivered command receives --out and no attestation-only option', t => {
   const { root, ref } = fixture(t);
-  for (const name of ['imports', 'corpus', 'coverage', 'primitives', 'vectors', 'limits', 'counterexamples']) {
+  for (const name of ['imports', 'corpus', 'primitives', 'vectors', 'limits', 'counterexamples']) {
     assert.deepEqual(referenceCommand(root, name), [path.join(ref, 'tooling/check.mjs'), name, '--out', '/work/results/reference/' + name]);
   }
   assert.deepEqual(referenceCommand(root, 'vectors', ['--stage', '4']), [path.join(ref, 'tooling/check.mjs'), 'vectors', '--out', '/work/results/reference/vectors', '--stage', '4']);
   assert.deepEqual(referenceCommand(root, 'container'), [path.join(ref, 'container/run.mjs'), '--out', '/work/results/reference/container']);
+  assert.deepEqual(referenceCommand(root, 'coverage'), [path.join(ref, 'container/run.mjs'), '--out', '/work/results/reference/coverage']);
   rmSync(path.join(ref, 'tooling/check.mjs'));
   assert.throws(() => referenceCommand(root, 'corpus'), /reference content is incomplete/);
 });

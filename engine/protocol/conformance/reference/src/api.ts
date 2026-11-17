@@ -7,7 +7,7 @@ type Rule = { required?: boolean; requiredReason?: string; bytes?: number; text?
 const rules: Record<string, Record<string, Rule>> = {
   Discovery: { server_name: { required: true, text: 1 }, server_version: { required: true, text: 1 }, instance_id: { required: true, syntax: 'uuid' }, protocol: { required: true }, manifest_formats: { required: true, unique: true }, capabilities: { syntax: 'capability', unique: true }, required_client_capabilities: { syntax: 'capability', unique: true }, commit: { text: 0 }, source_url: { required: true, syntax: 'url' } },
   OpenDownloadResponse: { descriptor: { required: true }, manifest_ids: { required: true, bytes: 32, ascending: true, ascendingReason: 'unsorted_manifest_ids' }, ticket: { required: true }, depot_endpoints: { required: true } },
-  DepotEndpoint: { base_url: { required: true } },
+  DepotEndpoint: { base_url: { required: true, syntax:'depot-url' } },
   StartPairingResponse: { pairing_id: { required: true, bytes: 16, reason: 'invalid_pairing_id_length' }, user_code: { required: true, bytes: 9, syntax: 'user-code', reason: 'invalid_user_code' }, verification_uri: { required: true, syntax: 'url' }, verification_uri_complete: { required: true, syntax: 'url' }, interval_seconds: { required: true, min: 1n, max: 60n }, expires_at: { required: true } },
   PollPairingResponse: { device_id: { required: true, syntax: 'uuid' }, instance_id: { required: true, syntax: 'uuid' }, content_public_key: { required: true, bytes: 32, reason: 'invalid_trusted_key' } },
   BeginSessionResponse: { challenge: { required: true, bytes: 32, reason: 'invalid_challenge_length' }, expires_at: { required: true } },
@@ -30,12 +30,16 @@ export function absoluteUrl(value: string, base = false): URL {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || (base && (/[?#]/.test(url.href) || value.endsWith('/')))) reject('invalid_url');
   return url;
 }
-export function genericFields(message: string, model: any, schema: Schema): void {
+export function genericFields(message: string, model: any, schema: Schema, options:{deferDepotUrl?:boolean}={}): void {
   const definition = schema.messages[message];
   if (!definition) throw Error('Unknown API schema');
   for (const field of definition.fields) {
     const value = model[field.name], rule = rules[message]?.[field.name] ?? {};
-    const absent = value === undefined || value === '' || value === 0 || value === '0' || value === false || (Array.isArray(value) && value.length === 0);
+    const absent = value === undefined || (field.repeated ? value.length === 0 :
+      field.type === 'string' || field.type === 'bytes' ? value === '' :
+      field.type === 'bool' ? value === false :
+      ['uint64', 'int64'].includes(field.type) ? value === '0' :
+      ['uint32', 'int32'].includes(field.type) || schema.enums[field.type] ? value === 0 : false);
     if (rule.required && absent) reject(rule.requiredReason ?? 'missing_field', message + '.' + field.name);
     if (absent && !rule.required) continue;
     const values = field.repeated ? value : [value], seen = new Set<string>(); let previous: string | undefined;
@@ -46,6 +50,7 @@ export function genericFields(message: string, model: any, schema: Schema): void
       }
       if (rule.syntax === 'uuid') uuid(item, message + '.' + field.name);
       else if (rule.syntax === 'url') { try { absoluteUrl(item); } catch { reject('invalid_url', message + '.' + field.name); } }
+      else if(rule.syntax==='depot-url'&&!options.deferDepotUrl){try{absoluteUrl(item,true);}catch{reject('invalid_url',message+'.'+field.name);}}
       else if (rule.syntax === 'user-code' && !/^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/.test(item)) reject('invalid_user_code', message + '.' + field.name);
       else if (rule.syntax === 'token') base64Bytes(item, message + '.' + field.name, true);
       else if (rule.syntax === 'capability' && !/^(?:[a-z0-9_-]+\.)+v[1-9][0-9]*$/.test(item)) reject('invalid_name', message + '.' + field.name);
@@ -55,10 +60,12 @@ export function genericFields(message: string, model: any, schema: Schema): void
       seen.add(JSON.stringify(item));
       if (rule.ascending && previous !== undefined && item <= previous) reject(rule.ascendingReason ?? 'duplicate_element', message + '.' + field.name);
       previous = item;
-      if (schema.messages[field.type] && field.type !== 'Timestamp') genericFields(field.type, item, schema);
+      if (schema.messages[field.type] && field.type !== 'Timestamp') genericFields(field.type, item, schema, options);
     }
   }
 }
+export function pageSize(value: number): number { return value === 0 ? 50 : Math.min(value, 200); }
+export function normalizeUserCode(value: string): string { return value.replace(/[- ]/g, '').replace(/[a-z]/g, character => character.toUpperCase()); }
 export function genericContext(message: string, model: any, context: any): void {
   if (message === 'GetGameResponse' && model.game.game_id !== context.gameId) reject('response_identity_mismatch', 'GameSummary.game_id');
   if (message === 'GetVersionResponse' && model.version.version_id !== context.versionId) reject('response_identity_mismatch', 'VersionSummary.version_id');

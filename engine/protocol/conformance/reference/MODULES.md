@@ -8,6 +8,8 @@ The standard-library command entries are tooling/stage.mjs and tooling/check.mjs
 
 The counterexamples module evaluates finite operation replacements through the signed-case evaluator used by the ordinary gates. It imports no file-system or execution module and loads no generated source. Provenance validates value-bound confirmations before execution, including construction-value references.
 
+The coverage module validates the pinned rule, field, codec, limit and case mapping against the results of the current execution. Its consumers receive coverage data through the loader; it imports only the loader and node:crypto.
+
 The container entry is container/run.mjs and its dependency adapter is container/blake3.ts. Delivered-tree checks enumerate the package's source, tooling, container and documentation files and the test data. They exclude node_modules and directories outside that delivered structure. Dependency version, installation and licence validation belong to the repository lock-file and licence checks.
 
 The type-tool graph is separate: TypeScript, Node declarations and dependency declarations are supplied as pinned validation tools. Type checking runs with --noEmit. The source inventory does not substitute for a resolved dependency scan.
@@ -23,6 +25,7 @@ readSelfCheckText is a separate, fixed source-text permission for the following 
 - `src/api.ts`
 - `src/auth-rpc.ts`
 - `src/counterexamples.ts`
+- `src/coverage.ts`
 - `src/documents.ts`
 - `src/ed25519.ts`
 - `src/events.ts`

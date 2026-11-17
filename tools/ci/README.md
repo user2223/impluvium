@@ -354,10 +354,12 @@ This source check complements real image/client artifact checks.
 
 Expectation acceptance means that all value-bound confirmation evidence is
 complete; it is separate from whether each hash execution has run. Pending
-hash results remain pending. Counterexample reports require twelve executed
-baseline witnesses, fifteen detected harmful mutations and four surviving
+hash results remain pending. Counterexample reports require fifteen executed
+baseline witnesses, seventeen detected harmful mutations and four surviving
 harmless controls, with matching operation traces, errors and summary counts.
-Container reports require completed hash execution and BLAKE3 evidence.
+Container reports require completed hash execution, all 46 BLAKE3 checks and
+complete execution-bound coverage. The coverage package command uses this same
+container entry because its source-only counterpart cannot complete BLAKE3.
 
 ## Protocol evidence and tools
 

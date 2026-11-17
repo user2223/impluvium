@@ -4,7 +4,7 @@ import { readIndex, loadAsset, groupCases } from './loader.ts';
 import type { Case } from './loader.ts';
 import { evaluateSignedCase } from './gates.ts';
 import type { SignedOperations } from './gates.ts';
-import { assertCaseConfirmation, provenanceGate, ConfirmationMismatch, ExpectedSnapshotMismatch } from './provenance.ts';
+import { assertCaseConfirmation, assertConfirmedCase, provenanceGate, ConfirmationMismatch, ExpectedSnapshotMismatch } from './provenance.ts';
 import { pae } from './primitives.ts';
 import { verifyEnvelope, ticketSemantics, uuid } from './documents.ts';
 import { reject } from './profile.ts';
@@ -17,9 +17,11 @@ const definitions:Definition[]=[
   {id:'pae.body-length',kind:'pae',rule:'envelope.md 3',operation:'body-length-plus-one',witnesses:['pae.utf8-bytes','signed.manifest.golden'],violatesRule:true,explanation:'Advertise one additional body octet in the pre-authentication encoding.'},
   {id:'pae.character-length',kind:'pae',rule:'envelope.md 3',operation:'type-character-count',witnesses:['pae.utf8-bytes'],violatesRule:true,explanation:'Count Unicode characters instead of UTF-8 type octets.'},
   {id:'pae.version-marker',kind:'pae',rule:'envelope.md 3',operation:'wrong-pae-prefix',witnesses:['pae.ascii','signed.ticket.golden'],violatesRule:true,explanation:'Use a different DSSE version marker.'},
-  {id:'purpose.manifest-descriptor',kind:'purpose',rule:'envelope.md 2; envelope.md 7 step 5',operation:'manifest-as-descriptor',witnesses:['signed.manifest.golden'],violatesRule:true,explanation:'Dispatch a manifest to the descriptor context.'},
-  {id:'purpose.ticket-manifest',kind:'purpose',rule:'envelope.md 2; envelope.md 7 step 5',operation:'ticket-as-manifest',witnesses:['signed.ticket.golden'],violatesRule:true,explanation:'Dispatch a depot ticket to the manifest context.'},
-  {id:'purpose.pairing-session',kind:'purpose',rule:'envelope.md 2; envelope.md 7 step 5',operation:'pairing-as-session',witnesses:['signed.pairing.golden'],violatesRule:true,explanation:'Dispatch a pairing proof to the session-proof context.'},
+  {id:'purpose.manifest-descriptor',kind:'purpose',rule:'envelope.md 2; envelope.md 7 step 9',operation:'manifest-as-descriptor',witnesses:['signed.manifest.golden'],violatesRule:true,explanation:'Dispatch a manifest to the descriptor context.'},
+  {id:'purpose.ticket-manifest',kind:'purpose',rule:'envelope.md 2; envelope.md 7 step 9',operation:'ticket-as-manifest',witnesses:['signed.ticket.golden'],violatesRule:true,explanation:'Dispatch a depot ticket to the manifest context.'},
+  {id:'purpose.pairing-session',kind:'purpose',rule:'envelope.md 2; envelope.md 7 step 9',operation:'pairing-as-session',witnesses:['signed.pairing.golden'],violatesRule:true,explanation:'Dispatch a pairing proof to the session-proof context.'},
+  {id:'purpose.omit-type-binding',kind:'purpose',rule:'envelope.md 7 step 9',operation:'omit-type-binding',witnesses:['signed.session.wrong-type'],violatesRule:true,explanation:'Omit the comparison against the purpose-bound payload type.'},
+  {id:'purpose.omit-pae-domain',kind:'purpose',rule:'envelope.md 3',operation:'omit-pae-domain',witnesses:['pae.session','pae.pairing'],violatesRule:true,explanation:'Omit type octets from pre-authentication encoding for equal-length document types.'},
   {id:'claims.audience',kind:'claims',rule:'tickets.md 4 step 7',operation:'ignore-audience-binding',witnesses:['signed.ticket.wrong-audience'],violatesRule:true,explanation:'Replace the caller audience inside the claim validator with the supplied claim.'},
   {id:'claims.subject',kind:'claims',rule:'tickets.md 4 step 11',operation:'ignore-subject-binding',witnesses:['signed.ticket.wrong-subject'],violatesRule:true,explanation:'Replace the caller subject inside the claim validator with the supplied claim.'},
   {id:'claims.scope',kind:'claims',rule:'tickets.md 4 step 12',operation:'ignore-manifest-scope',witnesses:['signed.ticket.scope'],violatesRule:true,explanation:'Replace the requested manifest inside the validator with the first allowed manifest.'},
@@ -44,6 +46,8 @@ function commentedPae(type:Uint8Array,body:Uint8Array):Buffer{
 }
 function operations(definition:Definition,entry:Case,path:string[]):Partial<SignedOperations>{
   const hit=():void=>{path.push('mutation/'+definition.operation);},op=definition.operation;
+  if(op==='omit-type-binding')return{verifyEnvelope:(bytes,purpose,keys,schema,encodePae)=>verifyEnvelope(bytes,purpose,keys,schema,encodePae,()=>{hit();return true;})};
+  if(op==='omit-pae-domain')return{pae:(type,body)=>{hit();return Buffer.concat([Buffer.from('DSSEv1 '+type.length+'  '+body.length+' '),Buffer.from(body)]);}};
   if(['body-length-plus-one','type-character-count','wrong-pae-prefix','identical-replacement','comment-only'].includes(op))return{pae:(type,body)=>{
     hit();if(op==='identical-replacement')return identicalPae(type,body);if(op==='comment-only')return commentedPae(type,body);
     const prefix=op==='wrong-pae-prefix'?'DSSEv0':'DSSEv1',typeLength=op==='type-character-count'?[...Buffer.from(type).toString('utf8')].length:type.length,bodyLength=body.length+(op==='body-length-plus-one'?1:0);
@@ -77,11 +81,13 @@ function runWitness(original:Case,schema:Schema,unicode:UnicodeMaps,definition?:
   result.targetExecuted=!definition||path.includes('mutation/'+definition.operation);return result;
 }
 export async function counterexampleGates():Promise<CounterexampleSuite>{
-  const confirmations=await provenanceGate();if(confirmations.evidence.pending)throw Error('counterexample_confirmation_prerequisite');
-  const index=await readIndex();if(index.blocked.length)throw Error('counterexample_specification_prerequisite');
+  await provenanceGate();
+  const index=await readIndex();
   const schema=await loadAsset('schema.json',index),unicode=await loadAsset('unicode16.json',index),wanted=new Set(definitions.flatMap(row=>row.witnesses)),cases=new Map<string,Case>();
+  if(index.blocked.some(group=>!group.caseIds||group.caseIds.some(id=>wanted.has(id))))throw Error('counterexample_specification_prerequisite');
   for(const group of['pae','signed'])for await(const entry of groupCases(group,index))if(wanted.has(entry.id))cases.set(entry.id,entry);
   if(!definitions.length||cases.size!==wanted.size)throw Error('empty_or_missing_mutation_witnesses');
+  for(const id of cases.keys())assertConfirmedCase(id);
   const baseline=[...cases.values()].map(entry=>runWitness(entry,schema,unicode)),baselinePassed=baseline.every(row=>row.outcome==='pass');
   if(!baselinePassed)throw Error('counterexample_baseline_failed:'+baseline.filter(row=>row.outcome!=='pass').map(row=>row.id+':'+row.failure).join(','));
   const mutants:MutationResult[]=definitions.map(definition=>{

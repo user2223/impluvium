@@ -87,14 +87,17 @@ export function openEventStream(input: any): any {
 }
 export function eventOpenModel(input:any):any {
  let owner=input.initialOwner??null,identifierEntries=input.initialIdentifierEntries??0;const owners=new Set<string>(input.initialOwners??(owner===null?[]:[owner])),results=[];
- for(const attempt of input.attempts){let response=openEventStream({...attempt,newClientIdentifier:false});let supersedes=false,createdIdentifier=false;
+ const generations=new Map<string,string>((input.initialGenerations??[]).map((row:any)=>[row.key,row.streamId]));
+ for(const attempt of input.attempts){
+  if(attempt.kind==='release'){const released=generations.get(attempt.key)===attempt.streamId;if(released){generations.delete(attempt.key);owners.delete(attempt.key);identifierEntries--;if(owner===attempt.key)owner=null;}results.push({released});continue;}
+  let response=openEventStream({...attempt,newClientIdentifier:false});let supersedes=false,createdIdentifier=false;
   if(response.status===200){const request=rawHttp(fromHex(attempt.requestHex)),client=new URL(request.start.split(' ')[1],attempt.serverOrigin).searchParams.get('client');
    if(client!==null){const auth=request.headers.has('authorization')?'bearer':'cookie',key=auth+':'+(auth==='bearer'?attempt.bearerOwner:attempt.cookieOwner)+':'+client;
     if(!owners.has(key)&&identifierEntries>=256)response={status:429,reason:'client_table_full'};
-    else{supersedes=owners.has(key);createdIdentifier=!supersedes;if(createdIdentifier)identifierEntries++;owners.add(key);owner=key;}
+    else{supersedes=owners.has(key);createdIdentifier=!supersedes;if(createdIdentifier)identifierEntries++;owners.add(key);owner=key;generations.set(key,attempt.streamId??String(results.length));}
    }
   }
   results.push({status:response.status,supersedes,createdIdentifier});
  }
- return {results,owner,identifierEntries};
+ return {results,owner,identifierEntries,...(input.observeGenerations?{generations:[...generations].map(([key,streamId])=>({key,streamId}))}:{})};
 }

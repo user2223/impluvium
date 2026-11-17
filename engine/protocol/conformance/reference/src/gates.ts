@@ -5,16 +5,16 @@ import { validateCorpus, loadCorpus, loadCorpusBytes, readIndex, loadAsset, grou
 import { fastcdc } from './fastcdc.ts';
 import type { CutWitness } from './fastcdc.ts';
 import { Rejection, scanBinary } from './profile.ts';
-import { verifyEnvelope, manifestSemantics, descriptorSemantics, descriptorContext, ticketSemantics, proofSemantics } from './documents.ts';
+import { verifyEnvelope, manifestSemantics, descriptorSemantics, descriptorContext, ticketSemantics, proofSemantics, descriptorCommandBudget } from './documents.ts';
 import type { Purpose } from './documents.ts';
 import { scanJson } from './json-profile.ts';
-import { genericFields, genericContext, versionDecision, discoverySemantics } from './api.ts';
+import { genericFields, genericContext, versionDecision, discoverySemantics, pageSize, normalizeUserCode } from './api.ts';
 import { responseDecision, responseHeadSize, rangeSpan, transportDecision, redirectDecision } from './transport.ts';
 import { sessionModel, pairingModel, libraryModel } from './models.ts';
 import { receiveEvent, resumeDecision, openEventStream, supersessionKey, eventOpenModel } from './events.ts';
 import { basePath, collisionKey, windowsTree } from './paths.ts';
 import { downloadResponse, reconstruct, trustModel } from './flows.ts';
-import { publication, ticketCacheModel, sizePrecheck, u64AccumulatorProbe } from './state-contracts.ts';
+import { publication, ticketCacheModel, sizePrecheck, u64AccumulatorProbe, acceptanceSetModel } from './state-contracts.ts';
 import { rpcExchange } from './rpc.ts';
 import { serverGet } from './get-routes.ts';
 import type { Case } from './loader.ts';
@@ -23,6 +23,7 @@ import { ed25519PointProfile, ed25519VerifyProfile } from './ed25519.ts';
 import { authRpcFlow } from './auth-rpc.ts';
 import { readDataBytes } from './loader.ts';
 import { assertCaseConfirmation } from './provenance.ts';
+import { createPrivateKey, sign } from 'node:crypto';
 import type { Schema } from './profile.ts';
 import type { UnicodeMaps } from './paths.ts';
 
@@ -74,6 +75,17 @@ export async function behaviorGates(): Promise<GateResult[]> {
       else if (entry.operation === 'server-get') actual = serverGet(input, schema);
       else if (entry.operation === 'auth-rpc-flow') actual = authRpcFlow(input,schema);
       else if (entry.operation === 'u64-accumulator-probe') actual = u64AccumulatorProbe(input as {valuesU64:string[]});
+      else if (entry.operation === 'page-size') actual = { pageSize:pageSize(input.pageSize) };
+      else if(entry.operation==='page-size-codec'){const model=input.codec==='json'?scanJson(fromHex(input.rawJsonHex),input.message,schema):scanBinary(fromHex(input.wireHex),input.message,schema);genericFields(input.message,model,schema);actual={pageSize:pageSize(model.page_size)};}
+      else if (entry.operation === 'normalize-user-code') actual = { normalized:normalizeUserCode(fromHex(input.textHex).toString('utf8')) };
+      else if(entry.operation==='user-code-input'){const normalized=normalizeUserCode(fromHex(input.textHex).toString('utf8'));actual={normalized,valid:/^[0-9A-HJKMNP-TV-Z]{8}$/.test(normalized)};}
+      else if(entry.operation==='acceptance-set-model')actual=acceptanceSetModel(input);
+      else if(entry.operation==='command-budget'){descriptorCommandBudget(input.model);actual={accepted:true};}
+      else if(entry.operation==='domain-separation'){
+        const leftType=fromHex(input.leftTypeHex),rightType=fromHex(input.rightTypeHex),body=fromHex(input.bodyHex),left=pae(leftType,body),right=pae(rightType,body),seed=fromHex(input.seedHex);
+        const key=createPrivateKey({key:Buffer.concat([Buffer.from('302e020100300506032b657004220420','hex'),seed]),format:'der',type:'pkcs8'}),a=sign(null,left,key),b=sign(null,right,key);
+        actual={equalTypeLengths:leftType.length===rightType.length,paeDifferent:!left.equals(right),signatureDifferent:!a.equals(b),crossVerification:ed25519Verify(seedPublicKey(seed),right,a)};
+      }
       else throw Error('unhandled_behavior_operation:' + entry.operation);
     } catch (error) {
       if (!(error instanceof Rejection)) throw error;
@@ -94,6 +106,7 @@ export async function profileGates(): Promise<GateResult[]> {
       let actual: any;
       try {
         if (entry.operation === 'scan-json') actual = { value: scanJson(fromHex(entry.input.rawJsonHex), entry.input.message, schema) };
+        else if(entry.operation === 'json-precheck'){scanJson(fromHex(entry.input.rawJsonHex),entry.input.message,schema,entry.input.limit??65536,false);actual={accepted:true};}
         else if (entry.operation === 'scan-binary' || entry.operation === 'binary-precheck') {
           const value = scanBinary(fromHex(entry.input.wireHex), entry.input.message, schema, { limit: entry.input.limit, collect: entry.operation !== 'binary-precheck' });
           actual = entry.operation === 'binary-precheck' ? { accepted: true } : { value };
@@ -103,12 +116,12 @@ export async function profileGates(): Promise<GateResult[]> {
         actual = { reason: error.reason, field: error.field };
       }
       deepStrictEqual(actual, entry.expected, entry.id);
-      results.push({ id: entry.id, result: 'pass', path: 'src/' + (entry.operation === 'scan-json' ? 'json-profile.ts/scanJson' : 'profile.ts/scanBinary'), detail: entry.classification });
+      results.push({ id: entry.id, result: 'pass', path: 'src/' + (['scan-json','json-precheck'].includes(entry.operation) ? 'json-profile.ts/scanJson' : 'profile.ts/scanBinary'), detail: entry.classification });
     }
   }
   return results;
 }
-export type SignedOperations = { pae:typeof pae; selectPurpose:(purpose:Purpose)=>Purpose; verifyEnvelope:typeof verifyEnvelope; ticketSemantics:typeof ticketSemantics; trace:(path:string)=>void };
+export type SignedOperations = { pae:typeof pae; selectPurpose:(purpose:Purpose)=>Purpose; verifyEnvelope:typeof verifyEnvelope; ticketSemantics:typeof ticketSemantics; trace:(path:string)=>void; blake3?: (bytes:Uint8Array)=>Uint8Array };
 export function evaluateSignedCase(entry:Case,schema:Schema,unicode:UnicodeMaps,overrides:Partial<SignedOperations>={}):any {
   const operations:SignedOperations={pae,selectPurpose:purpose=>purpose,verifyEnvelope,ticketSemantics,trace:()=>{},...overrides},input=entry.input;
   try {
@@ -117,12 +130,12 @@ export function evaluateSignedCase(entry:Case,schema:Schema,unicode:UnicodeMaps,
       return{prkHex:derived.prkHex,seedHex:derived.okmHex,publicKeyHex:key.toString('hex'),keyIdHex:digest('sha256',key).subarray(0,8).toString('hex')};
     }
     if(entry.operation==='pae'){operations.trace('primitives.ts/pae');return{paeHex:operations.pae(fromHex(input.typeHex),fromHex(input.bodyHex)).toString('hex')};}
-    if(entry.operation!=='signed-document')throw Error('unhandled_signed_operation:'+entry.operation);
+    if(!['signed-document','blake3-signed-document'].includes(entry.operation))throw Error('unhandled_signed_operation:'+entry.operation);
     const purpose=operations.selectPurpose(input.purpose as Purpose);operations.trace('documents.ts/verifyEnvelope/'+purpose);
     const checked=operations.verifyEnvelope(fromHex(input.envelopeHex),purpose,input.keys,schema,operations.pae);operations.trace('documents.ts/verified-envelope');let warnings:string[]=[];
-    if(purpose==='manifest'){operations.trace('documents.ts/manifestSemantics');warnings=manifestSemantics(checked.model,unicode,input.context).warnings;}
+    if(purpose==='manifest'){operations.trace('documents.ts/manifestSemantics');warnings=manifestSemantics(checked.model,unicode,input.context,operations.blake3).warnings;}
     else if(purpose==='descriptor'){
-      operations.trace('documents.ts/descriptorSemantics');descriptorSemantics(checked.model,unicode);const bytes=fromHex(input.context.manifestPayloadHex),manifest=scanBinary(bytes,'Manifest',schema,{limit:536870912});manifestSemantics(manifest,unicode);warnings=descriptorContext(checked.model,checked.payload,manifest,bytes,unicode,input.context);
+      operations.trace('documents.ts/descriptorSemantics');descriptorSemantics(checked.model,unicode);const bytes=fromHex(input.context.manifestPayloadHex),manifest=scanBinary(bytes,'Manifest',schema,{limit:536870912});manifestSemantics(manifest,unicode,{},operations.blake3);warnings=descriptorContext(checked.model,checked.payload,manifest,bytes,unicode,input.context);
     }else if(purpose==='ticket'){operations.trace('documents.ts/ticketSemantics');operations.ticketSemantics(checked.model,checked.validKeys,input.context);}
     else{operations.trace('documents.ts/proofSemantics');proofSemantics(checked.model,purpose,input.context);}
     return{accepted:true,warnings,...(warnings.length?{warningFields:warnings.map(()=>'Entry.type')}:{})};

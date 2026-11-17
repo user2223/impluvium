@@ -129,6 +129,17 @@ source inspection is not proof against arbitrary computed application code.
 
 ## Reports and file access
 
+Behavioral mutation admission requires fifteen baseline witnesses and seventeen
+harmful changes: three PAE, five purpose, three claims, four expectation and two
+priority mutations, plus four harmless controls. The additional purpose changes
+are `purpose.omit-type-binding` and `purpose.omit-pae-domain`; each must produce
+`ERR_ASSERTION:actual-versus-fixed-expectation` on its executed witness.
+
+Container admission requires all 46 BLAKE3 results and complete version-3
+coverage. The coverage package command invokes the existing container entry,
+so its execution-bound coverage includes these hash results. No workflow step
+is skipped or made nonblocking.
+
 `test/reference-report.test.mjs` rejects false successes: failed/missing baseline
 witnesses, unexecuted mutation targets, missing traces, syntax or wrong failures,
 unchanged results counted as detections, surviving harmful changes, failing

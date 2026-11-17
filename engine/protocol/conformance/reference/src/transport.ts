@@ -53,7 +53,10 @@ export function errorBody(bytes: Uint8Array, schema: Schema): any | undefined {
     ErrorBody: { fields: [{ no: 1, name: 'code', type: 'string', maxBytes: 64 }, { no: 2, name: 'message', type: 'string', maxBytes: 4096 }, { no: 3, name: 'details', type: 'ErrorDetail', repeated: true, maxElements: 16 }] },
     ErrorDetail: { fields: [{ no: 1, name: 'type', type: 'string', maxBytes: 256 }, { no: 2, name: 'value', type: 'bytes', maxBytes: 8192 }] } } };
   try {
-    const model = scanJson(bytes, 'ErrorBody', control);
+    const model = scanJson(bytes, 'ErrorBody', control,65536,true,{
+      required:{ErrorBody:['code'],ErrorDetail:['type','value']},
+      nonNull:{ErrorBody:['code','message','details'],ErrorDetail:['type','value']}
+    });
     if (!model.code.length) return undefined;
     for (const detail of model.details) if (!detail.type.length) return undefined;
     const info = model.details.filter((detail: any) => detail.type === 'impluvium.v2.ErrorInfo');
@@ -99,12 +102,12 @@ export function responseDecision(input: any, schema: Schema, unicode: UnicodeMap
   if (context.purpose === 'manifest' || context.purpose === 'descriptor') {
     const checked = verifyEnvelope(response.body, context.purpose, context.keys, schema);
     if (context.purpose === 'manifest') {
-      manifestSemantics(checked.model, unicode);
+      manifestSemantics(checked.model, unicode, {}, blake3);
       if (digest('sha256', checked.payload).toString('hex') !== context.manifestIdHex) reject('manifest_id_mismatch');
     } else {
       descriptorSemantics(checked.model, unicode);
       const manifestBytes = fromHex(context.manifestPayloadHex), model = scanBinary(manifestBytes, 'Manifest', schema, { limit: 536870912 });
-      manifestSemantics(model, unicode);
+      manifestSemantics(model, unicode, {}, blake3);
       descriptorContext(checked.model, checked.payload, model, manifestBytes, unicode, context);
     }
   } else if (context.purpose === 'chunk') {
@@ -124,7 +127,9 @@ export function transportDecision(input: any): any {
   const url = absoluteUrl(input.url);
   if(url.hash)reject('invalid_url');
   if (!input.platformTrustAvailable) return { reason: 'platform_trust_unavailable', credentialRead: false, connected: false };
-  const host = url.hostname, loopback = host === 'localhost' || host.endsWith('.localhost') || host === '[::1]' || /^127\./.test(host);
+  const host = url.hostname, octets = host.split('.');
+  const ipv4 = octets.length === 4 && octets.every(part => /^(?:0|[1-9][0-9]{0,2})$/.test(part) && Number(part) <= 255);
+  const loopback = host === 'localhost' || host.endsWith('.localhost') || host === '[::1]' || ipv4 && octets[0] === '127';
   if (url.protocol === 'http:' && !loopback && !input.insecureMode) return { reason: 'insecure_scheme_not_allowed', credentialRead: false, connected: false };
   if (input.purpose === 'chunk' && !input.allowedUrls.includes(url.href)) return { reason: 'origin_not_allowed', credentialRead: false, connected: false };
   if(input.purpose!=='chunk'&&input.baseUrl!==undefined){const base=absoluteUrl(input.baseUrl.replace(/\/$/,''),true),prefix=base.pathname.replace(/\/$/,''),pathAllowed=input.purpose==='discovery'?url.pathname===prefix+'/api/info':url.pathname.startsWith(prefix+'/api/v2/');if(url.origin!==base.origin||!pathAllowed)return {reason:'origin_not_allowed',credentialRead:false,connected:false};}
@@ -139,5 +144,7 @@ export function redirectDecision(input: any): any {
   const original = absoluteUrl(input.original);let resolved:URL;try{resolved=new URL(input.location,input.current);}catch{return reject('invalid_url');}const target=absoluteUrl(resolved.href);
   if (target.origin !== original.origin) return { reason: 'redirect_cross_origin' };
   if (!input.allowedUrls.includes(target.href)) return { reason: 'redirect_target_not_allowed' };
+  const preflight = transportDecision({ ...input, url:target.href });
+  if (preflight.reason || preflight.decision !== 'connect') return preflight;
   return { decision: 'follow', target: target.href, credential: 'ticket' };
 }

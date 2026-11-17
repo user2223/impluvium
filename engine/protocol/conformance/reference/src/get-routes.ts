@@ -21,6 +21,11 @@ export function serverGet(input: any, schema: Schema): any {
       claims = checked.model;
       ticketSemantics(claims, checked.validKeys, { ...context.ticketContext, manifestIdHex: claims.manifest_ids[0] });
     } catch (error) { if (!(error instanceof Rejection)) throw error; return { status: 401, wireReason: error.reason === 'ticket_expired' ? 13 : 0 }; }
+    if(context.rateLimited||context.concurrencyLimited){
+      const status=context.limitStatus??429;
+      if(![429,503].includes(status))throw Error('Invalid depot limit status');
+      return {status,wireReason:19};
+    }
   } else {
     const authorization = request.headers.get('authorization');
     if(authorization?.length!==1||!authorization[0].startsWith('Bearer '))return {status:401,wireReason:0};

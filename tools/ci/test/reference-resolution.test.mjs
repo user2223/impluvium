@@ -97,6 +97,8 @@ test('exclusive temporary output capabilities are confined to the writer module'
   const writer = modules['tooling/output.mjs'], reader = modules['src/loader.ts'];
   assert.equal(resolveEdge('node:crypto', path.join(ref, 'tooling/output.mjs'), context), 'node:crypto');
   assert.deepEqual(writer.cryptoImports, ['randomBytes']);
+  assert.deepEqual(modules['src/coverage.ts'].cryptoImports, ['createHash']);
+  assert.deepEqual(modules['src/gates.ts'].cryptoImports, ['createPrivateKey', 'sign']);
   assert.deepEqual(writer.openFlags, ['O_CREAT', 'O_EXCL', 'O_WRONLY', 'O_NOFOLLOW']);
   assert.deepEqual(writer.handleMethods, ['writeFile', 'sync', 'close']);
   assert.equal(writer.mutableHandleName, 'handle');

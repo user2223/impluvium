@@ -42,7 +42,7 @@ test('package documentation reads exclude metadata and source; self-check source
   for (const file of ['src/loader.ts', 'package.json']) await assert.rejects(() => loader.readPackageText(file), /invalid_package_read/);
   assert.equal(await loader.readSelfCheckText('src/loader.ts'), readFileSync(path.join(ref, 'src/loader.ts'), 'utf8'));
   assert.deepEqual([...loader.selfCheckSourceFiles].sort(), Object.keys(expectedPolicy.runtime.modules).sort());
-  assert.equal(loader.selfCheckSourceFiles.length, 31);
+  assert.equal(loader.selfCheckSourceFiles.length, 32);
   for (const file of ['package.json', 'LICENSE', 'README.md', 'src/unlisted.ts']) await assert.rejects(() => loader.readSelfCheckText(file), /invalid_self_check_read/);
 });
 

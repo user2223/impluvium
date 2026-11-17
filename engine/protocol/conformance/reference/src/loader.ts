@@ -33,7 +33,7 @@ const packageDocumentation = new Set(['README.md','FORMAT.md','MODULES.md']);
 // Source text is required only by the static import and delivered-source path checks.
 export const selfCheckSourceFiles = Object.freeze([
  'container/blake3.ts','container/run.mjs',
- 'src/api.ts','src/auth-rpc.ts','src/counterexamples.ts','src/documents.ts','src/ed25519.ts','src/events.ts',
+ 'src/api.ts','src/auth-rpc.ts','src/counterexamples.ts','src/coverage.ts','src/documents.ts','src/ed25519.ts','src/events.ts',
  'src/fastcdc.ts','src/flows.ts','src/format-gates.ts','src/gates.ts','src/get-routes.ts',
  'src/json-profile.ts','src/loader.ts','src/locations.ts','src/models.ts','src/paths.ts',
  'src/primitives.ts','src/profile.ts','src/provenance.ts','src/publication.ts','src/recipes.ts',
@@ -71,7 +71,7 @@ export type Case = { id: string; operation: string; input: Record<string, any>; 
   rule: string; provenance: Record<string, any>; classification?: string };
 export type Corpus = { format: string; group: string; cases: Case[] };
 export type Index = { format: string; groups: { file: string; name?: string; sha256: string; count: number }[];
-  assets: { file: string; sha256: string }[]; blocked: { group: string; blocked: string; state:string; condition:string; references:any[] }[] };
+  assets: { file: string; sha256: string }[]; blocked: { group: string; blocked: string; state:string; condition:string; references:any[];caseIds?:string[] }[] };
 
 function leaves(value: unknown, path = ''): string[] {
   if (Array.isArray(value)) return value.length ? value.flatMap((element, index) => leaves(element, path + '/' + index)) : [path];
@@ -151,7 +151,19 @@ export async function loadAsset(file: string, index: Index): Promise<any> {
   if (!entry) throw Error('asset_not_indexed:' + file);
   const bytes = await readDataBytes(file);
   if (createHash('sha256').update(bytes).digest('hex') !== entry.sha256) throw Error('asset_integrity_mismatch:' + file);
-  return JSON.parse(bytes.toString('utf8'));
+  const data=JSON.parse(bytes.toString('utf8'));
+  if(data.format==='field-calculations-v2'){
+    if(!Array.isArray(data.fields))throw Error('invalid_compact_calculations');
+    if(data.fieldPrefixes!==undefined&&(!Array.isArray(data.fieldPrefixes)||data.fieldPrefixes.some((prefix:any)=>typeof prefix!=='string')))throw Error('invalid_compact_field_prefixes');
+    if(data.fieldSuffixes!==undefined&&(!Array.isArray(data.fieldSuffixes)||data.fieldSuffixes.some((suffix:any)=>typeof suffix!=='string')))throw Error('invalid_compact_field_suffixes');
+    return {...data,format:'field-calculations-v1',fields:data.fields.map((row:any)=>{
+      if(!Array.isArray(row)||row.length!==5||!Array.isArray(row[4]))throw Error('invalid_compact_calculation');
+      const second=row[4];if(second.length!==0&&second.length!==2)throw Error('invalid_compact_confirmation');
+      let fieldId=row[0];if(Array.isArray(fieldId)){const suffix=typeof fieldId[1]==='string'?fieldId[1]:Number.isSafeInteger(fieldId[1])&&fieldId[1]>=0?data.fieldSuffixes?.[fieldId[1]]:undefined;if(fieldId.length!==2||!Number.isSafeInteger(fieldId[0])||fieldId[0]<0||typeof data.fieldPrefixes?.[fieldId[0]]!=='string'||typeof suffix!=='string')throw Error('invalid_compact_field_id');fieldId=data.fieldPrefixes[fieldId[0]]+suffix;}
+      return{fieldId,rule:row[1],method:row[2],sources:row[3],secondCalculation:second.length?{method:'independent',result:'confirmed',checks:second[0],valueSha256:second[1]}:{method:'',result:'pending'}};
+    })};
+  }
+  return data;
 }
 const books = new Map<string, RecipeBook>();
 export async function recipeBook(index: Index): Promise<RecipeBook> {

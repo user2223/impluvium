@@ -30,7 +30,7 @@ test('numerical corpus delivery contains no complete foreign source archives or 
   assert.deepEqual(readdirSync(path.join(root, 'testdata/foreign')).sort(), ['BLAKE3-CC0.txt', 'FASTCDC-MIT.txt', 'SOURCES.json', 'UNICODE-LICENSE-V3.txt']);
   for (const entry of readdirSync(path.join(root, 'testdata'), { withFileTypes: true })) {
     if (entry.name === 'foreign') continue;
-    assert(entry.isFile() && entry.name.endsWith('.json'), entry.name);
+    assert(entry.isFile() && (entry.name.endsWith('.json') || entry.name === 'coverage.md'), entry.name);
   }
   assert.equal(sources.usage.nist, 'Only selected individual message/hash pairs are copied; no complete NIST source file is redistributed.');
 });

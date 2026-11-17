@@ -51,22 +51,34 @@ export function pairingModel(input: any): any {
 export function libraryModel(input: any): any {
   let epoch = input.epoch, applied = BigInt(input.appliedU64), rebuild = false;
   const entries = new Map<string, any>(), buffered: any[] = [], decisions: string[] = [];
+  let candidate:Map<string,any>|undefined, candidateApplied=0n, stale=false;
+  let modelEpoch=input.modelEpoch??epoch,candidateEpoch:string|null=null;
   for (const old of input.entries ?? []) entries.set(old.gameId, structuredClone(old));
-  const merge = (entry: any, version: bigint) => {
-    const previous = entries.get(entry.gameId);
-    if (!previous || version > BigInt(previous.versionU64)) entries.set(entry.gameId, { gameId: entry.gameId, versionU64: String(version), deleted: !!entry.deleted, name: entry.name ?? '' });
+  const merge = (entry: any, version: bigint, target=entries) => {
+    const previous = target.get(entry.gameId);
+    if (!previous || version > BigInt(previous.versionU64)) target.set(entry.gameId, { gameId: entry.gameId, versionU64: String(version), deleted: !!entry.deleted, name: entry.name ?? '' });
   };
   for (const operation of input.operations) {
     if (operation.kind === 'connected') {
-      if (operation.epoch !== epoch) { epoch = operation.epoch; applied = 0n; entries.clear(); buffered.length = 0; rebuild = true; decisions.push('new-epoch-rebuild'); }
+      if (operation.epoch !== epoch) { epoch = operation.epoch; applied = 0n; candidate=new Map();candidateEpoch=epoch; candidateApplied=0n; buffered.length = 0; rebuild = true; decisions.push('new-epoch-rebuild'); }
       continue;
     }
+    if(operation.kind==='begin-rebuild'){candidate=new Map();candidateEpoch=epoch;candidateApplied=0n;rebuild=true;decisions.push('rebuild-started');continue;}
+    if(operation.kind==='fail-rebuild'){candidate=undefined;candidateEpoch=null;buffered.length=0;stale=true;rebuild=true;decisions.push('rebuild-failed');continue;}
+    if(operation.kind==='complete-rebuild'){
+      if(!candidate)throw Error('missing_rebuild_candidate');
+      let progress=true;while(progress){progress=false;for(let i=0;i<buffered.length;i++){const event=buffered[i];if(BigInt(event.seqU64)<=candidateApplied){buffered.splice(i--,1);continue;}if(BigInt(event.prevU64)<=candidateApplied){if(event.entry)merge(event.entry,BigInt(event.seqU64),candidate);candidateApplied=BigInt(event.seqU64);buffered.splice(i,1);progress=true;break;}}}
+      if(buffered.length){candidate=undefined;candidateEpoch=null;stale=true;rebuild=true;decisions.push('rebuild-gap');continue;}
+      entries.clear();for(const[key,value]of candidate)entries.set(key,value);applied=candidateApplied;modelEpoch=candidateEpoch;candidate=undefined;candidateEpoch=null;rebuild=false;stale=false;decisions.push('rebuild-replaced');continue;
+    }
     if (operation.kind === 'page') {
-      if (operation.epoch !== epoch) { rebuild = true; decisions.push('snapshot-epoch-rebuild'); continue; }
-      if (operation.first) applied = BigInt(operation.snapshotU64);
-      for (const entry of operation.entries) merge(entry, BigInt(entry.versionU64));
+      if (operation.epoch !== epoch) { candidate=new Map();candidateEpoch=epoch;candidateApplied=0n;buffered.length=0;rebuild = true; decisions.push('snapshot-epoch-rebuild'); continue; }
+      if(rebuild&&!candidate){candidate=new Map();candidateEpoch=epoch;}
+      if (operation.first) {if(candidate)candidateApplied=BigInt(operation.snapshotU64);else applied = BigInt(operation.snapshotU64);}
+      for (const entry of operation.entries) merge(entry, BigInt(entry.versionU64),candidate??entries);
       decisions.push('page-merged'); continue;
     }
+    if(candidate&&operation.kind==='data'){buffered.push(operation);decisions.push('buffered-building');continue;}
     if (operation.kind === 'heartbeat') {
       if (BigInt(operation.seqU64) > applied) { rebuild = true; decisions.push('heartbeat-rebuild'); } else decisions.push('heartbeat-current');
       continue;
@@ -84,6 +96,10 @@ export function libraryModel(input: any): any {
       }
     }
   }
+  const buildObservations:Record<string,any>={stale,modelEpoch,candidateEpoch,candidateEntries:candidate?[...candidate.values()]:[],candidateAppliedU64:String(candidateApplied)};
+  const selected=input.observeBuild===true?Object.keys(buildObservations):Array.isArray(input.observeBuild)?input.observeBuild:[];
+  if(selected.some((key:any)=>typeof key!=='string'||!Object.hasOwn(buildObservations,key))||new Set(selected).size!==selected.length)throw Error('invalid_build_observation');
   return { epoch, appliedU64: String(applied), rebuild, buffered: buffered.length, decisions,
+    ...Object.fromEntries(selected.map((key:string)=>[key,buildObservations[key]])),
     entries: [...entries.values()].sort((a, b) => a.gameId < b.gameId ? -1 : a.gameId > b.gameId ? 1 : 0) };
 }

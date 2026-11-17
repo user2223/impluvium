@@ -45,13 +45,15 @@ export function jsonTimestamp(text: string, field = ''): Record<string, any> {
   const model = { seconds: String(days * 86400 + hour * 3600 + minute * 60 + second - offset), nanos: Number((match[7] ?? '').padEnd(9, '0')) };
   timestampRange(model, field); return model;
 }
-export function scanJson(bytes: Uint8Array, message: string, schema: Schema, limit = 65536): Record<string, any> {
+type JsonObjectPolicy = {required?:Record<string,string[]>;nonNull?:Record<string,string[]>};
+export function scanJson(bytes: Uint8Array, message: string, schema: Schema, limit = 65536, collect = true, policy:JsonObjectPolicy={}): Record<string, any> {
   if (bytes.length > limit) reject('body_too_large');
   const text = utf8(bytes, 'invalid_json');
   if (text.charCodeAt(0) === 0xfeff) reject('invalid_json');
   let at = 0;
+  let chunkIndexCount = 0;
   const ws = () => { while (/[\x20\t\r\n]/.test(text[at] ?? '\0')) at++; };
-  const string = (maximum?: number, field = ''): string => {
+  const string = (maximum?: number, field = '', beforeLimits?: () => void, capture = true, overflow?:{exceeded:boolean}): string => {
     if (text[at++] !== '"') reject('invalid_json', field);
     const pieces: string[] = [];
     let length = 0;
@@ -80,16 +82,34 @@ export function scanJson(bytes: Uint8Array, message: string, schema: Schema, lim
         }
       } else if (char.charCodeAt(0) >= 0xd800 && char.charCodeAt(0) <= 0xdbff) char += text[at++];
       length += Buffer.byteLength(char, 'utf8');
-      if (maximum !== undefined && length > maximum) reject('byte_limit_exceeded', field);
-      pieces.push(char);
+      if (maximum !== undefined && length > maximum) {
+        if(overflow)overflow.exceeded=true;
+        else{beforeLimits?.();reject('byte_limit_exceeded', field);}
+      }
+      if(capture&&!overflow?.exceeded)pieces.push(char);
     }
     return reject('invalid_json', field);
   };
-  function value(field: any, parent: string, depth: number, fieldPath: string, element = false): any {
-    ws(); const first = text[at];
+  let syntaxAt = -1;
+  function syntaxToken(field:string):void {
+    ws();if(at===syntaxAt)return;const start=at,first=text[at];
+    if(first==='"')string(undefined,field,undefined,false);
+    else if(first==='t'||first==='f'||first==='n'){
+      const literal=first==='t'?'true':first==='f'?'false':'null';
+      if(text.slice(at,at+literal.length)!==literal)reject('invalid_json',field);at+=literal.length;
+      if(at<text.length&&!/[\x20\t\r\n,}\]]/.test(text[at]))reject('invalid_json',field);
+    }else if(first==='-'||/[0-9]/.test(first??'')){
+      const token=/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(text.slice(at));
+      if(!token)reject('invalid_json',field);at+=token[0].length;
+      if(at<text.length&&!/[\x20\t\r\n,}\]]/.test(text[at]))reject('invalid_json',field);
+    }else if(first!=='{'&&first!=='[')reject('invalid_json',field);
+    at=start;syntaxAt=start;
+  }
+  function value(field: any, parent: string, depth: number, fieldPath: string, element = false, beforeLimits?: () => void): any {
+    ws();syntaxToken(fieldPath); const first = text[at];
     if (first === 't' && text.slice(at, at + 4) !== 'true' || first === 'f' && text.slice(at, at + 5) !== 'false' || first === 'n' && text.slice(at, at + 4) !== 'null') reject('invalid_json', fieldPath);
     if (!['"', '{', '[', 't', 'f', 'n', '-'].includes(first) && !/[0-9]/.test(first ?? '')) reject('invalid_json', fieldPath);
-    if (text.slice(at, at + 4) === 'null') { at += 4; if (element && field) reject('json_type_mismatch', fieldPath); return undefined; }
+    if (text.slice(at, at + 4) === 'null') { at += 4; if (field&&(element||policy.nonNull?.[parent]?.includes(field.name))) reject('json_type_mismatch', fieldPath); return undefined; }
     const kind = first === '"' ? 'string' : first === '{' ? 'object' : first === '[' ? 'array' : first === 't' || first === 'f' ? 'bool' : 'number';
     if (field) {
       let permitted: string[];
@@ -100,15 +120,25 @@ export function scanJson(bytes: Uint8Array, message: string, schema: Schema, lim
       else permitted = ['object'];
       if (!permitted.includes(kind)) reject('json_type_mismatch', fieldPath);
     }
+    if(kind!=='object'&&kind!=='array'){beforeLimits?.();beforeLimits=undefined;}
     if (kind === 'object' || kind === 'array') {
       if (depth + 1 > 64) reject('nesting_too_deep', fieldPath);
+      beforeLimits?.();
       at++;
       if (kind === 'array') {
         const array: any[] = []; let count = 0; ws();
         if (text[at] !== ']') while (true) {
-          if (field && ++count > field.maxElements) reject('element_limit_exceeded', fieldPath);
-          const item = value(field, parent, depth + 1, fieldPath, true);
-          if (field && item !== undefined) array.push(item);
+          // Count complete uint32 zero tokens without retaining a decoded array in a precheck.
+          if(!collect&&field?.type==='uint32'){
+            const shared=parent==='Entry'&&field.name==='chunk_indexes',remaining=field.maxElements-(shared?chunkIndexCount:count);
+            const start=at;while((at-start)/2<=remaining&&text.charCodeAt(at)===48&&text.charCodeAt(at+1)===44)at+=2;
+            const run=(at-start)/2;
+            if(run){if(shared)chunkIndexCount+=run;else count+=run;if((shared?chunkIndexCount:count)>field.maxElements)reject('element_limit_exceeded',shared?'':fieldPath);ws();}
+          }
+          const item = value(field, parent, depth + 1, fieldPath, true, () => {
+            if(field){const shared=parent==='Entry'&&field.name==='chunk_indexes';const next=shared?++chunkIndexCount:++count;if(next>field.maxElements)reject('element_limit_exceeded',shared?'':fieldPath);}
+          });
+          if (collect && field && item !== undefined) array.push(item);
           ws(); if (text[at] !== ',') break; at++; ws();
         }
         if (text[at++] !== ']') reject('invalid_json', fieldPath);
@@ -117,12 +147,14 @@ export function scanJson(bytes: Uint8Array, message: string, schema: Schema, lim
       if (field?.map) {
         const array: any[] = [], keys = new Set<string>(); let count = 0; ws();
         if (text[at] !== '}') while (true) {
-          const key = string(undefined, fieldPath); ws(); if (text[at++] !== ':') reject('invalid_json', fieldPath);
-          if (keys.has(key)) reject('duplicate_json_key'); keys.add(key);
-          if (++count > field.maxElements) reject('element_limit_exceeded', fieldPath);
-          if (Buffer.byteLength(key) > field.keyMaxBytes) reject('byte_limit_exceeded', fieldPath);
-          const item = value({ type: 'string', maxBytes: field.valueMaxBytes }, parent, depth + 1, fieldPath, true);
-          array.push({ key, value: item });
+          const overflow={exceeded:false},key=string(field.keyMaxBytes,fieldPath,undefined,true,overflow); ws(); if (text[at++] !== ':') reject('invalid_json', fieldPath);
+          // Earlier accepted keys fit the bound, so an overlong key cannot equal one of them.
+          if(!overflow.exceeded){if(keys.has(key))reject('duplicate_json_key');keys.add(key);}
+          const item = value({ type: 'string', maxBytes: field.valueMaxBytes }, parent, depth + 1, fieldPath, true, () => {
+            if (++count > field.maxElements) reject('element_limit_exceeded', fieldPath);
+            if (overflow.exceeded) reject('byte_limit_exceeded', fieldPath);
+          });
+          if(collect)array.push({ key, value: item });
           ws(); if (text[at] !== ',') break; at++; ws();
         }
         if (text[at++] !== '}') reject('invalid_json', fieldPath); return array;
@@ -130,17 +162,20 @@ export function scanJson(bytes: Uint8Array, message: string, schema: Schema, lim
       return object(field ? field.type : undefined, depth + 1);
     }
     let raw: string | boolean;
-    if (kind === 'string') raw = string(field?.type === 'string' ? field.maxBytes : undefined, fieldPath);
+    if (kind === 'string') raw = string(field?.type === 'string' ? field.maxBytes : field?.type === 'bytes' && field.maxBytes !== undefined ? Math.ceil((field.maxBytes+1)*4/3)+4 : undefined, fieldPath, beforeLimits, !!field);
     else if (kind === 'bool') {
       const literal = text.slice(at, at + (first === 't' ? 4 : 5));
       if (literal !== 'true' && literal !== 'false') reject('invalid_json', fieldPath);
       raw = literal === 'true'; at += literal.length;
+      if (at < text.length && !/[\x20\t\r\n,}\]]/.test(text[at])) reject('invalid_json', fieldPath);
     } else {
       const match = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(text.slice(at));
       if (!match) reject('invalid_json', fieldPath); raw = match[0]; at += raw.length;
       if (at < text.length && !/[\x20\t\r\n,}\]]/.test(text[at])) reject('invalid_json', fieldPath);
     }
+    beforeLimits?.();
     if (!field) return undefined;
+    if (field.type === 'string' && field.maxBytes !== undefined && Buffer.byteLength(raw as string) > field.maxBytes) reject('byte_limit_exceeded', fieldPath);
     if (field.type === 'string' || field.type === 'bool') return raw;
     if (field.type === 'bytes') {
       const encoded = raw as string, bareLength = encoded.replace(/=+$/, '').length;
@@ -160,8 +195,8 @@ export function scanJson(bytes: Uint8Array, message: string, schema: Schema, lim
     ws();
     if (text[at] !== '}') while (true) {
       const key = string(); ws(); if (text[at++] !== ':') reject('invalid_json'); ws();
-      if (names.has(key)) reject('duplicate_json_key'); names.add(key);
       const field = name ? schema.messages[name].fields.find(field => field.name === key || field.name.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase()) === key) : undefined;
+      if (names.has(key)) reject('duplicate_json_key'); names.add(key);
       if (field) {
         const path = name + '.' + field.name;
         if (field.oneof ? oneofs.has(field.oneof) : fields.has(field.name)) reject(field.oneof ? 'oneof_conflict' : 'duplicate_field', field.oneof ? '' : path);
@@ -171,7 +206,9 @@ export function scanJson(bytes: Uint8Array, message: string, schema: Schema, lim
       if (field && item !== undefined) model[field.name] = item;
       ws(); if (text[at] !== ',') break; at++; ws();
     }
-    if (text[at++] !== '}') reject('invalid_json'); return model;
+    if (text[at++] !== '}') reject('invalid_json');
+    if(name)for(const field of policy.required?.[name]??[])if(!fields.has(field))reject('missing_field');
+    return model;
   }
   ws(); if (text[at++] !== '{') reject('invalid_json');
   const model = object(message, 1); ws(); if (at !== text.length) reject('invalid_json');

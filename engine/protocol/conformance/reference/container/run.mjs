@@ -7,6 +7,7 @@ import { deliverySizeGate } from '../src/format-gates.ts';
 import { publicationGate } from '../src/publication.ts';
 import { provenanceGate, attachCaseAcceptance } from '../src/provenance.ts';
 import { parseOptions } from '../tooling/options.mjs';
+import { coverageGate } from '../src/coverage.ts';
 const {out}=parseOptions(process.argv.slice(2),'container');
 if (!/^v24\./.test(process.version)) throw Error('Container requires the pinned Node 24 runtime');
 const results = [await deliverySizeGate(), await publicationGate(), await provenanceGate(), ...await primitiveGates(), ...await fastcdcGates(), ...await signedGates(), ...await profileGates(), ...await behaviorGates()];
@@ -17,6 +18,7 @@ attachCaseAcceptance(reconciled);
 const report = { format: 'container-gates-v1', runtime: process.version,
   dependency: { module: '@noble/hashes/blake3' },
   results:reconciled, counts:{pass:reconciled.filter(item=>item.result==='pass').length,pending:reconciled.filter(item=>item.result==='pending').length}, blake3: foreign, expectationsAccepted:reconciled.every(item=>item.result==='pass'),
+  coverage:await coverageGate(reconciled,reconciled.find(item=>item.id==='provenance.independent-calculations').evidence.pending),
   acceptanceRequirements: ['installation artifact and license validation', 'resolved import scanner', 'tsc --noEmit', 'confirmed independent calculations', 'complete specification conditions'] };
 await writeReport(out,'container',report);
 console.log(JSON.stringify({ runtime: process.version, executed: reconciled.filter(item => item.result === 'pass').length, blake3: foreign.length, expectationsAccepted:report.expectationsAccepted }));

@@ -132,6 +132,9 @@ export function descriptorSemantics(model: any, unicode: UnicodeMaps): void {
   const setupIds = new Set<string>();
   for (const step of model.setup_steps) { if (setupIds.has(step.id)) reject('duplicate_setup_id', 'ReleaseDescriptor.setup_steps'); setupIds.add(step.id); }
   if (model.kind === 2 && model.launch_options.length) reject('setup_only_with_launch_options', 'ReleaseDescriptor.launch_options');
+  descriptorCommandBudget(model);
+}
+export function descriptorCommandBudget(model:any):void {
   let bytes = 0;
   for (const row of [...model.launch_options, ...model.setup_steps]) {
     const c = row.command;
@@ -194,7 +197,7 @@ export function proofSemantics(model: any, purpose: string, context: any): void 
   } else if (model.pairing_id !== context.pairingIdHex) reject('proof_pairing_mismatch', 'PairingProof.pairing_id');
 }
 // Envelope checks use the complete, cofactorless Ed25519 acceptance profile.
-export function verifyEnvelope(bytes: Uint8Array, purpose: Purpose, keys: any[], schema: Schema, encodePae: typeof pae = pae): { model: any; payload: Buffer; validKeys: any[] } {
+export function verifyEnvelope(bytes: Uint8Array, purpose: Purpose, keys: any[], schema: Schema, encodePae: typeof pae = pae, typeMatches=(actual:string,expected:string)=>actual===expected): { model: any; payload: Buffer; validKeys: any[] } {
   const expected = registry[purpose];
   if (keys.length < 1 || keys.length > (purpose === 'ticket' ? 8 : 1)) reject('trusted_set_size');
   for (const key of keys) if (!ed25519PointProfile(fromHex(key.publicKeyHex)).accepted) reject('invalid_trusted_key');
@@ -212,7 +215,7 @@ export function verifyEnvelope(bytes: Uint8Array, purpose: Purpose, keys: any[],
   const seen = new Set<string>();
   for (const signature of envelope.signatures) { if (seen.has(signature.key_id)) reject('duplicate_signature_key_id', 'Envelope.signatures'); seen.add(signature.key_id); }
   if (!Object.values(registry).some(row => row.type === envelope.payload_type)) reject('unknown_payload_type', 'Envelope.payload_type');
-  if (envelope.payload_type !== expected.type) reject('unexpected_payload_type', 'Envelope.payload_type');
+  if (!typeMatches(envelope.payload_type, expected.type)) reject('unexpected_payload_type', 'Envelope.payload_type');
   const message = encodePae(Buffer.from(envelope.payload_type, 'utf8'), payload), validKeys = [];
   for (const signature of envelope.signatures) {
     const index = ids.indexOf(signature.key_id);

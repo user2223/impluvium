@@ -3,8 +3,7 @@
 import { deepStrictEqual } from 'node:assert';
 import { readIndex, groupCases, loadAsset } from '../src/loader.ts';
 import { fromHex } from '../src/primitives.ts';
-import { verifyEnvelope, manifestSemantics } from '../src/documents.ts';
-import { Rejection } from '../src/profile.ts';
+import { evaluateSignedCase } from '../src/gates.ts';
 import { responseDecision } from '../src/transport.ts';
 import { reconstruct } from '../src/flows.ts';
 export async function blake3Gates(blake3: (bytes: Uint8Array, options?: {dkLen: number}) => Uint8Array): Promise<{ id: string; result: 'pass' }[]> {
@@ -19,15 +18,7 @@ export async function blake3Gates(blake3: (bytes: Uint8Array, options?: {dkLen: 
   const schema = await loadAsset('schema.json', index), unicode = await loadAsset('unicode16.json', index);
   for await (const entry of groupCases('signed', index)) {
     if (entry.operation !== 'blake3-signed-document') continue;
-    let actual;
-    try {
-      const checked = verifyEnvelope(fromHex(entry.input.envelopeHex), 'manifest', entry.input.keys, schema);
-      const warnings = manifestSemantics(checked.model, unicode, entry.input.context, bytes => blake3(bytes, { dkLen: 32 })).warnings;
-      actual = { accepted: true, warnings, ...(warnings.length ? { warningFields: warnings.map(() => 'Entry.type') } : {}) };
-    } catch (error) {
-      if (!(error instanceof Rejection)) throw error;
-      actual = { reason: error.reason, field: error.field };
-    }
+    const actual=evaluateSignedCase(entry,schema,unicode,{blake3:bytes=>blake3(bytes,{dkLen:32})});
     deepStrictEqual(actual, entry.expected, entry.id);
     results.push({ id: entry.id, result: 'pass' });
   }
@@ -37,6 +28,7 @@ export async function blake3Gates(blake3: (bytes: Uint8Array, options?: {dkLen: 
     const actual=entry.operation==='blake3-http-response'?responseDecision(entry.input,schema,unicode,hash):reconstruct(entry.input,schema,unicode,hash);
     deepStrictEqual(actual,entry.expected,entry.id);results.push({id:entry.id,result:'pass'});
   }
-  if (results.length!==43) throw Error('Incomplete BLAKE3 run');
+  const expected=[];for(const name of['primitives','signed','behavior'])for await(const entry of groupCases(name,index))if(['blake3','blake3-signed-document','blake3-http-response','blake3-reconstruct'].includes(entry.operation))expected.push(entry.id);
+  if(results.length!==expected.length||new Set(results.map(row=>row.id)).size!==expected.length)throw Error('Incomplete BLAKE3 run');
   return results;
 }

@@ -31,6 +31,10 @@ Full short cut sequences use decimal `offsetU64`/`lengthU64` pairs. Their canoni
 
 Pinned provenance-NNN.json files use the field-calculations-v1 format. Local sources, rules and methods tables remove repeated metadata. Every field record retains its stable fieldId and references a rule, a one-sentence calculation method and source entries. Each source names its document, sections and source-file SHA-256. Numerical foreign inputs retain their original source digest and license notices.
 
+The compact field-calculations-v2 form retains those tables and stores each field as a five-column row: fieldId, rule reference, method reference, source-reference list, confirmation. A fieldId is either its complete string or a pair of a zero-based fieldPrefixes index and an exact suffix; concatenate the selected prefix and suffix without normalization. An empty confirmation list is pending. A two-element confirmation list contains checks and valueSha256 with the meaning below. Decoding restores the same complete field records; representation changes cannot renew a confirmation.
+
+An exact suffix may also be a zero-based index into the optional fieldSuffixes string table. Invalid indices and non-string table members are errors; suffix sharing preserves every decoded field identity.
+
 Each record has secondCalculation with method and result. The initial method is empty and result is pending. A confirmed result requires a nonempty independent method and an actual comparison against the fixed expectation. Verification never changes these fields. The provenance test counts confirmed and pending records; a comparison pass does not accept an expectation whose independent calculation remains pending.
 
 ## Package layout and execution
@@ -45,7 +49,13 @@ All example commands are relative to the package directory: node tooling/stage.m
 
 The delivered test data and package files total at most 8388608 bytes, with at most 1048576 bytes per file. Runtime comparison contracts check these bounds before comparing cases. Generic publication checks validate module import containment and fixed filesystem locations. The only external data directory is the designated testdata/ directory. Reports use only the explicit output argument. Standard Node modules and the pinned container-only dependency are allowed imports.
 
-Generic publication checks validate module and metadata path containment. Missing normative precedence is represented by a blocked case with a condition that names the unspecified rule and its source sections. Such a case contains no expected outcome.
+Generic publication checks validate module and metadata path containment.
+
+## Coverage evidence
+
+coverage.json is a pinned table of rules, case IDs, field IDs and rows. Numeric case and field references select those tables. Each row names the codec, check level, positive, negative and priority references, provenance, current verifier and a future consumer label. reasonRows link every catalogued local reason or warning to cases. boundaryPairs name exact-limit and limit-plus-one cases for each inventoried field limit and codec. coverage.md is the readable view, pinned by the table. The coverage command executes the cases and checks all references, the schema including implicit map entries and Timestamp, reason witnesses and boundary pairs. Missing, failed or dependency-pending executions and pending independent calculations prevent completeness; there is no successful fallback for an empty or incomplete table. The container entry repeats the check after dependency results are reconciled.
+
+Completeness refers to this enumerated table and its checked inventories. It does not assert a witness for every possible stopping step or every adjacent pair of protocol checks.
 
 ## Injected state models
 
@@ -54,6 +64,24 @@ Ticket-cache cases classified cache-state-substage operate below full ticket ver
 Auth state outputs describe the final modeled stored snapshot, rather than transitions performed only by the current invocation. On reaching the atomic recheck, true atomicConsumed, atomicCompleted, atomicRevoked, atomicDeleted, atomicDenied or atomicApprovalRemoved flags inject the corresponding stored-state changes before checks run. Unnamed components retain their supplied state until an operation changes them. These partial snapshots do not reconstruct the complete execution history of another transaction. A losing operation does not undo an injected transition.
 
 For a successful token-checked RevokeDevice exchange, context.authenticatingDeviceId identifies the device bound to the authenticated token. The revokesCallingDevice result compares that identity with the request target. RevokeSelf always targets the caller. A RevokeDevice fixture without the token device identity is incomplete and cannot produce that result.
+
+Library rebuild operations use a separate candidate. begin-rebuild starts it, pages with the stream epoch fill it, and data events are buffered. complete-rebuild merges that chain and replaces the live entries only when it closes; fail-rebuild retains the live entries, marks them stale and requests a retry. A new connected epoch discards the candidate and invalidates the applied stream position while retaining the live entries. A page with a different epoch restarts the candidate. stale is a retained failure marker: it starts false, is set by a failed rebuild or unresolved completion chain, and is cleared by successful replacement. Active rebuilding is observed separately. observeBuild selects extra observations: stale, modelEpoch of the live entries, nullable candidateEpoch, current candidate entries in insertion order, and the latest candidate snapshot position, which remains observable after disposal. A page outside an active rebuild is a standalone versioned-merge substage and does not assert a complete snapshot reload.
+
+observeBuild may be true for all build observations or an array naming selected observation members. Selecting observations does not change protocol state transitions. The staleness marker and allocation timing of a replacement candidate at an epoch boundary are not asserted by a case that omits those observations.
+
+An event-open-model attempt with kind release carries a key and streamId. Only the currently owning streamId removes that entry. Successful opens assign the supplied streamId, or their zero-based attempt position when absent. observeGenerations selects the current key-to-stream observations. These identifiers are fixed synthetic observations, not host state.
+
+Model convention for release observations: owner is the most recently accepted keyed identifier while that entry remains registered, otherwise null. Releasing that selected entry clears the observation; it does not select an older identifier as a fallback. Ordinary opening observations retain their existing definition.
+
+Acceptance-set state probes use prevalidated logical keys, explicit removal or revocation operations and a caller-supplied positive generationStepU64. It is a concrete increasing-counter policy for the probe, not a protocol requirement to increment by a particular amount. Removal selects its key explicitly. A switch with a full set waits; the model never silently displaces a protected retiring key. Keys in this state substage are logical generation identities, not cryptographic known answers.
+
+Model convention: a successful atomic switch, a successful remove and a successful hard-revoke each apply generationStepU64 once. A deferred operation applies it zero times. The switch groups addition and retirement into one visible atomic replacement; this convention does not prescribe a server implementation's counter unit.
+
+User-code normalization and alphabet validation are separate operations. page-size-codec probes decode the supplied request before selecting its effective page size. The PAE domain-relation probe compares equal-length document types and signs their separate messages with a fixed public test seed; it is a relation probe, not a known-answer vector. public-seeds.json lists that synthetic seed.
+
+Depot request decision probes place an injected subject rate or concurrency limit immediately after ticket verification, one of the placements allowed by tickets.md section 7.2. limitStatus is the fixed caller policy, either 429 or 503. These decision observations do not synthesize an entire error response; error-body validation is a separate operation.
+
+command-budget is a decoded-model substage of descriptor.md section 2 and section 5 step 14. It uses the same combined UTF-8 sum as full descriptor validation, with no claim about preceding fields or signatures. The two envelope payload surfaces of size-precheck count the payload value of an envelope with the named purpose under limits.md section 2, rather than the total size of a standalone payload message. These streaming probes never claim a valid complete largest document.
 
 ## Report file replacement
 
@@ -92,6 +120,8 @@ construction-values-NNN.json assets have format construction-confirmation-values
 Stage 6 and counterexamples execute a fixed list of small operation replacements through the ordinary signed-case evaluator. Each recipe names its primary rule, witnesses and target operation. A successful baseline precedes the variants. Detection requires a reached target and a fixed-result comparison failure, a field-confirmation mismatch, or a checked-expectation snapshot mismatch. An unexpected exception, absent witness or empty execution is an invalid run, never successful detection. No generated source, dynamic loading or process isolation is used.
 
 Identical replacements, comment-only replacements, informational metadata edits and permitted unknown Envelope fields are separate equivalence controls. Their surviving results are reported as ineffective. A rule-violating survivor or invalid execution fails the suite. Reports retain the executed operation path and observed test failure for every witness. Reports use compact JSON; whitespace is not significant.
+
+Every counterexample witness requires confirmed calculated dependencies and a determined specification. Pending calculations of unrelated cases do not prevent these witness executions and continue to prevent complete coverage.
 
 expectationsAccepted reports confirmation of the fixed data independently of execution dependencies. A pending dependency remains pending even when its expectation is independently confirmed. Coverage checks the case inventory, specification conditions and confirmed value bindings; it does not install a missing execution dependency.
 

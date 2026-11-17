@@ -20,10 +20,10 @@ export function referenceCommand(root, name, extra = [], out = `/work/results/re
     const compiler = graph.typeTools.find(file => graph.packages.get(file).name === 'typescript');
     return [path.join(compiler, 'lib/tsc.js'), '-p', path.join(ref, 'tsconfig.json')];
   }
-  const module = name === 'container' ? 'container/run.mjs' : 'tooling/check.mjs';
+  const module = ['container', 'coverage'].includes(name) ? 'container/run.mjs' : 'tooling/check.mjs';
   const file = path.join(ref, module);
   if (!existsSync(file)) throw new Error(`reference content is incomplete: missing ${module}; no conformance result`);
-  return [file, ...(name === 'container' ? [] : [name]), '--out', out, ...extra];
+  return [file, ...(['container', 'coverage'].includes(name) ? [] : [name]), '--out', out, ...extra];
 }
 
 export const incompleteCoverageMessage = 'reference coverage incomplete: independent calculations pending or specification groups blocked';
@@ -36,6 +36,7 @@ export function referenceFailure(name, report) {
 
 export function testEvidence(report, name) {
   if (!report || typeof report !== 'object' || report.error || report.status === 'failed') throw new Error('reference contract report is missing or failed');
+  if (name === 'coverage' && report.format === 'container-gates-v1') return testEvidence(report, 'container');
   const confirmation = (report.checks ?? report.results ?? []).filter(item => item.id === 'provenance.independent-calculations');
   const confirmed = confirmation.length === 1 && confirmation[0].result === 'pass' &&
     Number.isSafeInteger(confirmation[0].evidence?.fields) && confirmation[0].evidence.fields > 0 &&
@@ -49,15 +50,17 @@ export function testEvidence(report, name) {
     if (new Set(ids).size !== ids.length) throw new Error('duplicate executed reference ID');
     const pass = report.results.filter(item => item.result === 'pass').length, pending = report.results.length - pass;
     if (pass < 1 || report.counts?.pass !== pass || report.counts?.pending !== pending || typeof report.expectationsAccepted !== 'boolean') throw new Error('reference execution counts/acceptance differ');
-    if (name === 'container' && (!confirmed || report.expectationsAccepted !== true || pending || !Array.isArray(report.blake3) || !report.blake3.length ||
+    if (name === 'container' && (!confirmed || report.expectationsAccepted !== true || pending || !Array.isArray(report.blake3) || report.blake3.length !== 46 ||
         report.blake3.some(row => row.result !== 'pass' || !ids.includes(row.id)) ||
         new Set(report.blake3.map(row => row.id)).size !== report.blake3.length)) throw new Error('reference container execution is incomplete');
+    if (name === 'container') coverageEvidence(report.coverage);
     return { pass, pending, ids, expectationsAccepted: report.expectationsAccepted };
   }
   if (name === 'corpus' || name === 'coverage') {
-    if (!['corpus-contract-v2', 'coverage-contract-v2'].includes(report.format) || !(report.cases > 0) || !Array.isArray(report.groups) || !report.groups.length) throw new Error('reference corpus report is empty');
+    if (!['corpus-contract-v2', 'coverage-contract-v2', 'coverage-contract-v3'].includes(report.format) || !(report.cases > 0) || !Array.isArray(report.groups) || !report.groups.length) throw new Error('reference corpus report is empty');
     if (name === 'coverage' && (report.complete !== true || !confirmed || report.expectationsAccepted !== true ||
         report.specificationConditions?.length !== 0)) throw new Error(incompleteCoverageMessage);
+    if (name === 'coverage') coverageEvidence(report);
   } else if (name === 'imports' && report.format !== 'module-import-inventory-v1') throw new Error('reference import inventory is missing');
   else if (name === 'counterexamples') {
     if (report.status === 'deferred') throw new Error(report.reason);
@@ -67,7 +70,7 @@ export function testEvidence(report, name) {
     if (report.format !== 'counterexample-contract-v1' || report.status !== 'checks-pass' || !confirmed ||
         report.expectationsAccepted !== true || suite?.passed !== true || baseline?.passed !== true ||
         !Array.isArray(report.checks) || report.checks.some(row => row.result !== 'pass') ||
-        !Array.isArray(baseline.witnesses) || baseline.witnesses.length !== 12 || !Array.isArray(mutants) || !mutants.length) bad();
+        !Array.isArray(baseline.witnesses) || baseline.witnesses.length !== 15 || !Array.isArray(mutants) || !mutants.length) bad();
     const validWitness = row => row.executed === true && row.targetExecuted === true && typeof row.id === 'string' &&
       Array.isArray(row.path) && row.path.includes('provenance.ts/assertCaseConfirmation') && Object.hasOwn(row, 'expected');
     const witnesses = new Set(baseline.witnesses.map(row => row.id));
@@ -102,15 +105,22 @@ export function testEvidence(report, name) {
         ineffective++; group.ineffective++;
       }
     }
-    if (detected !== 15 || ineffective !== 4 || report.executedMutations !== mutants.length ||
+    if (detected !== 17 || ineffective !== 4 || report.executedMutations !== mutants.length ||
         new Set(mutants.flatMap(row => row.witnesses)).size !== witnesses.size ||
         !isDeepStrictEqual(Object.fromEntries(Object.entries(kinds).map(([kind, value]) => [kind, value.total])),
-          { pae: 3, purpose: 3, claims: 3, expectation: 4, priority: 2, control: 4 }) ||
+          { pae: 3, purpose: 5, claims: 3, expectation: 4, priority: 2, control: 4 }) ||
         !isDeepStrictEqual(suite.counts, { mutants: mutants.length, detected, ineffective, survived: 0, invalidExecution: 0 }) ||
         !isDeepStrictEqual(suite.byKind, kinds) ||
         report.counts?.pass !== report.checks.length + 1 + mutants.length || report.counts.pending !== 0 || report.counts.fail !== 0) bad();
   }
   return { expectationsAccepted: report.expectationsAccepted === true };
+}
+
+function coverageEvidence(report) {
+  if (report?.format !== 'coverage-contract-v3' || report.complete !== true || report.passed !== report.cases ||
+      !['rows', 'cases', 'schemaFields', 'reasons', 'boundaryPairs', 'aggregatePairs'].every(key => Number.isSafeInteger(report[key]) && report[key] > 0) ||
+      !Array.isArray(report.outstanding) || report.outstanding.length || report.confirmationsPending !== 0 ||
+      !Array.isArray(report.specificationConditions) || report.specificationConditions.length) throw new Error(incompleteCoverageMessage);
 }
 
 export function referenceReceipt(root, receipt, expectedSha) {
@@ -150,7 +160,7 @@ export async function runReference(root, name, extra = [], expectedSha, outputDi
       if (child.error || child.signal || child.status === null) throw new Error(`reference infrastructure failure: ${child.error?.message ?? child.signal}`);
       process.stdout.write(child.stdout); process.stderr.write(child.stderr);
       status = child.status;
-      const reportName = name === 'container' ? 'container' : name + (extra.length ? '-stage-' + extra[1] : '');
+      const reportName = ['container', 'coverage'].includes(name) ? 'container' : name + (extra.length ? '-stage-' + extra[1] : '');
       const reportFile = path.join(contractOut, reportName + '.json');
       if (name !== 'typecheck' && existsSync(reportFile)) {
         const result = json(reportFile);
