@@ -46,3 +46,7 @@
 **/.output*
 **/.spa-server
 **/.data
+
+# Validation sources and corpus never enter the server build context.
+engine/protocol/conformance/reference/
+engine/protocol/testdata/

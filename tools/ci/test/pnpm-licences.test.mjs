@@ -101,3 +101,37 @@ test('pnpm adapter rejects extra installed peer context absent from the lock', t
   writeFileSync(path.join(value.root, 'graph.json'), JSON.stringify(value.evidence));
   assert.throws(value.load, /peer context/);
 });
+
+function secondRoot(t) {
+  const value = fixture(t), directory = path.join(value.root, 'engine/protocol/conformance/reference');
+  const typePath = path.resolve(value.helperPath, '../../../type-only@1.0.0/node_modules/type-only');
+  mkdirSync(typePath, { recursive: true });
+  writeFileSync(path.join(typePath, 'package.json'), JSON.stringify({ name: 'type-only', version: '1.0.0', license: 'MIT' }));
+  mkdirSync(path.join(directory, 'node_modules'), { recursive: true });
+  writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ name: 'reference', version: '0.1.0', license: '0BSD', private: true, devDependencies: { 'type-only': '1.0.0' } }));
+  symlinkSync(typePath, path.join(directory, 'node_modules/type-only'));
+  writeFileSync(path.join(value.root, 'pnpm-workspace.yaml'), 'packages:\n  - engine/ts\n  - engine/protocol/conformance/reference/\n');
+  const lock = value.lock.replace('packages:\n', '  engine/protocol/conformance/reference:\n    devDependencies:\n      type-only:\n        specifier: 1.0.0\n        version: 1.0.0\npackages:\n  type-only@1.0.0: {}\n').replace('snapshots:\n', 'snapshots:\n  type-only@1.0.0: {}\n');
+  writeFileSync(path.join(value.root, 'pnpm-lock.yaml'), lock);
+  const evidence = [...value.evidence, { name: 'reference', version: '0.1.0', path: directory,
+    devDependencies: { 'type-only': { from: 'type-only', version: '1.0.0', path: typePath } } }];
+  writeFileSync(path.join(value.root, 'graph.json'), JSON.stringify(evidence));
+  return { ...value, evidence, directory, typePath };
+}
+test('pnpm licence graph includes both engine roots and reference dev/type dependencies', t => {
+  const value = secondRoot(t), graph = value.load();
+  assert.equal(graph.roots.length, 2);
+  assert.deepEqual(traverse(graph, value.root, policy(path.join(value.root, 'deny.toml'))), []);
+});
+test('a graph filtered to only protocol types cannot omit the reference root', t => {
+  const value = secondRoot(t);
+  writeFileSync(path.join(value.root, 'graph.json'), JSON.stringify(value.evidence.slice(0, 1)));
+  assert.throws(value.load, /engine root must occur exactly once/);
+});
+test('reference-only external type-tool copyleft remains in the licence boundary', t => {
+  const value = secondRoot(t);
+  const manifest = JSON.parse(readFileSync(path.join(value.typePath, 'package.json')));
+  manifest.license = 'GPL-3.0-only';
+  writeFileSync(path.join(value.typePath, 'package.json'), JSON.stringify(manifest));
+  assert.match(traverse(value.load(), value.root, policy(path.join(value.root, 'deny.toml'))).join('\n'), /not permitted/);
+});

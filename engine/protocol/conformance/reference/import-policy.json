@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "runtime": {
+    "packages": {
+      "@noble/hashes": "1.8.0"
+    },
+    "entrySpecifiers": [
+      "@noble/hashes/blake3"
+    ],
+    "entries": {
+      "local": "tooling/stage.mjs",
+      "contract": "tooling/check.mjs",
+      "container": "container/run.mjs"
+    },
+    "dependencyEntry": "container/run.mjs",
+    "modules": {
+      "src/api.ts": {
+        "builtins": []
+      },
+      "src/auth-rpc.ts": {
+        "builtins": []
+      },
+      "src/documents.ts": {
+        "builtins": []
+      },
+      "src/ed25519.ts": {
+        "builtins": [
+          "node:crypto"
+        ]
+      },
+      "src/events.ts": {
+        "builtins": []
+      },
+      "src/fastcdc.ts": {
+        "builtins": []
+      },
+      "src/flows.ts": {
+        "builtins": []
+      },
+      "src/format-gates.ts": {
+        "builtins": [
+          "node:assert"
+        ]
+      },
+      "src/gates.ts": {
+        "builtins": [
+          "node:assert"
+        ]
+      },
+      "src/get-routes.ts": {
+        "builtins": []
+      },
+      "src/json-profile.ts": {
+        "builtins": []
+      },
+      "src/loader.ts": {
+        "builtins": [
+          "node:fs/promises",
+          "node:constants",
+          "node:url",
+          "node:path",
+          "node:crypto"
+        ],
+        "filesystemImports": [
+          "lstat",
+          "readdir",
+          "open"
+        ],
+        "constantImports": [
+          "O_RDONLY",
+          "O_NOFOLLOW"
+        ],
+        "openFlags": [
+          "O_RDONLY",
+          "O_NOFOLLOW"
+        ],
+        "handleMethods": [
+          "stat",
+          "readFile",
+          "close"
+        ]
+      },
+      "src/locations.ts": {
+        "builtins": []
+      },
+      "src/models.ts": {
+        "builtins": []
+      },
+      "src/paths.ts": {
+        "builtins": []
+      },
+      "src/primitives.ts": {
+        "builtins": [
+          "node:crypto"
+        ]
+      },
+      "src/profile.ts": {
+        "builtins": []
+      },
+      "src/provenance.ts": {
+        "builtins": [
+          "node:assert",
+          "node:crypto"
+        ]
+      },
+      "src/publication.ts": {
+        "builtins": [
+          "node:assert",
+          "node:path",
+          "node:url"
+        ]
+      },
+      "src/recipes.ts": {
+        "builtins": [
+          "node:crypto"
+        ]
+      },
+      "src/rpc.ts": {
+        "builtins": []
+      },
+      "src/state-contracts.ts": {
+        "builtins": []
+      },
+      "src/transport.ts": {
+        "builtins": []
+      },
+      "tooling/check.mjs": {
+        "builtins": []
+      },
+      "tooling/imports.mjs": {
+        "builtins": [
+          "node:path",
+          "node:url"
+        ]
+      },
+      "tooling/options.mjs": {
+        "builtins": [
+          "node:path",
+          "node:url"
+        ]
+      },
+      "tooling/output.mjs": {
+        "builtins": [
+          "node:fs/promises",
+          "node:constants",
+          "node:crypto",
+          "node:path",
+          "node:url"
+        ],
+        "filesystemImports": [
+          "mkdir",
+          "realpath",
+          "lstat",
+          "stat",
+          "open",
+          "rename",
+          "unlink"
+        ],
+        "constantImports": [
+          "O_CREAT",
+          "O_EXCL",
+          "O_WRONLY",
+          "O_NOFOLLOW"
+        ],
+        "openFlags": [
+          "O_CREAT",
+          "O_EXCL",
+          "O_WRONLY",
+          "O_NOFOLLOW"
+        ],
+        "handleMethods": [
+          "writeFile",
+          "sync",
+          "close"
+        ],
+        "mutableHandleName": "handle",
+        "cryptoImports": [
+          "randomBytes"
+        ]
+      },
+      "tooling/stage.mjs": {
+        "builtins": [
+          "node:crypto"
+        ]
+      },
+      "container/blake3.ts": {
+        "builtins": [
+          "node:assert"
+        ]
+      },
+      "container/run.mjs": {
+        "builtins": [],
+        "packages": [
+          "@noble/hashes/blake3"
+        ]
+      },
+      "src/counterexamples.ts": {
+        "builtins": [
+          "node:assert"
+        ]
+      }
+    },
+    "dependencyLicenses": {
+      "@noble/hashes": {
+        "license": "MIT",
+        "file": "LICENSE",
+        "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec"
+      }
+    },
+    "dependencyModules": {
+      "@noble/hashes": {
+        "esm/cryptoNode.js": [
+          "node:crypto"
+        ],
+        "cryptoNode.js": [
+          "node:crypto"
+        ]
+      }
+    }
+  },
+  "typeTools": {
+    "typescript": "5.9.3",
+    "@types/node": "22.20.5",
+    "undici-types": "6.21.0"
+  }
+}

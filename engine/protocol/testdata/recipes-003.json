@@ -1,0 +1,1 @@
+{"format":"byte-recipes-v1","recipes":[{"id":"bytes-000545","op":"literal","hex":"3a","byteLengthU64":"1","sha256Hex":"e7ac0786668e0ff0f02b62bd04f45ff636fd82db63b1104601c975dc005f3a67"},{"id":"bytes-000546","op":"repeat","source":"bytes-000545","countU64":"65537","byteLengthU64":"65537","sha256Hex":"3e8e7b7da03fc30c53d33a1d4760144bd17810764b598a37244ef73c630dd3a1"}]}

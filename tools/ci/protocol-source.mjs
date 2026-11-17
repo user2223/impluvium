@@ -89,7 +89,7 @@ export function verifySource(root, receipt, expectedSha, negativeCase = null) {
   // Exact output locations used by Cargo, pnpm and the protocol TS build.
   // A directory with the same name inside Rust sources is still an input.
   const outputs = new Set(['target', 'desktop/src-tauri/target', 'node_modules', 'engine/protocol/ts/node_modules',
-    'engine/protocol/ts/dist', 'torrential/src/proto']);
+    'engine/protocol/ts/dist', 'engine/protocol/conformance/reference/node_modules', 'torrential/src/proto']);
   const visit = (directory, prefix = '') => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const relative = prefix + entry.name;

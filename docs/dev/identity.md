@@ -109,6 +109,7 @@ Bindings that tie a value to the place in the code that uses it follow the code 
 | `npm.desktop_ui` | `impluvium-desktop-ui` |
 | `npm.ui_base` | `impluvium-ui-base` |
 | `npm.protocol` | `impluvium-protocol` |
+| `npm.protocol_reference` | `impluvium-protocol-reference` |
 
 ### Legacy values (read by importers only)
 

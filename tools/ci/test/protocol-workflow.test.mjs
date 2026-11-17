@@ -6,7 +6,7 @@ import { protocolSteps, protocolWorkflowIssues } from '../protocol-workflow.mjs'
 
 const source = () => yamlData(fileURLToPath(new URL('../../../.gitea/workflows/ci.yml', import.meta.url)));
 test('the real workflow satisfies all exact required execution blocks', () => {
-  assert.equal(protocolSteps.length, 24);
+  assert.equal(protocolSteps.length, 27);
   assert.deepEqual(protocolWorkflowIssues(source()), []);
 });
 const mutations = {
@@ -26,7 +26,10 @@ for (const [job, name] of protocolSteps) for (const [label, mutate] of Object.en
   test(`required ${job}/${name} rejects ${label}`, () => {
     const workflow = source(), steps = workflow.jobs[job].steps, index = steps.findIndex(step => step.name === name);
     mutate(steps, index, workflow, job);
-    assert.ok(protocolWorkflowIssues(workflow).length);
+    const issues = protocolWorkflowIssues(workflow);
+    const expected = ['removed', 'different job'].includes(label) ? `${job} needs exactly one required step: ${name}` :
+      label === 'reordered' ? `${job} required step out of order:` : `${job} required execution block differs: ${name}`;
+    assert.ok(issues.some(issue => issue.startsWith(expected)), expected);
   });
 }
 for (const job of ['checks', 'rust']) for (const field of ['if', 'continue-on-error', 'needs']) test(`${job} may not declare ${field}`, () => {
@@ -97,5 +100,41 @@ test('hashchunk Clippy cannot omit the protocol dependency from its ratchet sele
   const workflow = source(), step = workflow.jobs.rust.steps.find(step => step.name === 'Hash and chunk benchmark tool (tests and Clippy)');
   assert.ok(step.run.includes('--package impluvium-hashchunk-bench --package impluvium-protocol'));
   step.run = step.run.replace(' --package impluvium-protocol', '');
+  assert.ok(protocolWorkflowIssues(workflow).length);
+});
+
+for (const mutation of [
+  step => { delete step.if; },
+  step => { step.if = 'success()'; },
+  step => { step.with.path = step.with.path.replace('/work/results/reference/**', ''); },
+  step => { step.with.path += '\n!/work/results/reference/**'; },
+  step => { step['continue-on-error'] = true; },
+]) test(`reference evidence rejects ${mutation.toString()}`, () => {
+  const workflow = source();
+  mutation(workflow.jobs.checks.steps.find(step => step.name === 'Protocol schema and codegen evidence'));
+  assert.ok(protocolWorkflowIssues(workflow).length);
+});
+for (const name of ['Protocol TypeScript dependencies (root lock and directory filter)', 'Licence boundary (Rust and installed TypeScript graph)']) {
+  for (const value of ['test -f engine/protocol/ts/package.json', 'test -f engine/protocol/conformance/reference/package.json',
+    '--filter "{./engine/protocol/ts}..."', '--filter "{./engine/protocol/conformance/reference}..."', '--fail-if-no-match']) {
+    test(`${name} requires ${value}`, () => {
+      const workflow = source(), step = workflow.jobs.checks.steps.find(step => step.name === name);
+      assert.ok(step.run.includes(value));
+      step.run = step.run.replace(value, '');
+      assert.ok(protocolWorkflowIssues(workflow).length);
+    });
+  }
+}
+
+for (const [stepName, text] of [
+  ['Pins (images, actions, tools, locked Cargo commands, frozen installs, Node major, required jobs)', 'node tools/ci/reference-products.mjs --root .'],
+  ['Reference types and imports', '--out /work/results/reference/imports'],
+  ['Reference conformance', 'node tools/ci/reference-run.mjs container'],
+  ['Reference conformance', '--out /work/results/reference/vectors'],
+  ['Reference counterexamples', '--out /work/results/reference/counterexamples'],
+]) test(`reference invocation retains ${text}`, () => {
+  const workflow = source(), step = workflow.jobs.checks.steps.find(step => step.name === stepName);
+  assert.ok(step.run.includes(text));
+  step.run = step.run.replace(text, '');
   assert.ok(protocolWorkflowIssues(workflow).length);
 });

@@ -252,6 +252,113 @@ closed. npm installations under `node_modules` are external packages, while
 workspace links retain their repository boundary. The pnpm JSON license
 field alone is never used as evidence.
 
+## Independent reference integration
+
+The reference package at `engine/protocol/conformance/reference/` is a private,
+non-exported Node 24 tool under 0BSD. Its manifest, explicit workspace member,
+root-lock importer and CI installation are one contract. Both installation and
+licence-graph capture test each engine manifest separately and use both
+`{./engine/protocol/ts}...` and `{./engine/protocol/conformance/reference}...`
+with `--fail-if-no-match`. All installed dev/type packages remain in licence scope.
+The npm adapter discovers the package; no Cargo tool classification is added.
+
+`reference-boundary.mjs` checks package identity, exact dependencies, the sole
+root lock and installed links against the closed runtime/type-tool policy.
+`check-reference-imports.mjs` uses the pinned TypeScript AST and type resolver,
+plus explicit Node package-condition resolution, to inspect all own executable
+files and transitive runtime/declaration imports. It rejects unsupported
+module names, product paths, type-tool runtime imports and code-loading
+capabilities. The separately inventoried compiler/type graph includes all
+compiler inputs, installed edges and file hashes. Unknown resolution fails;
+this is a technical import boundary, not an authorship proof or a sandbox.
+
+The runtime policy lists each module's capabilities explicitly. Only
+`src/loader.ts` can import the asynchronous filesystem for reading and only
+`tooling/output.mjs` for output and path containment metadata. Imports must
+use the enumerated named operations, and raw filesystem capabilities may not
+escape through exports or aliases. An `open` call must create an owned handle
+with the exact named flags for that module, including `O_NOFOLLOW`.
+The reader uses constant handles. Only the writer may assign its explicitly
+named local handle from an awaited open, reset it to `undefined`, and test it
+in an `if` guard for cleanup. Its open flags require exclusive creation and
+exclude truncation; its only crypto import is `randomBytes` for temporary names.
+Reader handles may only read, inspect metadata and close; writer handles may
+only write, synchronize and close. Handles cannot escape their module.
+Runtime containment, documentation/data
+roots, every-component symlink rejection and installation-directory exclusion
+remain requirements of the checker implementation and its tests. Source-text
+self-check reads have a separate fixed file list, excluding package metadata.
+`test/reference-access.test.mjs` exercises project I/O in isolated copies,
+including hardlink preservation, symbolic-file replacement and a deterministic
+target-directory change immediately before the real rename operation. Other files
+receive no filesystem grant. The only external import in `container/run.mjs`
+is static `@noble/hashes/blake3`; dynamic imports and require fail everywhere
+in package code. Type/declaration extension substitution resolves a `.ts`
+reference to its `.d.ts` when appropriate, preserving missing-file and real
+symlink-target errors and examining every reached dependency declaration.
+
+The existing blocking licence gate additionally invokes the exact reference
+pin/notice check when that package is present. Noble's name, version and SPDX
+expression must match the reviewed `@noble/hashes` 1.8.0 MIT package, and its
+regular `LICENSE` file must match the recorded SHA-256. The unchanged MIT
+notice in `test/fixtures/noble-hashes-LICENSE` comes from that package; no
+library implementation is vendored. Manifest alternatives, missing, changed
+and symlinked notices are counterexamples. The generic SPDX traversal of both
+engine roots and all compiler/type edges remains in force.
+
+The names ratchet checks inherited product names, and image leak tests check
+`.env` exclusion. Neither is a check for caller-specific source vocabulary.
+`check-reference-publication.mjs --root DIR --policy FILE` supplies that
+separate source admission check. The nonempty literal-term policy must be
+supplied outside the public source tree; it is not part of the package or CI
+secrets. The caller runs this gate before accepting source for publication
+and keeps its policy and diagnostics separately. Visible source, filenames
+and decoded JSON strings are checked with no word-list-definition exception.
+Only the exact package installation directory is excluded; symlinks and
+unreadable text fail. The normal publication/privacy checks outside CI remain
+required. This generic scanner is not a proof of independent authorship.
+
+`reference-import-cases.mjs` tests direct and aliased type imports, reexports,
+import-type expressions, dynamic paths, literal dynamic product imports,
+escaped require, filesystem access, symlink targets and transitive package
+runtime/type exports. It first proves a positive baseline, then requires the
+specific boundary diagnostic for each mutation. An unchanged/comment-only
+control survives. Fixture modules are analyzed, never executed. The full AST
+probes run with the installed compiler in the disposable container. Standard
+module fixture tests cover manifests, lock/link drift, licence inclusion and
+the exact Source exception; they do not require installed compiler code.
+
+The workflow contract has 27 required execution blocks, including the three
+blocking steps `Reference types and imports`, `Reference conformance` and
+`Reference counterexamples`. It also binds the existing pinned `always()`
+artifact upload to `/work/results/reference/**`, with no excluding patterns.
+`reference-run.mjs` checks an independent Git-object source receipt before and
+after each invocation, requires an independent `--source-sha`, records its source SHA and logs, and rejects missing
+entry files and empty/skipped test runs. The launcher passes `--out` and vector selection to the checker command,
+consumes `--source-sha` itself, and validates JSON reports with actual case IDs.
+Pending calculations remain visible. The separate container entry executes
+the BLAKE3 checks. Import findings and incomplete coverage remain blocking. No conditional success path is installed for that
+intermediate state. The six existing job IDs and all prior gates remain.
+
+`reference-checks.md` lists import, workflow, product and report counterexamples
+with their expected diagnostics. Dependency-free import admission tests use
+Node's built-in syntax parser and the production resolver; the compiler AST
+extraction and installed declarations still require the pinned tool graph.
+Known forbidden targets appear as resolved paths in diagnostics. Unknown
+computed expressions fail without claiming a resolved target.
+
+The required pins block also invokes `reference-products.mjs`: final Docker context
+exclusions, Node manifests/lock aliases, direct product-source references and
+client resource/frontend roots keep validation inputs outside runtime products.
+This source check complements real image/client artifact checks.
+
+Expectation acceptance means that all value-bound confirmation evidence is
+complete; it is separate from whether each hash execution has run. Pending
+hash results remain pending. Counterexample reports require twelve executed
+baseline witnesses, fifteen detected harmful mutations and four surviving
+harmless controls, with matching operation traces, errors and summary counts.
+Container reports require completed hash execution and BLAKE3 evidence.
+
 ## Protocol evidence and tools
 
 `protocol-tools.mjs --root DIR --work DIR --kind codegen|windows` prepares
@@ -544,7 +651,8 @@ and checker reconstruct the Git tree, verify the commit object ID and compare
 all repository source bytes, even without `.git`. Missing, changed or extra
 source inputs fail. Extra-file discovery exempts only the exact root-relative
 output directories `target`, `desktop/src-tauri/target`, `node_modules`,
-`engine/protocol/ts/node_modules`, `engine/protocol/ts/dist`, and
+`engine/protocol/ts/node_modules`, `engine/protocol/ts/dist`,
+`engine/protocol/conformance/reference/node_modules`, and
 `torrential/src/proto`, plus the root Git administration entry. Every tracked
 file remains mandatory. These paths cover Cargo output, the filtered pnpm
 installation, the TS build and the inherited protocol build script. Identical

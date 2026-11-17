@@ -71,7 +71,9 @@ jobs:
       - name: HTTP route inventory
         run: node tools/ci/check-api-routes.mjs
       - name: Pins (images, actions, tools, locked Cargo commands, frozen installs, Node major, required jobs)
-        run: node tools/ci/check-pins.mjs --root .
+        run: |
+          node tools/ci/check-pins.mjs --root .
+          node tools/ci/reference-products.mjs --root .
       - name: Baseline of the base revision
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -199,7 +201,10 @@ jobs:
           corepack enable
           pnpm --version
           test -f engine/protocol/ts/package.json
-          pnpm install --frozen-lockfile --ignore-scripts --filter "{./engine/protocol/ts}..." --fail-if-no-match
+          test -f engine/protocol/conformance/reference/package.json
+          pnpm install --frozen-lockfile --ignore-scripts \
+            --filter "{./engine/protocol/ts}..." \
+            --filter "{./engine/protocol/conformance/reference}..." --fail-if-no-match
       - name: Verified local protocol generators
         run: |
           node tools/ci/protocol-tools.mjs --root . --work /work --kind codegen
@@ -247,10 +252,31 @@ jobs:
           pnpm -C engine/protocol/ts run typecheck
           pnpm -C engine/protocol/ts run build
           pnpm -C engine/protocol/ts run test
+      - name: Reference types and imports
+        run: |
+          mkdir -p /work/results/reference /work/scratch/reference
+          node tools/ci/export-protocol-source.mjs --repository . --commit "$GITHUB_SHA" --receipt /work/results/reference/source.json
+          pnpm -C engine/protocol/conformance/reference run typecheck -- --source-sha "$GITHUB_SHA"
+          pnpm -C engine/protocol/conformance/reference run imports -- --source-sha "$GITHUB_SHA" --out /work/results/reference/imports
+      - name: Reference conformance
+        run: |
+          pnpm -C engine/protocol/conformance/reference run corpus -- --source-sha "$GITHUB_SHA" --out /work/results/reference/corpus
+          pnpm -C engine/protocol/conformance/reference run coverage -- --source-sha "$GITHUB_SHA" --out /work/results/reference/coverage
+          pnpm -C engine/protocol/conformance/reference run primitives -- --source-sha "$GITHUB_SHA" --out /work/results/reference/primitives
+          node tools/ci/reference-run.mjs container --source-sha "$GITHUB_SHA" --out /work/results/reference/container
+          pnpm -C engine/protocol/conformance/reference run vectors -- --source-sha "$GITHUB_SHA" --out /work/results/reference/vectors
+          pnpm -C engine/protocol/conformance/reference run limits -- --source-sha "$GITHUB_SHA" --out /work/results/reference/limits
+      - name: Reference counterexamples
+        run: |
+          pnpm -C engine/protocol/conformance/reference run counterexamples -- --source-sha "$GITHUB_SHA" --out /work/results/reference/counterexamples
       - name: Licence boundary (Rust and installed TypeScript graph)
         run: |
           cargo metadata --locked --all-features --format-version=1 > "$RUNNER_TEMP/metadata.json"
-          pnpm --filter "{./engine/protocol/ts}..." list --depth Infinity --json > /work/results/pnpm-graph.json
+          test -f engine/protocol/ts/package.json
+          test -f engine/protocol/conformance/reference/package.json
+          pnpm --filter "{./engine/protocol/ts}..." \
+            --filter "{./engine/protocol/conformance/reference}..." \
+            list --depth Infinity --json --fail-if-no-match > /work/results/pnpm-graph.json
           node tools/ci/check-licence-boundary.mjs --root . --metadata "$RUNNER_TEMP/metadata.json" \
             --pnpm-graph /work/results/pnpm-graph.json --pnpm-lock pnpm-lock.yaml
       - name: Dependency licences, bans and sources (deny.toml)
@@ -269,6 +295,7 @@ jobs:
             /work/results/codegen-tests.txt
             /work/results/codegen-metadata.json
             /work/results/pnpm-graph.json
+            /work/results/reference/**
             /work/comparison/source.json
             ${{ runner.temp }}/protocol-drift-source.json
           retention-days: 7

@@ -48,14 +48,17 @@ Provenance of the files below engine/protocol/
   algorithm attribution and external dependencies in
   benchmarks/hashchunk/PROVENANCE.md. No additional third-party source is copied.
 
-- Test vectors, reference tooling and benchmark material that are added
-  later record their own provenance next to them.
+- The reference checker, synthetic protocol cases and integration configuration
+  are project work under 0BSD. Field-level numerical origins and calculation
+  status are recorded in testdata/ and conformance/reference/FORMAT.md.
+  Installed compiler, type and hash packages retain their own licenses and
+  are checked through the resolved dependency graph.
 
 Third-party material
 --------------------
 
-spec/manifest.md, section 9 (FastCDC chunking), contains the 256-entry gear
-table and two mask constants of the Rust crate fastcdc, version 5.0.0, module
+spec/manifest.md, section 9 (FastCDC chunking), and
+testdata/fastcdc-constants.json contain the 256-entry gear table and two mask constants of the Rust crate fastcdc, version 5.0.0, module
 v2020 (https://github.com/nlfiedler/fastcdc-rs, crate archive SHA-256
 0431c3132902a1bed6fe77dcfa5d03844e083f263b81288246a2d43dd7d4b2ad). The gear
 table values are the first 8 bytes of the MD5 digests of 64-byte strings
@@ -86,3 +89,45 @@ the following license:
   DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
   USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Additional numerical test data
+------------------------------
+
+The following material keeps its third-party terms; it is not relicensed as
+project-owned 0BSD work. testdata/foreign/SOURCES.json records the original
+source and excerpt digests. Corpus origin records identify each selected
+input and expected value. No third-party implementation source is copied.
+
+- testdata/unicode16.json contains numerical mappings derived from Unicode
+  16.0.0 UnicodeData.txt (SHA-256
+  ff58e5823bd095166564a006e47d111130813dcf8bf234ef79fa51a870edb48f)
+  and CaseFolding.txt (SHA-256
+  6f1f9c588eb4a5c718d9e8f93b782685e5c7fec872cf05e8e6878053599e09bb).
+  Source: https://www.unicode.org/Public/16.0.0/ucd/ . These derived data
+  retain Unicode License V3, reproduced in
+  testdata/foreign/UNICODE-LICENSE-V3.txt.
+
+- Selected HKDF-SHA-256 and pure Ed25519 numerical known answers in
+  testdata/primitives-000.json come from RFC 5869 Appendix A and RFC 8032
+  section 7.1: https://www.rfc-editor.org/rfc/rfc5869 and
+  https://www.rfc-editor.org/rfc/rfc8032 . RFC text and example code are
+  excluded. The publications' IETF Trust notices remain separate:
+  https://trustee.ietf.org/trust-legal-provisions/ . Each corpus origin
+  identifies its source digest and selected value.
+
+- Selected individual SHA-256/SHA-512 message/digest pairs in
+  testdata/primitives-000.json come from NIST CAVP Secure Hashing test files:
+  https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/secure-hashing .
+  Source digests and pair selectors identify the exact inputs. No complete
+  NIST test file is redistributed. The source copyright statement is
+  identified in SOURCES.json by SHA-256
+  fe9e90da227416b8690264d7a93a546a8e81487514134f636674fc475108c11d.
+  Source information was recorded on 2026-11-16; these numerical pairs
+  are separate from project-owned code.
+
+- Selected unkeyed 32-byte BLAKE3 answers in testdata/primitives-000.json
+  come from the upstream test_vectors/test_vectors.json data (source
+  SHA-256 dcb91ea8accc77e6d6e632af7cdc1a99a9f3ae78cf648da595c7d064db32f624):
+  https://github.com/BLAKE3-team/BLAKE3 . They retain CC0-1.0, reproduced
+  in testdata/foreign/BLAKE3-CC0.txt. The installed independent JavaScript
+  implementation @noble/hashes 1.8.0 is MIT and is not vendored here.

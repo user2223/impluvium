@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
+import { installedGraphs, referencePath } from './reference-boundary.mjs';
 import { cli, InputError, plainObject, problem, required, stringOption } from './common.mjs';
 import { engineManifests } from './engine-manifests.mjs';
 import { cargoMetadata } from './metadata.mjs';
@@ -34,9 +36,11 @@ export function cargoGraph(file, root) {
 export function check(options) {
   required(options, 'root', 'metadata', 'pnpm-graph', 'pnpm-lock');
   const root = path.resolve(options.root), cargo = cargoGraph(options.metadata, root), rules = policy(path.join(root, 'deny.toml'));
+  const npm = pnpmGraph(root, options['pnpm-graph'], options['pnpm-lock']);
+  if (existsSync(path.join(root, referencePath, 'package.json'))) installedGraphs(root);
   return [
     ...traverse(cargo, root, rules),
-    ...traverse(pnpmGraph(root, options['pnpm-graph'], options['pnpm-lock']), root, rules),
+    ...traverse(npm, root, rules),
   ];
 }
 
