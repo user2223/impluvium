@@ -28,4 +28,7 @@ pub mod proto;
 #[cfg(any(feature = "server", feature = "client"))]
 #[rustfmt::skip]
 #[path = "generated/connect/mod.rs"]
+mod connect_generated;
+
+#[cfg(any(feature = "server", feature = "client"))]
 pub mod connect;

@@ -103231,6 +103231,140 @@
         "raw_value",
         "std"
       ]
+    ],
+    [
+      138,
+      [
+        "http1",
+        "http2",
+        "tokio"
+      ]
+    ],
+    [
+      47,
+      [
+        "default",
+        "http1",
+        "http2",
+        "server",
+        "service",
+        "tokio"
+      ]
+    ],
+    [
+      48,
+      [
+        "default",
+        "http1",
+        "http2",
+        "server"
+      ]
+    ],
+    [
+      107,
+      [
+        "bytes",
+        "default",
+        "io-util",
+        "libc",
+        "macros",
+        "mio",
+        "net",
+        "rt",
+        "socket2",
+        "sync",
+        "time",
+        "tokio-macros"
+      ]
+    ],
+    [
+      111,
+      [
+        "buffer",
+        "futures-core",
+        "futures-util",
+        "make",
+        "pin-project-lite",
+        "sync_wrapper",
+        "tokio",
+        "tokio-util",
+        "tracing",
+        "util"
+      ]
+    ],
+    [
+      107,
+      [
+        "bytes",
+        "default",
+        "io-util",
+        "libc",
+        "macros",
+        "mio",
+        "net",
+        "rt",
+        "socket2",
+        "sync",
+        "time",
+        "tokio-macros",
+        "windows-sys"
+      ]
+    ],
+    [
+      124,
+      [
+        "Wdk",
+        "Wdk_Foundation",
+        "Wdk_Storage",
+        "Wdk_Storage_FileSystem",
+        "Wdk_System",
+        "Wdk_System_IO",
+        "Win32",
+        "Win32_Foundation",
+        "Win32_Networking",
+        "Win32_Networking_WinSock",
+        "Win32_Security",
+        "Win32_Storage",
+        "Win32_Storage_FileSystem",
+        "Win32_System",
+        "Win32_System_IO",
+        "Win32_System_Pipes",
+        "Win32_System_SystemServices",
+        "Win32_System_Threading",
+        "Win32_System_WindowsProgramming",
+        "default"
+      ]
+    ],
+    [
+      47,
+      [
+        "client",
+        "client-legacy",
+        "client-proxy",
+        "default",
+        "http1",
+        "http2",
+        "server",
+        "service",
+        "tokio"
+      ]
+    ],
+    [
+      111,
+      [
+        "buffer",
+        "futures-core",
+        "futures-util",
+        "make",
+        "pin-project-lite",
+        "retry",
+        "sync_wrapper",
+        "timeout",
+        "tokio",
+        "tokio-util",
+        "tracing",
+        "util"
+      ]
     ]
   ],
   "packageSets": [
@@ -104198,6 +104332,7 @@
       41,
       42,
       43,
+      44,
       45,
       49,
       50,
@@ -104213,6 +104348,7 @@
       64,
       65,
       67,
+      68,
       69,
       70,
       71,
@@ -104229,7 +104365,9 @@
       89,
       90,
       91,
+      92,
       93,
+      94,
       95,
       96,
       98,
@@ -104287,7 +104425,13 @@
       178,
       180,
       182,
-      184
+      184,
+      185,
+      188,
+      189,
+      190,
+      191,
+      192
     ],
     [
       0,
@@ -104325,6 +104469,7 @@
       41,
       42,
       43,
+      44,
       45,
       49,
       50,
@@ -104340,6 +104485,7 @@
       64,
       65,
       67,
+      68,
       69,
       70,
       71,
@@ -104356,7 +104502,9 @@
       89,
       90,
       91,
+      92,
       93,
+      94,
       95,
       96,
       98,
@@ -104415,7 +104563,13 @@
       179,
       180,
       182,
-      184
+      184,
+      185,
+      188,
+      189,
+      190,
+      191,
+      192
     ],
     [
       0,
@@ -104453,6 +104607,7 @@
       41,
       42,
       43,
+      44,
       45,
       49,
       50,
@@ -104467,6 +104622,7 @@
       62,
       65,
       67,
+      68,
       69,
       70,
       71,
@@ -104483,7 +104639,9 @@
       89,
       90,
       91,
+      92,
       93,
+      94,
       95,
       96,
       98,
@@ -104502,6 +104660,7 @@
       117,
       120,
       121,
+      123,
       125,
       126,
       127,
@@ -104541,7 +104700,14 @@
       178,
       180,
       182,
-      184
+      184,
+      185,
+      188,
+      189,
+      190,
+      192,
+      193,
+      194
     ],
     [
       0,
@@ -105007,7 +105173,10 @@
       180,
       185,
       186,
-      187
+      187,
+      188,
+      195,
+      196
     ],
     [
       0,
@@ -105166,7 +105335,10 @@
       180,
       185,
       186,
-      187
+      187,
+      188,
+      195,
+      196
     ],
     [
       0,
@@ -105324,7 +105496,10 @@
       180,
       185,
       186,
-      187
+      187,
+      188,
+      195,
+      196
     ]
   ]
 }

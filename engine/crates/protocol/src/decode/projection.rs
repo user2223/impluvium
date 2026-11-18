@@ -39,7 +39,7 @@ pub(super) fn preserve_enum(rule: &FieldRule) -> bool {
 }
 
 impl Projection {
-    pub(super) fn to_binary(&self) -> Vec<u8> {
+    pub(crate) fn to_binary(&self) -> Vec<u8> {
         let mut out = Vec::new();
         self.write(&mut out);
         out

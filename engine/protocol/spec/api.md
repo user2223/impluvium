@@ -176,6 +176,23 @@ Registry of this revision:
    used with other request fields, then expired); existence and access (item 8). The pairing and session methods
    follow [proofs.md §1.3](proofs.md#13-common-request-checks) and then their own orders there.
 
+### 5.1 Server decoding boundary
+
+The dispatch path binds each known method to its request schema and the wire-byte request limit in
+[limits.md §4](limits.md#4-rpc-bodies), before reading the body. There is no fallback schema or limit for an unknown
+method. Count received body bytes, including JSON whitespace, escapes and base64 expansion, before appending them
+to the bounded input buffer; neither chunked transfer nor `Content-Length` changes the allowance.
+
+At the profile step of item 9 (or [proofs.md §1.3](proofs.md#13-common-request-checks)), the complete raw body passes
+the method-specific encoding profile before general-purpose JSON conversion, binary decoding or any interceptor
+that decodes a typed message. A framework's automatic JSON-to-protobuf conversion cannot precede this check.
+Field and contextual validators then run in their chapter-defined order before the application handler can change
+state or persist data. Atomic rechecks required by proofs.md still run at the state-transition boundary.
+
+An oversized body rejected by the service is `resource_exhausted` with a Connect error body, as specified in item 7.
+The bodyless 413, 429 and 502 cases of [errors.md §6](errors.md#6-responses-without-a-valid-error-body) describe
+infrastructure failures a client must handle; they do not replace the service's own error format.
+
 ## 6. Services
 
 The request and response fields of the pairing and session methods are listed here; their processing order is in

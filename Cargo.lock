@@ -3135,6 +3135,7 @@ dependencies = [
 name = "impluvium-protocol"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "blake3",
  "buffa",
  "buffa-types",
@@ -3142,10 +3143,12 @@ dependencies = [
  "curve25519-dalek",
  "ed25519-dalek",
  "hex",
+ "http-body-util",
  "serde",
  "serde_json",
  "sha2 0.11.1",
  "subtle",
+ "tokio",
  "url",
 ]
 

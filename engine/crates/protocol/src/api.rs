@@ -34,6 +34,11 @@ pub fn precheck_fields(
     fields::validate(&project(kind, codec, bytes, limit)?)
 }
 
+#[cfg(feature = "server")]
+pub(crate) fn validate_request_fields(p: &Projection) -> Result<(), Diagnostic> {
+    fields::validate(p)
+}
+
 pub(crate) fn project(
     kind: MessageKind,
     codec: Codec,

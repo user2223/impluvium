@@ -1,7 +1,7 @@
 {
   "version": 1,
   "packages": {
-    "impluvium-protocol": { "tests": { "exact": 126 }, "docTests": { "exact": 3 } },
+    "impluvium-protocol": { "tests": { "exact": 143 }, "docTests": { "exact": 3 } },
     "impluvium-client": { "tests": { "exact": 43 }, "docTests": { "exact": 0 } }
   }
 }
