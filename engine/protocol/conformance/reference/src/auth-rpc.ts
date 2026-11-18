@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: 0BSD
-import { rawHttp } from './transport.ts';
+import { rawHttp, responseProtection } from './transport.ts';
 import { fromHex, digest } from './primitives.ts';
 import { ed25519PointProfile } from './ed25519.ts';
 import { scanBinary, reject, Rejection } from './profile.ts';
@@ -115,9 +115,9 @@ export function authRpcFlow(input: any, schema: Schema): any {
       }
       if (!outcome) {
         phase='response';
-        const response=rawHttp(fromHex(exchange.responseHex));
-        if (Number(response.start.split(' ')[1])!==200 || response.headers.get('content-type')?.[0].split(';')[0].trim()!==codec) reject('broken_error_body');
-        if (response.body.length>65536) reject('response_too_large');
+        const checked=responseProtection({...exchange,context:{...context,purpose:'rpc',successStatus:200,contentType:codec,successLimit:65536}},schema);
+        if('outcome'in checked){const result=checked.outcome;if(result.reason)reject(result.reason,result.field??'');outcome=result.error?{serverAccepted:true,responseError:result.error}:{serverAccepted:true,...result};results.push(outcome);continue;}
+        const response=checked.response;
         const model=read(response.body,name+'Response');
         genericFields(name+'Response',model,schema);
         if (name==='PollPairing') {

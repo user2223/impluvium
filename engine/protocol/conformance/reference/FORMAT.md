@@ -69,6 +69,8 @@ Library rebuild operations use a separate candidate. begin-rebuild starts it, pa
 
 observeBuild may be true for all build observations or an array naming selected observation members. Selecting observations does not change protocol state transitions. The staleness marker and allocation timing of a replacement candidate at an epoch boundary are not asserted by a case that omits those observations.
 
+Model convention for heartbeat labels: while a rebuild candidate has a position established by its first page, the heartbeat comparison uses that candidate position. Before the first page, and outside that rebuild, it uses the live applied position. This label convention does not alter the completion check against the highest heartbeat observed in the epoch.
+
 An event-open-model attempt with kind release carries a key and streamId. Only the currently owning streamId removes that entry. Successful opens assign the supplied streamId, or their zero-based attempt position when absent. observeGenerations selects the current key-to-stream observations. These identifiers are fixed synthetic observations, not host state.
 
 Model convention for release observations: owner is the most recently accepted keyed identifier while that entry remains registered, otherwise null. Releasing that selected entry clears the observation; it does not select an older identifier as a fallback. Ordinary opening observations retain their existing definition.

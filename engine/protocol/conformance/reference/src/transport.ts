@@ -72,10 +72,11 @@ export function errorBody(bytes: Uint8Array, schema: Schema): any | undefined {
     return { code: known.includes(model.code) ? model.code : 'unknown', reason };
   } catch (error) { if (error instanceof Rejection) return undefined; throw error; }
 }
-export function responseDecision(input: any, schema: Schema, unicode: UnicodeMaps, blake3?: (bytes:Uint8Array)=>Uint8Array): any {
+type ProtectedResponse = {outcome:any} | {response:ReturnType<typeof rawHttp>;context:any};
+export function responseProtection(input: any, schema: Schema): ProtectedResponse {
   let response: ReturnType<typeof rawHttp>;
   try { response = rawHttp(fromHex(input.responseHex)); }
-  catch(error) { if(!(error instanceof Rejection))throw error;return {reason:error.reason,field:error.field,keepCredentials:true}; }
+  catch(error) { if(!(error instanceof Rejection))throw error;return {outcome:{reason:error.reason,field:error.field,keepCredentials:true}}; }
   const status = Number(response.start.split(' ')[1]);
   const one = (name: string) => response.headers.get(name)?.[0];
   const context = { ...input.context }, success = status === context.successStatus;
@@ -85,20 +86,25 @@ export function responseDecision(input: any, schema: Schema, unicode: UnicodeMap
     if (context.purpose === 'descriptor') context.versionId = last;
     if (context.purpose === 'chunk') { context.chunkIdHex = last; context.range = request.headers.get('range')?.[0]; }
   }
-  if (status >= 300 && status < 400 && context.purpose !== 'chunk') return { reason: 'redirect_not_allowed', keepCredentials: true };
-  if (one('content-encoding') !== undefined && one('content-encoding')!.toLowerCase() !== 'identity') return { reason: 'unsupported_content_encoding', keepCredentials: true };
+  if (status >= 300 && status < 400 && context.purpose !== 'chunk') return {outcome:{ reason: 'redirect_not_allowed', keepCredentials: true }};
+  if (one('content-encoding') !== undefined && one('content-encoding')!.toLowerCase() !== 'identity') return {outcome:{ reason: 'unsupported_content_encoding', keepCredentials: true }};
   const type = one('content-type')?.split(';')[0].trim().toLowerCase();
   const expectedType = success ? context.contentType : 'application/json';
-  if (expectedType !== undefined && type !== expectedType) return { reason: fallback(status), keepCredentials: true };
-  if (context.deadlineExceeded || context.incompleteTransfer) return { decision: 'transport-failure', keepCredentials: true };
+  if (expectedType !== undefined && type !== expectedType) return {outcome:{ reason: fallback(status), keepCredentials: true }};
+  if (context.deadlineExceeded || context.incompleteTransfer) return {outcome:{ decision: 'transport-failure', keepCredentials: true }};
   const limit = success ? context.successLimit : 65536;
-  if (response.body.length > limit) return { reason: success ? 'response_too_large' : fallback(status), keepCredentials: true };
+  if (response.body.length > limit) return {outcome:{ reason: success ? 'response_too_large' : fallback(status), keepCredentials: true }};
   if (!success) {
     const error = errorBody(response.body, schema);
-    if (!error) return { reason: fallback(status), keepCredentials: true };
+    if (!error) return {outcome:{ reason: fallback(status), keepCredentials: true }};
     const cleanup = context.serverOrigin && context.verifiedConnection && context.purpose !== 'chunk' && error.code === 'unauthenticated' && [5, 6].includes(error.reason);
-    return { error, keepCredentials: !cleanup };
+    return {outcome:{ error, keepCredentials: !cleanup }};
   }
+  return {response,context};
+}
+export function responseDecision(input: any, schema: Schema, unicode: UnicodeMaps, blake3?: (bytes:Uint8Array)=>Uint8Array): any {
+  const checked=responseProtection(input,schema);if('outcome'in checked)return checked.outcome;
+  const {response,context}=checked;
   if (context.purpose === 'manifest' || context.purpose === 'descriptor') {
     const checked = verifyEnvelope(response.body, context.purpose, context.keys, schema);
     if (context.purpose === 'manifest') {

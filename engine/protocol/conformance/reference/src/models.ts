@@ -52,6 +52,8 @@ export function libraryModel(input: any): any {
   let epoch = input.epoch, applied = BigInt(input.appliedU64), rebuild = false;
   const entries = new Map<string, any>(), buffered: any[] = [], decisions: string[] = [];
   let candidate:Map<string,any>|undefined, candidateApplied=0n, stale=false;
+  let candidateSnapshotSet=false;
+  let heartbeatHead=0n;
   let modelEpoch=input.modelEpoch??epoch,candidateEpoch:string|null=null;
   for (const old of input.entries ?? []) entries.set(old.gameId, structuredClone(old));
   const merge = (entry: any, version: bigint, target=entries) => {
@@ -60,27 +62,29 @@ export function libraryModel(input: any): any {
   };
   for (const operation of input.operations) {
     if (operation.kind === 'connected') {
-      if (operation.epoch !== epoch) { epoch = operation.epoch; applied = 0n; candidate=new Map();candidateEpoch=epoch; candidateApplied=0n; buffered.length = 0; rebuild = true; decisions.push('new-epoch-rebuild'); }
+      if (operation.epoch !== epoch) { epoch = operation.epoch; applied = 0n; heartbeatHead=0n; candidate=new Map();candidateEpoch=epoch; candidateApplied=0n; candidateSnapshotSet=false; buffered.length = 0; rebuild = true; decisions.push('new-epoch-rebuild'); }
       continue;
     }
-    if(operation.kind==='begin-rebuild'){candidate=new Map();candidateEpoch=epoch;candidateApplied=0n;rebuild=true;decisions.push('rebuild-started');continue;}
-    if(operation.kind==='fail-rebuild'){candidate=undefined;candidateEpoch=null;buffered.length=0;stale=true;rebuild=true;decisions.push('rebuild-failed');continue;}
+    if(operation.kind==='begin-rebuild'){candidate=new Map();candidateEpoch=epoch;candidateApplied=0n;candidateSnapshotSet=false;rebuild=true;decisions.push('rebuild-started');continue;}
+    if(operation.kind==='fail-rebuild'){candidate=undefined;candidateEpoch=null;candidateSnapshotSet=false;buffered.length=0;stale=true;rebuild=true;decisions.push('rebuild-failed');continue;}
     if(operation.kind==='complete-rebuild'){
       if(!candidate)throw Error('missing_rebuild_candidate');
       let progress=true;while(progress){progress=false;for(let i=0;i<buffered.length;i++){const event=buffered[i];if(BigInt(event.seqU64)<=candidateApplied){buffered.splice(i--,1);continue;}if(BigInt(event.prevU64)<=candidateApplied){if(event.entry)merge(event.entry,BigInt(event.seqU64),candidate);candidateApplied=BigInt(event.seqU64);buffered.splice(i,1);progress=true;break;}}}
-      if(buffered.length){candidate=undefined;candidateEpoch=null;stale=true;rebuild=true;decisions.push('rebuild-gap');continue;}
-      entries.clear();for(const[key,value]of candidate)entries.set(key,value);applied=candidateApplied;modelEpoch=candidateEpoch;candidate=undefined;candidateEpoch=null;rebuild=false;stale=false;decisions.push('rebuild-replaced');continue;
+      if(buffered.length||candidateApplied<heartbeatHead){candidate=undefined;candidateEpoch=null;candidateSnapshotSet=false;stale=true;rebuild=true;decisions.push('rebuild-gap');continue;}
+      entries.clear();for(const[key,value]of candidate)entries.set(key,value);applied=candidateApplied;modelEpoch=candidateEpoch;candidate=undefined;candidateEpoch=null;candidateSnapshotSet=false;rebuild=false;stale=false;decisions.push('rebuild-replaced');continue;
     }
     if (operation.kind === 'page') {
-      if (operation.epoch !== epoch) { candidate=new Map();candidateEpoch=epoch;candidateApplied=0n;buffered.length=0;rebuild = true; decisions.push('snapshot-epoch-rebuild'); continue; }
-      if(rebuild&&!candidate){candidate=new Map();candidateEpoch=epoch;}
-      if (operation.first) {if(candidate)candidateApplied=BigInt(operation.snapshotU64);else applied = BigInt(operation.snapshotU64);}
+      if (operation.epoch !== epoch) { candidate=new Map();candidateEpoch=epoch;candidateApplied=0n;candidateSnapshotSet=false;buffered.length=0;rebuild = true; decisions.push('snapshot-epoch-rebuild'); continue; }
+      if(rebuild&&!candidate){candidate=new Map();candidateEpoch=epoch;candidateSnapshotSet=false;}
+      if (operation.first) {if(candidate){candidateApplied=BigInt(operation.snapshotU64);candidateSnapshotSet=true;}else applied = BigInt(operation.snapshotU64);}
       for (const entry of operation.entries) merge(entry, BigInt(entry.versionU64),candidate??entries);
       decisions.push('page-merged'); continue;
     }
     if(candidate&&operation.kind==='data'){buffered.push(operation);decisions.push('buffered-building');continue;}
     if (operation.kind === 'heartbeat') {
-      if (BigInt(operation.seqU64) > applied) { rebuild = true; decisions.push('heartbeat-rebuild'); } else decisions.push('heartbeat-current');
+      if(BigInt(operation.seqU64)>heartbeatHead)heartbeatHead=BigInt(operation.seqU64);
+      const comparison=candidate&&candidateSnapshotSet?candidateApplied:applied;
+      if (BigInt(operation.seqU64) > comparison) { rebuild = true; decisions.push('heartbeat-rebuild'); } else decisions.push('heartbeat-current');
       continue;
     }
     const seq = BigInt(operation.seqU64), previous = BigInt(operation.prevU64);
