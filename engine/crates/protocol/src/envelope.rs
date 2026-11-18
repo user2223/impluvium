@@ -123,6 +123,14 @@ pub enum Reason {
     dependency_not_found,
     dependency_cycle,
     ticket_set_too_large,
+    invalid_validity_window,
+    ticket_expired,
+    ticket_not_yet_valid,
+    ticket_key_retired,
+    wrong_audience,
+    unsorted_manifest_ids,
+    wrong_subject,
+    ticket_scope,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
