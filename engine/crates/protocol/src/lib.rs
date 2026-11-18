@@ -9,6 +9,7 @@ pub mod api;
 pub mod decode;
 pub mod descriptor;
 pub mod envelope;
+pub mod events;
 pub mod fastcdc;
 pub mod hash;
 pub mod ids;

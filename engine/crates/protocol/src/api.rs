@@ -11,7 +11,7 @@ use crate::{
 };
 
 pub mod errors;
-mod fields;
+pub(crate) mod fields;
 pub mod pagination;
 pub mod trust;
 

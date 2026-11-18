@@ -126,6 +126,9 @@ fn required(field: &str) -> bool {
             | "ProtocolVersion.major"
             | "ProtocolVersion.revision"
             | "ProtocolVersion.min_client_revision"
+            | "ServerEvent.epoch"
+            | "ServerEvent.time"
+            | "LibraryChanged.game_id"
     )
 }
 fn default(v: &Value) -> bool {
@@ -153,7 +156,7 @@ fn exact(field: &str) -> Option<(usize, Reason)> {
         "BeginSessionResponse.challenge" => (32, invalid_challenge_length),
         "CompleteSessionResponse.access_token" => (43, invalid_base64),
         "PollPairingResponse.content_public_key" => (32, invalid_trusted_key),
-        "ListLibraryResponse.epoch" => (16, invalid_length),
+        "ListLibraryResponse.epoch" | "ServerEvent.epoch" => (16, invalid_length),
         "VersionSummary.manifest_id"
         | "OpenDownloadResponse.manifest_ids"
         | "RefreshTicketResponse.manifest_ids" => (32, invalid_length),
@@ -244,7 +247,7 @@ fn syntax(v: &Value, field: &'static str) -> Result<(), Diagnostic> {
     reason.map_or(Ok(()), |r| Err(error(r, field)))
 }
 
-pub(super) fn validate(p: &Projection) -> Result<(), Diagnostic> {
+pub(crate) fn validate(p: &Projection) -> Result<(), Diagnostic> {
     use Reason::*;
     if p.message == MessageKind::KeyFingerprint {
         return Ok(());
