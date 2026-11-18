@@ -312,20 +312,33 @@ pub struct Context<'a> {
     pub windows: WindowsVariant,
 }
 
-/// descriptor.md §6, after structural checks. Entry lookup uses the verified
-/// manifest's sorted paths and never follows symlinks or consults a filesystem.
-pub fn validate_context(d: &Descriptor, c: &Context<'_>) -> Result<Vec<Diagnostic>, Diagnostic> {
+/// descriptor.md §6 checks 0a and 0b, after structural validation and before a
+/// manifest is available. Download responses use exactly these identity checks.
+pub fn validate_identity(
+    d: &Descriptor,
+    version_id: &str,
+    game_id: Option<&str>,
+) -> Result<(), Diagnostic> {
     use Reason::*;
     let m = &d.model;
-    if m.version_id != c.expected_version_id {
+    if m.version_id != version_id {
         return Err(error(
             descriptor_version_mismatch,
             "ReleaseDescriptor.version_id",
         ));
     }
-    if c.expected_game_id.is_some_and(|g| m.game_id != g) {
+    if game_id.is_some_and(|g| m.game_id != g) {
         return Err(error(descriptor_game_mismatch, "ReleaseDescriptor.game_id"));
     }
+    Ok(())
+}
+
+/// descriptor.md §6, after structural checks. Entry lookup uses the verified
+/// manifest's sorted paths and never follows symlinks or consults a filesystem.
+pub fn validate_context(d: &Descriptor, c: &Context<'_>) -> Result<Vec<Diagnostic>, Diagnostic> {
+    use Reason::*;
+    validate_identity(d, c.expected_version_id, c.expected_game_id)?;
+    let m = &d.model;
     if ids::manifest_id(c.manifest_payload).as_slice() != m.manifest_id {
         return Err(error(manifest_id_mismatch, "ReleaseDescriptor.manifest_id"));
     }

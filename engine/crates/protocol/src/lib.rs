@@ -5,6 +5,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod api;
 pub mod decode;
 pub mod descriptor;
 pub mod envelope;

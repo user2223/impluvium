@@ -193,7 +193,7 @@ pub fn validate(manifest: &Manifest, profile: Profile) -> Result<Vec<Diagnostic>
 }
 
 /// Check arithmetic before adding either semantic size sum.
-fn checked_size_add(sum: u64, size: u64) -> Result<u64, Diagnostic> {
+pub fn checked_size_add(sum: u64, size: u64) -> Result<u64, Diagnostic> {
     sum.checked_add(size)
         .ok_or(error(Reason::size_overflow, ""))
 }
