@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2024"
 license = "0BSD"
 publish = false
-description = "Shared impluvium client type facade"
+description = "Shared impluvium HTTP client and protected Connect transport"
 
 [features]
 default = []
@@ -20,3 +20,13 @@ rustls = { version = "=0.23.46", default-features = false, features = ["std", "t
 hyper-rustls = { version = "=0.27.10", default-features = false, features = ["http1", "http2", "tls12", "aws-lc-rs"] }
 hyper-util = { version = "=0.1.21", default-features = false, features = ["client-legacy", "http1", "http2", "tokio"] }
 rustls-platform-verifier = { version = "=0.7.1", default-features = false }
+http = { version = "=1.5.0", default-features = false, features = ["std"] }
+http-body-util = { version = "=0.1.5", default-features = false }
+http-body = { version = "=1.1.0", default-features = false }
+bytes = { version = "=1.12.1", default-features = false }
+# Hyper 1.12 exposes Error::is_parse_too_large only with its server feature.
+# No server, application framework or server transport is constructed here.
+hyper = { version = "=1.12.0", default-features = false, features = ["client", "http1", "http2", "server"] }
+tower-service = { version = "=0.3.3", default-features = false }
+serde_json = { version = "=1.0.154", default-features = false, features = ["std", "raw_value"] }
+tokio = { version = "=1.54.1", default-features = false, features = ["rt", "time", "net"] }

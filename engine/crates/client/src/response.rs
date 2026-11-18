@@ -261,6 +261,43 @@ pub struct BodyReader {
     failed: Option<Diagnostic>,
 }
 impl BodyReader {
+    /// The external Connect runtime consumes only these prechecked bytes.
+    /// In particular, the error wrapper and every ErrorInfo detail have passed
+    /// the protocol reader before Connect can run serde or a detail decoder.
+    pub(crate) fn finish_for_decoder(self) -> Result<Vec<u8>, Diagnostic> {
+        if let Some(d) = self.failed {
+            return Err(d);
+        }
+        if self.success {
+            let body = CheckedBody {
+                binding: self.binding,
+                bytes: self.bytes,
+            };
+            body.precheck_rpc()?;
+            Ok(body.bytes)
+        } else {
+            let checked =
+                decode::decode_error_body(&self.bytes).map_err(|_| broken_body(self.status))?;
+            if checked.code() == crate::error::Code::unknown {
+                // Connect's parser falls back to the HTTP status for unlisted
+                // codes. Only after the complete guard succeeds may a general
+                // JSON decoder normalize that code, retaining message/details.
+                // Raw values also preserve ignored extension values without
+                // imposing a floating-point range on their JSON numbers.
+                let mut value: std::collections::BTreeMap<
+                    String,
+                    Box<serde_json::value::RawValue>,
+                > = serde_json::from_slice(&self.bytes).map_err(|_| broken_body(self.status))?;
+                let code = serde_json::value::RawValue::from_string("\"unknown\"".into())
+                    .map_err(|_| broken_body(self.status))?;
+                value.insert("code".into(), code);
+                serde_json::to_vec(&value).map_err(|_| broken_body(self.status))
+            } else {
+                Ok(self.bytes)
+            }
+        }
+    }
+
     fn limit(&self) -> usize {
         if self.success {
             self.binding.limit
@@ -326,6 +363,20 @@ pub struct CheckedBody {
     bytes: Vec<u8>,
 }
 impl CheckedBody {
+    /// The generated Connect decoder must never see an unscanned success body.
+    /// Chapter-specific identity and signature checks remain separate operations.
+    pub fn precheck_rpc(&self) -> Result<(), Diagnostic> {
+        let Purpose::Rpc(method) = self.binding.purpose else {
+            return Err(local(Reason::broken_error_body));
+        };
+        api::precheck_fields(
+            response_kind(method),
+            self.binding.codec.expect("RPC codec bound before sending"),
+            &self.bytes,
+            decode::InputLimit::response(self.binding.limit),
+        )
+    }
+
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
     }

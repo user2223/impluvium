@@ -21,6 +21,19 @@ pub enum Codec {
     Json,
 }
 
+/// Check a bare API message's raw profile, limits, timestamps and field rules
+/// before a transport hands it to an external generated decoder. This does not
+/// establish request identity, a pairing pin, or signed-document authenticity;
+/// those checks still require the chapter-specific context.
+pub fn precheck_fields(
+    kind: MessageKind,
+    codec: Codec,
+    bytes: &[u8],
+    limit: InputLimit,
+) -> Result<(), Diagnostic> {
+    fields::validate(&project(kind, codec, bytes, limit)?)
+}
+
 pub(crate) fn project(
     kind: MessageKind,
     codec: Codec,

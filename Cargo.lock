@@ -3096,13 +3096,21 @@ dependencies = [
 name = "impluvium-client"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "connectrpc",
+ "http",
+ "http-body",
+ "http-body-util",
+ "hyper",
  "hyper-rustls",
  "hyper-util",
  "impluvium-protocol",
  "reqwest 0.13.5",
  "rustls",
  "rustls-platform-verifier",
+ "serde_json",
+ "tokio",
+ "tower-service",
 ]
 
 [[package]]
