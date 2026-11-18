@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 
 pub mod decode;
+pub mod descriptor;
 pub mod envelope;
 pub mod fastcdc;
 pub mod hash;

@@ -220,7 +220,7 @@ pub fn verify(
     decode_payload(authenticated.payload(), profile)
 }
 
-fn uuid(value: &str) -> bool {
+pub(crate) fn uuid(value: &str) -> bool {
     value.len() == 36
         && value != "00000000-0000-0000-0000-000000000000"
         && value.bytes().enumerate().all(|(i, c)| {
@@ -231,7 +231,7 @@ fn uuid(value: &str) -> bool {
             }
         })
 }
-fn feature_name(value: &str) -> bool {
+pub(crate) fn feature_name(value: &str) -> bool {
     let Some((segments, version)) = value.rsplit_once('.') else {
         return false;
     };

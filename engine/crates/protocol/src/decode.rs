@@ -131,7 +131,7 @@ pub fn decode_json<M: ProtectedMessage>(bytes: &[u8], limit: InputLimit) -> Resu
     decode_projection(&projection)
 }
 
-fn decode_projection<M: ProtectedMessage>(projection: &Projection) -> Result<M> {
+pub(crate) fn decode_projection<M: ProtectedMessage>(projection: &Projection) -> Result<M> {
     let bytes = projection.to_binary();
     decoder_profile()
         .decode_from_slice(&bytes)
