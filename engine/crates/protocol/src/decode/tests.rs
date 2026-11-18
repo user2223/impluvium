@@ -187,3 +187,46 @@ fn packed_element_limit_precedes_the_next_elements_content() {
         error(Reason::element_limit_exceeded, "Discovery.manifest_formats")
     );
 }
+
+#[test]
+fn error_details_complete_step_six_before_duplicate_info_and_binary_checks() {
+    let cases = [
+        (
+            r#"{"code":"unknown","details":[{"type":"impluvium.v2.ErrorInfo","value":""},{"type":"impluvium.v2.ErrorInfo","value":""},{"type":"x","value":"%"}]}"#,
+            Reason::invalid_base64,
+        ),
+        (
+            r#"{"code":"unknown","details":[{"type":"impluvium.v2.ErrorInfo","value":""},{"type":"impluvium.v2.ErrorInfo","value":""},{"type":"x"}]}"#,
+            Reason::missing_field,
+        ),
+        (
+            r#"{"code":"unknown","details":[{"type":"impluvium.v2.ErrorInfo","value":"/w"},{"type":"impluvium.v2.ErrorInfo","value":""}]}"#,
+            Reason::duplicate_field,
+        ),
+    ];
+    for (body, reason) in cases {
+        assert_eq!(
+            decode_error_body(body.as_bytes()).unwrap_err(),
+            error(reason, "")
+        );
+    }
+    let details = std::iter::once(
+        r#"{"type":"impluvium.v2.ErrorInfo","value":""},{"type":"impluvium.v2.ErrorInfo","value":""}"#,
+    )
+    .chain(std::iter::repeat_n(r#"{"type":"x","value":""}"#, 15))
+    .collect::<Vec<_>>()
+    .join(",");
+    let body = format!(r#"{{"code":"unknown","details":[{details}]}}"#);
+    assert_eq!(
+        decode_error_body(body.as_bytes()).unwrap_err(),
+        error(Reason::element_limit_exceeded, "")
+    );
+    let value = "A".repeat(10_924); // 8193 decoded bytes, beyond step 6's limit.
+    let body = format!(
+        r#"{{"code":"unknown","details":[{{"type":"impluvium.v2.ErrorInfo","value":""}},{{"type":"impluvium.v2.ErrorInfo","value":""}},{{"type":"x","value":"{value}"}}]}}"#
+    );
+    assert_eq!(
+        decode_error_body(body.as_bytes()).unwrap_err(),
+        error(Reason::byte_limit_exceeded, "")
+    );
+}

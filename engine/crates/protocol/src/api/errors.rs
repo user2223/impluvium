@@ -448,3 +448,38 @@ pub fn delete_credentials(
         _ => false,
     }
 }
+
+/// A Connect wrapper whose complete pre-check, including its optional binary
+/// ErrorInfo detail, succeeded. Only the protected reader constructs it.
+#[derive(Clone, Debug)]
+pub struct ErrorBody {
+    code: Code,
+    info: Option<crate::proto::impluvium::v2::ErrorInfo>,
+}
+impl ErrorBody {
+    pub(crate) fn checked(
+        code: String,
+        info: Option<crate::proto::impluvium::v2::ErrorInfo>,
+    ) -> Self {
+        Self {
+            code: Code::parse(&code),
+            info,
+        }
+    }
+    pub fn code(&self) -> Code {
+        self.code
+    }
+    pub fn info(&self) -> Option<&crate::proto::impluvium::v2::ErrorInfo> {
+        self.info.as_ref()
+    }
+    pub fn wire(&self) -> WireError {
+        WireError {
+            code: self.code,
+            reason: self
+                .info
+                .as_ref()
+                .and_then(|i| <ErrorReason as buffa::Enumeration>::from_i32(i.reason.to_i32()))
+                .filter(|r| *r != ErrorReason::Unspecified),
+        }
+    }
+}

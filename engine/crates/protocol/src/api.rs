@@ -402,3 +402,9 @@ enum_fields!(
         Chapter
     ),
 );
+
+/// Shared WHATWG parser for adapters; prevents a second URL implementation or
+/// a transport-stack-specific interpretation of credential destinations.
+pub mod url {
+    pub use ::url::{Host, Url};
+}

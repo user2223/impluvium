@@ -169,3 +169,15 @@ fn timestamp(seconds: i64, nanos: i32, field: &'static str) -> Result<()> {
 
 #[cfg(test)]
 mod tests;
+
+/// The non-schema Connect JSON wrapper has an independent bounded pre-check.
+/// No general-purpose JSON decoder is used for the wrapper.
+pub fn decode_error_body(bytes: &[u8]) -> Result<crate::api::errors::ErrorBody> {
+    json::connect::error_body(bytes)
+}
+
+/// JSON profile substage for non-schema wrappers and data-only corpus readers.
+/// All names, including ignored ones, participate in duplicate detection.
+pub fn scan_json_document(bytes: &[u8], limit: InputLimit) -> Result<()> {
+    json::connect::document(bytes, limit)
+}

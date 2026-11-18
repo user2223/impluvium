@@ -118,6 +118,7 @@ fn fingerprints_match(d: &Discovery, key: &[u8]) -> bool {
 #[derive(Debug)]
 pub struct CheckedConnection {
     connection: String,
+    instance_id: String,
     pin: Option<Pin>,
 }
 
@@ -155,6 +156,7 @@ pub fn check_discovery(
     check_capabilities(&d.required_client_capabilities, implemented)?;
     Ok(CheckedConnection {
         connection: connection.into(),
+        instance_id: d.instance_id.clone(),
         pin: pin.cloned(),
     })
 }
@@ -283,5 +285,13 @@ impl Connections {
             next.verified.clear();
         }
         (next, Err(diagnostic))
+    }
+}
+
+impl CheckedConnection {
+    /// Unpinned discovery evidence authorizes pairing only on its own physical
+    /// connection. It never authorizes a pinned context's token or cleanup.
+    pub fn pairing_instance(&self, connection: &str) -> Option<&str> {
+        (self.pin.is_none() && self.connection == connection).then_some(self.instance_id.as_str())
     }
 }
