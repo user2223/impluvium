@@ -148,8 +148,34 @@ export function testTranscript(log, stream) {
     else if (!seen.has(item.binary)) { seen.add(item.binary); headers.push(`Running test (${item.binary})`); }
   }
   const bodies = stream.tests.split(/(?=^running \d+ tests?\s*$)/m).filter(chunk => /^running /m.test(chunk));
-  if (!headers.length || headers.length !== bodies.length) fail('cannot pair test suite headers with bodies');
-  return headers.map((header, index) => header + '\n' + bodies[index]).join('\n');
+  // Rustdoc can emit separate ordinary and compile-fail blocks under one
+  // Cargo header. Its merged-doctest footer terminates that group. Require a
+  // unique complete assignment; extra unmarked blocks cannot invent a suite.
+  const footer = body => /^all doctests ran in .*; merged doctests compilation took .*$/m.test(body);
+  const memo = new Map();
+  const pair = (head, body) => {
+    const key = `${head}:${body}`;
+    if (memo.has(key)) return memo.get(key);
+    if (head === headers.length) return body === bodies.length ? [[]] : [];
+    if (body === bodies.length) return [];
+    const doc = /^\s*Doc-tests /.test(headers[head]);
+    const ends = doc || !footer(bodies[body]) ? [body + 1] : [];
+    if (doc && !footer(bodies[body])) {
+      for (let end = body + 1; end < bodies.length; end++) {
+        if (footer(bodies[end])) { ends.push(end + 1); break; }
+      }
+    }
+    const matches = [];
+    for (const end of ends) for (const rest of pair(head + 1, end)) {
+      matches.push([bodies.slice(body, end).join(''), ...rest]);
+      if (matches.length === 2) { memo.set(key, matches); return matches; }
+    }
+    memo.set(key, matches);
+    return matches;
+  };
+  const matches = headers.length ? pair(0, 0) : [];
+  if (matches.length !== 1) fail('cannot pair test suite headers with bodies unambiguously');
+  return headers.map((header, index) => header + '\n' + matches[0][index]).join('\n');
 }
 
 export function toolCalls(log, stdout, tools, metadata, root, target, executables = [], diagnostics) {

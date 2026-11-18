@@ -46,7 +46,8 @@ export function productDiagnostics(data, graph, metadata, invocation, artifacts)
     const pkg = packages.get(node.id);
     if (!pkg) fail(`unknown graph package ${node.id}`);
     if (forbidden.has(pkg.name)) add(`forbidden package ${pkg.name} reachable from engine root`, 'forbidden-package', { package: pkg.name });
-    if (data.versions[pkg.name] && data.versions[pkg.name] !== pkg.version) add(`runtime pin differs: ${pkg.name} ${pkg.version}`);
+    const versions = [data.versions[pkg.name], ...(data.additionalVersions?.[pkg.name] ?? [])];
+    if (data.versions[pkg.name] && !versions.includes(pkg.version)) add(`runtime pin differs: ${pkg.name} ${pkg.version}`);
     if (pkg.source == null && !path.relative(invocation.cwd, pkg.manifest_path).replaceAll(path.sep, '/').startsWith('engine/')) add(`repository dependency outside engine/: ${pkg.manifest_path}`);
     for (const feature of forbiddenFeatures[pkg.name] ?? []) if (node.features.includes(feature)) add(`forbidden feature ${pkg.name}/${feature}`, 'forbidden-feature', { package: pkg.name, feature });
     if (invocation.profile === 'core' && /^(?:connectrpc|reqwest|rustls|hyper|openssl|native-tls)/.test(pkg.name)) add(`HTTP/TLS package in core: ${pkg.name}`);

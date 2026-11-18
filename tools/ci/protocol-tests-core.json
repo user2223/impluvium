@@ -1,4 +1,4 @@
 {
   "version": 1,
-  "packages": { "impluvium-protocol": { "tests": { "exact": 2 }, "docTests": { "min": 0 } } }
+  "packages": { "impluvium-protocol": { "tests": { "exact": 16 }, "docTests": { "exact": 3 } } }
 }

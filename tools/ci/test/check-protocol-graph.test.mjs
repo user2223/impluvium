@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { check, checkDiagnostics, productIssues, legacyIssues } from '../check-protocol-graph.mjs';
 import { evidence } from './protocol-fixture.mjs';
 import { parsePackages, permissionCandidate, toolCalls, unusedTools } from '../protocol-evidence.mjs';
-import { linux, windows, selection } from '../protocol-contract.mjs';
+import { contract, linux, windows, selection } from '../protocol-contract.mjs';
 import { gitObject } from '../protocol-source.mjs';
 import { requireNegativeDiagnostic } from '../protocol-negative.mjs';
 
@@ -276,4 +276,47 @@ test('a forbidden system-library adapter reaches policy rejection without invent
   value.data.permissions = [permissionCandidate(value.graph, value.metadata, value.invocation)];
   writeFileSync(value.contractFile, JSON.stringify(value.data)); value.refresh();
   assert.match(check(value.options).join('\n'), /forbidden package openssl-sys/);
+});
+
+for (const version of ['0.10.9', '0.10.10']) {
+  test(`compatibility runtime pin checks the exact SHA-2 version ${version}`, t => {
+    const value = evidence(t), id = 'compatibility:sha2';
+    value.data.additionalVersions = { sha2: ['0.10.9'] };
+    value.metadata.packages.push({ id, name: 'sha2', version, source: 'registry', manifest_path: '/registry/sha2-compat/Cargo.toml' });
+    value.graph.nodes.push({ id, features: [] });
+    value.data.permissions = [permissionCandidate(value.graph, value.metadata, value.invocation)];
+    const issues = productIssues(value.data, value.graph, value.metadata, value.invocation);
+    assert.equal(issues.some(issue => issue.includes('runtime pin differs: sha2')), version !== '0.10.9');
+    if (version === '0.10.9') assert.deepEqual(issues, []);
+  });
+}
+
+test('a compatibility version cannot replace the required primary SHA-2 runtime', t => {
+  const value = evidence(t);
+  value.data.additionalVersions = { sha2: ['0.10.9'] };
+  value.metadata.packages.find(pkg => pkg.name === 'sha2').version = '0.10.9';
+  value.data.permissions = [permissionCandidate(value.graph, value.metadata, value.invocation)];
+  assert.ok(productIssues(value.data, value.graph, value.metadata, value.invocation)
+    .some(issue => issue.includes('required runtime package missing: sha2')));
+});
+
+for (const [name, versions] of [
+  ['duplicate', { sha2: ['0.10.9', '0.10.9'] }],
+  ['primary repeated', { sha2: ['0.11.1'] }],
+  ['range', { sha2: ['^0.10.9'] }],
+  ['unregistered primary', { unknown: ['1.2.3'] }],
+]) test(`contract rejects invalid compatibility versions: ${name}`, t => {
+  const value = evidence(t);
+  value.data.additionalVersions = versions;
+  writeFileSync(value.contractFile, JSON.stringify(value.data));
+  assert.throws(() => contract(value.contractFile), /invalid additional runtime versions/);
+});
+
+test('a compatibility version still requires its own reviewed package permission', t => {
+  const value = evidence(t), id = 'compatibility:sha2';
+  value.data.additionalVersions = { sha2: ['0.10.9'] };
+  value.metadata.packages.push({ id, name: 'sha2', version: '0.10.9', source: 'registry', manifest_path: '/registry/sha2-compat/Cargo.toml' });
+  value.graph.nodes.push({ id, features: [] });
+  assert.ok(productIssues(value.data, value.graph, value.metadata, value.invocation)
+    .some(issue => issue.includes('outside the reviewed permissions')));
 });

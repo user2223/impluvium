@@ -468,6 +468,11 @@ permission row, not a union with another row. Windows additionally needs the sha
 verified tool bytes and actual target/static-CRT evidence. Engine product
 roots never receive legacy exceptions.
 
+`versions` fixes each primary runtime version. `additionalVersions` permits
+exact compatibility versions alongside it: Ed25519 uses SHA-2 0.10.9 while the
+protocol hash primitives use SHA-2 0.11.1. The additional version does not
+replace the required primary version or grant package/feature permissions.
+
 `permission-candidate.json` is a capture result for review, not an automatic
 update. `protocol-graph.json.permissions` is populated only from reviewed captures; every missing or
 incomplete entry fails. Review each Linux build/test/Clippy selection and

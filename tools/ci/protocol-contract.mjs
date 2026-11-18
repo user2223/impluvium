@@ -33,6 +33,15 @@ export function externalOutput(root, destination) {
 }
 export function contract(file) {
   const data = expandContract(json(file));
+  // Compatibility versions supplement a primary runtime pin; they never
+  // satisfy the requirement that the primary version is present at runtime.
+  if (data.additionalVersions !== undefined && (!data.additionalVersions ||
+      typeof data.additionalVersions !== 'object' || Array.isArray(data.additionalVersions) ||
+      Object.entries(data.additionalVersions).some(([name, versions]) => !data.versions?.[name] ||
+        !Array.isArray(versions) || !versions.length || new Set(versions).size !== versions.length ||
+        versions.some(version => typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version) || version === data.versions[name])))) {
+    fail('invalid additional runtime versions');
+  }
   if (data.version !== 3 || data.representation !== 'package-features' || !equal(Object.keys(data.profiles ?? {}).sort(), ['client', 'combined', 'core', 'server']) ||
       !equal(Object.keys(data.targets ?? {}).sort(), [windows, linux].sort()) || !Array.isArray(data.permissions)) fail('incomplete profile/target contract');
   const expected = {

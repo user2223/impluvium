@@ -1,7 +1,13 @@
 // SPDX-FileCopyrightText: 2026 the impluvium contributors
 // SPDX-License-Identifier: 0BSD
 
-//! Wire types only. Protocol validation is added separately.
+//! Protocol wire types and bounded signature primitives.
+
+#![forbid(unsafe_code)]
+
+pub mod envelope;
+pub mod ids;
+pub mod keys;
 
 // Preserve the pinned generator's bytes; drift checking owns these trees.
 #[rustfmt::skip]

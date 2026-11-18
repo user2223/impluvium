@@ -136,3 +136,28 @@ test('only the actual base source can propose legacy exceptions', t => {
   assert.deepEqual(legacyCandidate({ root, source, sourceSha: baseSha, baseSha, paths, requirements: [] }), { baseSha, exceptions: paths, requirements: [] });
   assert.equal(legacyCandidate({ root, source, sourceSha: baseSha, baseSha: 'a'.repeat(40), paths }), null);
 });
+
+for (const ignored of [8, 24]) test(`merged doctests retain ${ignored} ignored examples and three compile-fail successes`, () => {
+  const block = (running, passed, ignored) => `running ${running} tests\ntest result: ok. ${passed} passed; 0 failed; ${ignored} ignored; 0 measured; 0 filtered out\n\n`;
+  const stream = { records: [], tests: block(0, 0, 0) + block(ignored, 0, ignored) + block(3, 3, 0) +
+    'all doctests ran in 0.25s; merged doctests compilation took 0.20s\n' };
+  const log = '   Doc-tests impluvium_client\n   Doc-tests impluvium_protocol\n';
+  const transcript = testTranscript(log, stream);
+  const owners = { tests: new Map(), docTests: new Map([
+    ['impluvium_client', new Set(['impluvium-client'])],
+    ['impluvium_protocol', new Set(['impluvium-protocol'])],
+  ]) };
+  const parsed = testCounts(transcript, 'tests.txt', owners);
+  assert.deepEqual(parsed.issues, []);
+  assert.deepEqual(parsed.packages.get('impluvium-client').counts, { tests: 0, docTests: 0 });
+  assert.deepEqual(parsed.packages.get('impluvium-protocol').counts, { tests: 0, docTests: 3 });
+  assert.throws(() => testTranscript(log, { ...stream, tests: stream.tests.replace(/^all doctests ran.*\n/m, '') }), /pair/);
+});
+
+test('a merged-doctest footer cannot absorb a missing ordinary test suite', () => {
+  const unit = '/results/target/debug/deps/impluvium_protocol-aaaaaaaa';
+  const stream = { records: [{ reason: 'compiler-artifact', executable: unit }],
+    tests: 'running 3 tests\ntest result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n' +
+      'all doctests ran in 0.25s; merged doctests compilation took 0.20s\n' };
+  assert.throws(() => testTranscript(`Running unittests src/lib.rs (${unit})\nDoc-tests impluvium_protocol\n`, stream), /pair/);
+});
