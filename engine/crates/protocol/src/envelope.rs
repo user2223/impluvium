@@ -26,6 +26,19 @@ pub const MAX_MANIFEST_PAYLOAD: usize = 536_870_912;
 pub enum Reason {
     malformed_wire,
     wrong_wire_type,
+    split_message,
+    oneof_conflict,
+    duplicate_map_key,
+    invalid_json,
+    duplicate_json_key,
+    json_type_mismatch,
+    nesting_too_deep,
+    invalid_number,
+    integer_out_of_range,
+    invalid_base64,
+    invalid_timestamp,
+    body_too_large,
+    response_too_large,
     invalid_utf8,
     duplicate_field,
     element_limit_exceeded,
@@ -328,6 +341,11 @@ pub fn authenticate<'bytes, 'trust, R: Role>(
     if bytes.len() > expected.max_envelope {
         return Err(error(envelope_too_large, ""));
     }
+    crate::decode::scan_binary(
+        crate::limits::MessageKind::Envelope,
+        bytes,
+        crate::decode::InputLimit::envelope(expected),
+    )?;
     let mut cursor = Cursor::new(bytes, false);
     let mut payload_type = &b""[..];
     let mut payload = &b""[..];
