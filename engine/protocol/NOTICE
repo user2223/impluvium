@@ -57,8 +57,9 @@ Provenance of the files below engine/protocol/
 Third-party material
 --------------------
 
-spec/manifest.md, section 9 (FastCDC chunking), and
-testdata/fastcdc-constants.json contain the 256-entry gear table and two mask constants of the Rust crate fastcdc, version 5.0.0, module
+spec/manifest.md, section 9 (FastCDC chunking),
+testdata/fastcdc-constants.json and ../crates/protocol/src/fastcdc.rs contain
+the 256-entry gear table and two mask constants of the Rust crate fastcdc, version 5.0.0, module
 v2020 (https://github.com/nlfiedler/fastcdc-rs, crate archive SHA-256
 0431c3132902a1bed6fe77dcfa5d03844e083f263b81288246a2d43dd7d4b2ad). The gear
 table values are the first 8 bytes of the MD5 digests of 64-byte strings
@@ -98,7 +99,8 @@ project-owned 0BSD work. testdata/foreign/SOURCES.json records the original
 source and excerpt digests. Corpus origin records identify each selected
 input and expected value. No third-party implementation source is copied.
 
-- testdata/unicode16.json contains numerical mappings derived from Unicode
+- testdata/unicode16.json and ../crates/protocol/src/path_unicode16.rs contain
+  numerical mappings derived from Unicode
   16.0.0 UnicodeData.txt (SHA-256
   ff58e5823bd095166564a006e47d111130813dcf8bf234ef79fa51a870edb48f)
   and CaseFolding.txt (SHA-256

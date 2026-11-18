@@ -7,9 +7,13 @@
 
 pub mod decode;
 pub mod envelope;
+pub mod fastcdc;
+pub mod hash;
 pub mod ids;
 pub mod keys;
 pub mod limits;
+pub mod manifest;
+pub mod path;
 
 // Preserve the pinned generator's bytes; drift checking owns these trees.
 #[rustfmt::skip]
