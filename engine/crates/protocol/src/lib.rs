@@ -15,6 +15,7 @@ pub mod keys;
 pub mod limits;
 pub mod manifest;
 pub mod path;
+pub mod proof;
 pub mod ticket;
 
 // Preserve the pinned generator's bytes; drift checking owns these trees.
