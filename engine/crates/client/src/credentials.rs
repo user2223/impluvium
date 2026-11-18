@@ -289,6 +289,9 @@ pub enum Identity<'a> {
     },
 }
 impl PairingContext {
+    pub fn base(&self) -> &BaseUrl {
+        &self.base
+    }
     pub fn new(base: BaseUrl) -> Self {
         Self {
             base,

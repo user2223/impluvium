@@ -31,7 +31,7 @@ use crate::{
     error::{Reason, local},
     response::{self, Binding, HeadDecision, Outcome},
     rpc::{Error, ProtectedTransport, Settings},
-    transport::{self, Method, Policy},
+    transport::{self, Method, Origin, Policy},
     trust::Tls,
 };
 
@@ -39,7 +39,7 @@ use crate::{
 pub struct Http {
     connector: HttpsConnector<HttpConnector>,
     user_agent: ::http::HeaderValue,
-    deadline: Duration,
+    pub(crate) deadline: Duration,
     http2_prior_knowledge: bool,
 }
 impl Http {
@@ -84,6 +84,49 @@ impl Http {
             codec,
             true,
         )
+    }
+
+    /// Open one physical connection, without sending an HTTP request. The
+    /// caller must complete public preflight before invoking this operation.
+    pub(crate) async fn open_physical(&self, uri: ::http::Uri) -> Result<Physical, Error> {
+        let mut connector = self.connector.clone();
+        std::future::poll_fn(|cx| connector.poll_ready(cx))
+            .await
+            .map_err(|error| Error::Transport(error.into()))?;
+        let io = connector
+            .call(uri.clone())
+            .await
+            .map_err(|error| Error::Transport(error.into()))?;
+        let http2 = io.connected().is_negotiated_h2()
+            || (uri.scheme_str() == Some("http") && self.http2_prior_knowledge);
+        let origin = Origin::of(&transport::request_url(&uri.to_string())?);
+        let (sender, task) = if http2 {
+            let mut builder = hyper::client::conn::http2::Builder::new(TokioExecutor::new());
+            // h2 rejects >= its configured maximum; the local inclusive
+            // 65536-byte check is independent of the advertised setting.
+            builder.max_header_list_size(response::HEAD_LIMIT as u32 + 1);
+            let (sender, connection) = builder.handshake(io).await.map_err(network_error)?;
+            let task = ConnectionTask(tokio::spawn(async move {
+                let _ = connection.await;
+            }));
+            (Sender::Http2(sender), task)
+        } else {
+            let mut builder = hyper::client::conn::http1::Builder::new();
+            builder
+                .max_header_size(response::HEAD_LIMIT)
+                .max_buf_size(response::HEAD_LIMIT + 1)
+                .max_headers(response::HEAD_LIMIT / 4);
+            let (sender, connection) = builder.handshake(io).await.map_err(network_error)?;
+            let task = ConnectionTask(tokio::spawn(async move {
+                let _ = connection.await;
+            }));
+            (Sender::Http1(sender), task)
+        };
+        Ok(Physical {
+            sender,
+            origin,
+            _task: task,
+        })
     }
 
     /// Credential-free GET ingress. Redirect targets pass fresh preflight.
@@ -144,86 +187,25 @@ impl Http {
         }
     }
 
-    async fn send(&self, mut request: Request<ClientBody>) -> Result<Response<ReqwestBody>, Error> {
+    async fn send(&self, request: Request<ClientBody>) -> Result<Response<ReqwestBody>, Error> {
         // This gate precedes DNS, connection establishment and request-body
         // polling. TrustState::Trusted is not physical-connection evidence.
         credential_free(&request)?;
         let expires = Instant::now() + self.deadline;
         tokio::time::timeout_at(expires, async {
-            let uri = request.uri().clone();
-            let mut connector = self.connector.clone();
-            std::future::poll_fn(|cx| connector.poll_ready(cx))
-                .await
-                .map_err(|error| Error::Transport(error.into()))?;
-            let io = connector
-                .call(uri.clone())
-                .await
-                .map_err(|error| Error::Transport(error.into()))?;
-            let http2 = io.connected().is_negotiated_h2()
-                || (uri.scheme_str() == Some("http") && self.http2_prior_knowledge);
-            request
-                .headers_mut()
-                .entry(header::USER_AGENT)
-                .or_insert(self.user_agent.clone());
-            request.headers_mut().insert(
-                header::ACCEPT_ENCODING,
-                ::http::HeaderValue::from_static("identity"),
-            );
-            let authority = uri.authority().ok_or(Error::UnsupportedRequest)?;
-            request.headers_mut().insert(
-                header::HOST,
-                authority
-                    .as_str()
-                    .parse::<::http::HeaderValue>()
-                    .map_err(Error::transport)?,
-            );
+            let mut physical = self.open_physical(request.uri().clone()).await?;
             let (parts, body) = request.into_parts();
             let bytes = http_body_util::Limited::new(body, 65_536)
                 .collect()
                 .await
                 .map_err(|_| Error::Rejected(local(Reason::body_too_large)))?
                 .to_bytes();
-            let mut request = Request::from_parts(parts, full_body(bytes));
-            let (incoming, task) = if http2 {
-                *request.version_mut() = ::http::Version::HTTP_2;
-                let mut builder = hyper::client::conn::http2::Builder::new(TokioExecutor::new());
-                // h2 0.4.20 rejects >= its configured maximum. The local
-                // inclusive 65536 check remains independent of that setting.
-                builder.max_header_list_size(response::HEAD_LIMIT as u32 + 1);
-                let (mut sender, connection) =
-                    builder.handshake(io).await.map_err(network_error)?;
-                let task = ConnectionTask(tokio::spawn(async move {
-                    let _ = connection.await;
-                }));
-                let incoming = sender.send_request(request).await.map_err(network_error)?;
-                (incoming, task)
-            } else {
-                *request.version_mut() = ::http::Version::HTTP_11;
-                *request.uri_mut() = uri
-                    .path_and_query()
-                    .map_or("/", |path| path.as_str())
-                    .parse()
-                    .map_err(Error::transport)?;
-                let mut builder = hyper::client::conn::http1::Builder::new();
-                builder
-                    .max_header_size(response::HEAD_LIMIT)
-                    .max_buf_size(response::HEAD_LIMIT + 1)
-                    .max_headers(response::HEAD_LIMIT / 4);
-                let (mut sender, connection) =
-                    builder.handshake(io).await.map_err(network_error)?;
-                let task = ConnectionTask(tokio::spawn(async move {
-                    let _ = connection.await;
-                }));
-                let incoming = sender.send_request(request).await.map_err(network_error)?;
-                (incoming, task)
-            };
-            response::check_head_size(crate::rpc::parsed_head_size(
-                incoming.version(),
-                incoming.headers(),
-            ))?;
+            let incoming = physical
+                .send(self, Request::from_parts(parts, full_body(bytes)))
+                .await?;
             Ok(incoming.map(|inner| ReqwestBody {
                 inner,
-                task: Some(task),
+                task: Some(physical._task),
                 timer: Box::pin(tokio::time::sleep_until(expires)),
                 finished: false,
             }))
@@ -275,6 +257,76 @@ pub(crate) fn credential_free(request: &Request<ClientBody>) -> Result<(), Error
         Err(Error::CredentialsRequireVerifiedConnection)
     } else {
         Ok(())
+    }
+}
+
+enum Sender {
+    Http1(hyper::client::conn::http1::SendRequest<ClientBody>),
+    Http2(hyper::client::conn::http2::SendRequest<ClientBody>),
+}
+
+/// This sender has no connector, pool, retry or replacement operation. Keeping
+/// its driver alive preserves exactly the TCP/TLS session that carried discovery.
+pub(crate) struct Physical {
+    sender: Sender,
+    origin: Origin,
+    _task: ConnectionTask,
+}
+impl Physical {
+    pub(crate) fn is_closed(&self) -> bool {
+        match &self.sender {
+            Sender::Http1(sender) => sender.is_closed(),
+            Sender::Http2(sender) => sender.is_closed(),
+        }
+    }
+
+    pub(crate) async fn send(
+        &mut self,
+        http: &Http,
+        mut request: Request<ClientBody>,
+    ) -> Result<Response<hyper::body::Incoming>, Error> {
+        let uri = request.uri().clone();
+        if Origin::of(&transport::request_url(&uri.to_string())?) != self.origin {
+            return Err(local(Reason::origin_not_allowed).into());
+        }
+        request
+            .headers_mut()
+            .entry(header::USER_AGENT)
+            .or_insert(http.user_agent.clone());
+        request.headers_mut().insert(
+            header::ACCEPT_ENCODING,
+            ::http::HeaderValue::from_static("identity"),
+        );
+        request.headers_mut().insert(
+            header::HOST,
+            uri.authority()
+                .ok_or(Error::UnsupportedRequest)?
+                .as_str()
+                .parse()
+                .map_err(Error::transport)?,
+        );
+        let incoming = match &mut self.sender {
+            Sender::Http1(sender) => {
+                sender.ready().await.map_err(network_error)?;
+                *request.version_mut() = ::http::Version::HTTP_11;
+                *request.uri_mut() = uri
+                    .path_and_query()
+                    .map_or("/", |p| p.as_str())
+                    .parse()
+                    .map_err(Error::transport)?;
+                sender.send_request(request).await.map_err(network_error)?
+            }
+            Sender::Http2(sender) => {
+                sender.ready().await.map_err(network_error)?;
+                *request.version_mut() = ::http::Version::HTTP_2;
+                sender.send_request(request).await.map_err(network_error)?
+            }
+        };
+        response::check_head_size(crate::rpc::parsed_head_size(
+            incoming.version(),
+            incoming.headers(),
+        ))?;
+        Ok(incoming)
     }
 }
 

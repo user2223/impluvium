@@ -25,8 +25,12 @@ http-body-util = { version = "=0.1.5", default-features = false }
 http-body = { version = "=1.1.0", default-features = false }
 bytes = { version = "=1.12.1", default-features = false }
 # Hyper 1.12 exposes Error::is_parse_too_large only with its server feature.
-# No server, application framework or server transport is constructed here.
+# Production code constructs no server or application framework. Loopback tests
+# use Hyper's connection-level server without an application server dependency.
 hyper = { version = "=1.12.0", default-features = false, features = ["client", "http1", "http2", "server"] }
 tower-service = { version = "=0.3.3", default-features = false }
 serde_json = { version = "=1.0.154", default-features = false, features = ["std", "raw_value"] }
 tokio = { version = "=1.54.1", default-features = false, features = ["rt", "time", "net"] }
+
+[dev-dependencies]
+rcgen = { version = "=0.13.2", default-features = false, features = ["crypto", "aws_lc_rs"] }

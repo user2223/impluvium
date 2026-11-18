@@ -71,26 +71,36 @@ pub enum Error {
     Rejected(Diagnostic),
     Transport(Arc<dyn StdError + Send + Sync>),
     UnsupportedRequest,
-    /// The network adapter cannot yet authorize credentials on a physical
-    /// connection. This local prerequisite is never a server wire reason.
+    /// This request has not passed credential release on a physical connection.
+    /// This local prerequisite is never a server wire reason.
     CredentialsRequireVerifiedConnection,
+    CredentialPurposeMismatch,
+    CredentialSource(Arc<dyn StdError + Send + Sync>),
+    Verification(impluvium_protocol::api::trust::VerificationError),
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Rejected(d) => write!(f, "response rejected: {:?} ({})", d.reason, d.field),
             Self::Transport(_) => f.write_str("HTTP transport failed"),
-            Self::UnsupportedRequest => f.write_str("expected an uncompressed Connect unary POST"),
+            Self::UnsupportedRequest => {
+                f.write_str("request shape is not supported by this adapter")
+            }
             Self::CredentialsRequireVerifiedConnection => {
                 f.write_str("credentials require authorization on the physical connection")
             }
+            Self::CredentialPurposeMismatch => {
+                f.write_str("credential does not match request purpose")
+            }
+            Self::CredentialSource(_) => f.write_str("credential source failed"),
+            Self::Verification(_) => f.write_str("connection verification evidence was rejected"),
         }
     }
 }
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
-            Self::Transport(error) => Some(error.as_ref()),
+            Self::Transport(error) | Self::CredentialSource(error) => Some(error.as_ref()),
             _ => None,
         }
     }
@@ -111,7 +121,11 @@ impl Error {
 pub fn diagnostic(error: &(dyn StdError + 'static)) -> Option<Diagnostic> {
     let mut current = Some(error);
     while let Some(error) = current {
-        if let Some(Error::Rejected(d)) = error.downcast_ref::<Error>() {
+        if let Some(
+            Error::Rejected(d)
+            | Error::Verification(impluvium_protocol::api::trust::VerificationError::Stopped(d)),
+        ) = error.downcast_ref::<Error>()
+        {
             return Some(*d);
         }
         current = error.source();

@@ -103,6 +103,15 @@ impl Binding {
     pub fn purpose(&self) -> Purpose {
         self.purpose
     }
+    pub(crate) fn rpc_content_type(&self) -> Option<&str> {
+        self.codec.map(|_| self.content_type.as_str())
+    }
+    pub(crate) fn range_header(&self) -> Option<String> {
+        self.chunk
+            .as_ref()?
+            .range
+            .map(|r| format!("bytes={}-{}", r.first, r.last))
+    }
     pub fn success_limit(&self) -> usize {
         self.limit
     }
