@@ -22,6 +22,7 @@ mod migrations;
 mod pool;
 mod repository;
 pub mod start_guard;
+mod version;
 
 pub use error::{ConnectFailure, DbError, MigrateFailure};
 pub use migrations::{MIGRATOR, migrate};
@@ -30,3 +31,7 @@ pub use repository::{
     ContentKeyBinding, Initialisation, InitialisationState, InstanceIdentity, TicketKeyGeneration,
 };
 pub use server_domain as domain;
+pub use version::{
+    NEWEST_TESTED_MAJOR, OLDEST_SUPPORTED_MAJOR, VersionVerdict, judge_server_version,
+    read_server_version_num,
+};

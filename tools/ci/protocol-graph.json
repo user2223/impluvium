@@ -100263,18 +100263,6 @@
       ],
       [
         "dependency",
-        "tokio",
-        "tokio",
-        "dev",
-        null,
-        false,
-        false,
-        [
-          "rt"
-        ]
-      ],
-      [
-        "dependency",
         "tower",
         "tower",
         "dev",
@@ -100295,35 +100283,6 @@
         false,
         [
           "std"
-        ]
-      ],
-      [
-        "dependency",
-        "tokio",
-        "tokio",
-        "normal",
-        null,
-        false,
-        false,
-        [
-          "rt",
-          "signal",
-          "sync",
-          "time"
-        ]
-      ],
-      [
-        "dependency",
-        "axum",
-        "axum",
-        "normal",
-        null,
-        false,
-        false,
-        [
-          "json",
-          "matched-path",
-          "query"
         ]
       ],
       [
@@ -100463,6 +100422,63 @@
           "rt",
           "sync",
           "time"
+        ]
+      ],
+      [
+        "dependency",
+        "tokio",
+        "tokio",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "net",
+          "rt",
+          "signal",
+          "sync",
+          "time"
+        ]
+      ],
+      [
+        "dependency",
+        "axum",
+        "axum",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "http1",
+          "json",
+          "matched-path",
+          "query",
+          "tokio"
+        ]
+      ],
+      [
+        "dependency",
+        "tokio",
+        "tokio",
+        "dev",
+        null,
+        false,
+        false,
+        [
+          "rt",
+          "sync"
+        ]
+      ],
+      [
+        "dependency",
+        "tokio",
+        "tokio",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "net"
         ]
       ]
     ],
@@ -101177,7 +101193,7 @@
       ],
       [
         "server/crates/server-api-types/Cargo.toml",
-        124
+        123
       ],
       [
         "server/crates/server-api-types/Cargo.toml",
@@ -101201,7 +101217,7 @@
       ],
       [
         "server/crates/server-bin/Cargo.toml",
-        136
+        133
       ],
       [
         "server/crates/server-bin/Cargo.toml",
@@ -101213,7 +101229,7 @@
       ],
       [
         "server/crates/server-bin/Cargo.toml",
-        125
+        135
       ],
       [
         "server/crates/server-bin/Cargo.toml",
@@ -101225,23 +101241,23 @@
       ],
       [
         "server/crates/server-db/Cargo.toml",
-        130
-      ],
-      [
-        "server/crates/server-db/Cargo.toml",
-        131
-      ],
-      [
-        "server/crates/server-db/Cargo.toml",
-        137
-      ],
-      [
-        "server/crates/server-http/Cargo.toml",
-        126
-      ],
-      [
-        "server/crates/server-http/Cargo.toml",
         127
+      ],
+      [
+        "server/crates/server-db/Cargo.toml",
+        128
+      ],
+      [
+        "server/crates/server-db/Cargo.toml",
+        134
+      ],
+      [
+        "server/crates/server-http/Cargo.toml",
+        136
+      ],
+      [
+        "server/crates/server-http/Cargo.toml",
+        124
       ],
       [
         "server/crates/server-http/Cargo.toml",
@@ -101249,11 +101265,11 @@
       ],
       [
         "server/crates/server-http/Cargo.toml",
-        128
+        125
       ],
       [
         "server/crates/server-http/Cargo.toml",
-        129
+        126
       ],
       [
         "server/crates/server-http/Cargo.toml",
@@ -101265,27 +101281,31 @@
       ],
       [
         "server/crates/server-http/Cargo.toml",
-        122
+        137
       ],
       [
         "server/crates/server-http/Cargo.toml",
-        123
+        138
+      ],
+      [
+        "server/crates/server-http/Cargo.toml",
+        122
+      ],
+      [
+        "tools/server-xtask/Cargo.toml",
+        129
+      ],
+      [
+        "tools/server-xtask/Cargo.toml",
+        130
+      ],
+      [
+        "tools/server-xtask/Cargo.toml",
+        131
       ],
       [
         "tools/server-xtask/Cargo.toml",
         132
-      ],
-      [
-        "tools/server-xtask/Cargo.toml",
-        133
-      ],
-      [
-        "tools/server-xtask/Cargo.toml",
-        134
-      ],
-      [
-        "tools/server-xtask/Cargo.toml",
-        135
       ],
       [
         "torrential/Cargo.toml",

@@ -26,6 +26,8 @@ Check a configuration with `impluvium-server config check`: the command validate
 | `IMPLUVIUM_BACKUP_MODE` | - | one of `auto`, `command`, `off` | no | `auto` | How the backup before pending migrations is made. |
 | `IMPLUVIUM_BACKUP_COMMAND` | - | JSON array of strings | no | none; required when the backup mode is `command` | Operator backup program and arguments, started without a shell. |
 | `IMPLUVIUM_BACKUP_TIMEOUT_SECS` | - | integer from 1 to 86400 | no | `3600` | Seconds after which a running backup is stopped and counted as failed. |
+| `IMPLUVIUM_LISTEN` | - | IP address and port | no | `127.0.0.1:8080` | Address and port the server listens on. A container needs an address other than loopback. |
+| `IMPLUVIUM_ACCEPT_NEW_DATABASE` | - | instance identifier | no | none | Instance identifier for which an empty database may be bound to the existing data directory. |
 
 ## Secrets
 

@@ -7,7 +7,7 @@
 //! they rejected.
 
 use std::fmt;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize, Serializer};
@@ -128,6 +128,9 @@ pub struct Config {
     #[serde(default, serialize_with = "redact_arguments")]
     pub backup_command: Vec<String>,
     pub backup_timeout_secs: u32,
+    pub listen_addr: SocketAddr,
+    /// A validated instance identifier.
+    pub accept_new_database: Option<String>,
 }
 
 /// Shows the program and one placeholder per argument: arguments may carry
@@ -177,6 +180,25 @@ pub fn parse(kind: Kind, raw: &str) -> Result<Value, String> {
         Kind::LogFilter => parse_log_filter(raw).map(Value::String),
         Kind::Choice(words) => parse_choice(raw, words).map(Value::String),
         Kind::Arguments => parse_arguments(raw).map(Value::from),
+        Kind::SocketAddress => parse_socket_address(raw).map(Value::String),
+        Kind::InstanceId => parse_instance_id(raw).map(Value::String),
+    }
+}
+
+fn parse_socket_address(raw: &str) -> Result<String, String> {
+    match raw.parse::<SocketAddr>() {
+        Ok(address) if address.port() != 0 => Ok(address.to_string()),
+        Ok(_) => fail("must use a port from 1 to 65535"),
+        Err(_) => fail("must be an IP address and a port, such as 127.0.0.1:8080 or [::1]:8080"),
+    }
+}
+
+fn parse_instance_id(raw: &str) -> Result<String, String> {
+    match server_db::instance::InstanceId::parse(raw) {
+        Some(_) => Ok(raw.to_owned()),
+        None => fail(
+            "must be an instance identifier: a lowercase UUID, as written in the data directory marker file",
+        ),
     }
 }
 

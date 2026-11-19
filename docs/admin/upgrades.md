@@ -17,8 +17,8 @@ backup set; they stay as they are.
 
 ## What happens during an upgrade
 
-`impluvium-server` does not start an instance yet. Once it does, the behaviour below applies: when the server
-starts and finds pending migrations, it makes a backup first, according to `IMPLUVIUM_BACKUP_MODE`:
+When `impluvium-server start` finds pending migrations (see [Starting the server](start.md)), it makes a backup
+first, according to `IMPLUVIUM_BACKUP_MODE`:
 
 - `auto`: the server writes a pre-migration set (`pre-<from>-<to>-<time>`) with `pg_dump`. The three newest
   pre-migration sets are kept.

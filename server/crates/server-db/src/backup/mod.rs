@@ -313,6 +313,7 @@ async fn read_facts(context: &BackupContext<'_>) -> Result<ServerFacts, BackupEr
     let limit = context.timeout.min(PROBE_LIMIT);
     let options = PoolOptions {
         max_connections: 1,
+        min_connections: 0,
         acquire_timeout: limit,
         statement_timeout: limit,
         application_name: "impluvium-backup".to_owned(),

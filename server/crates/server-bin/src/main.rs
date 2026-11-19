@@ -1,17 +1,24 @@
 // SPDX-FileCopyrightText: 2026 the impluvium contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Executable composition; startup stays unavailable until its guards exist.
+//! Executable composition: the commands and the guarded start of the server.
 
 mod backup;
 mod config;
+mod data_dir;
+mod instance_keys;
 mod logging;
+mod readiness;
 mod routes;
+#[cfg(test)]
+mod scratch;
 mod shutdown;
+mod spa;
+mod start;
 
 use std::process::ExitCode;
 
-// Not yet reachable from the startup path; the module is exercised by its tests.
+// The strict and the lenient key file functions; the start path uses only part of them.
 #[allow(dead_code)]
 mod keys;
 
@@ -22,13 +29,16 @@ fn main() -> ExitCode {
         .collect();
     let words: Vec<&str> = arguments.iter().map(String::as_str).collect();
     match words.as_slice() {
+        ["start"] => start::run(),
         ["backup"] => backup::run(),
         ["config", "check"] => config::run_check(),
         ["config", "reference"] => config::run_reference(),
         ["routes", "--json"] => routes::run_json(),
         _ => {
-            eprintln!("impluvium-server: startup is not available yet");
-            eprintln!("available commands: backup, config check, config reference, routes --json");
+            eprintln!("impluvium-server: unknown command");
+            eprintln!(
+                "usage: impluvium-server start | backup | config check | config reference | routes --json"
+            );
             ExitCode::FAILURE
         }
     }

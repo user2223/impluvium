@@ -90,6 +90,11 @@ impl Source {
             "IMPLUVIUM_BACKUP_TIMEOUT_SECS",
             env::var("IMPLUVIUM_BACKUP_TIMEOUT_SECS"),
         );
+        s.record("IMPLUVIUM_LISTEN", env::var("IMPLUVIUM_LISTEN"));
+        s.record(
+            "IMPLUVIUM_ACCEPT_NEW_DATABASE",
+            env::var("IMPLUVIUM_ACCEPT_NEW_DATABASE"),
+        );
         s
     }
 

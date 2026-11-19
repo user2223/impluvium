@@ -200,6 +200,8 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `IMPLUVIUM_BACKUP_MODE` | runtime | server | active | read | no | no | keep: Not planned. | How the backup before pending migrations is made: auto, command or off. |
 | `IMPLUVIUM_BACKUP_COMMAND` | runtime | server | active | read | no | no | keep: Not planned. | JSON array with the operator backup program and its arguments, started without a shell. |
 | `IMPLUVIUM_BACKUP_TIMEOUT_SECS` | runtime | server | active | read | no | no | keep: Not planned. | Seconds after which a running backup is stopped and counted as failed. |
+| `IMPLUVIUM_LISTEN` | runtime | server | active | read | no | no | keep: Not planned. | IP address and port the server listens on. The default is 127.0.0.1:8080. |
+| `IMPLUVIUM_ACCEPT_NEW_DATABASE` | runtime | server | active | read | no | no | keep: Not planned. | Instance identifier for which an empty database may be bound to the existing data directory. |
 | `PGHOST` | runtime | server | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | libpq server host or socket directory. The backup refuses to run when it is set and the database URL has no host, because the server would use it and pg_dump would not. |
 | `PGHOSTADDR` | runtime | server | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | libpq server address. Treated like PGHOST by the backup check. |
 | `PGPORT` | runtime | server | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | libpq server port. The backup refuses to run when it is set and the database URL has no port. |

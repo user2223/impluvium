@@ -29,7 +29,7 @@ mod secret;
 
 pub(crate) use env::Source;
 use fields::{FIELDS, Fallback, Field, Presence};
-use model::{BackupMode, Config, Scheme};
+pub(crate) use model::{BackupMode, Cidr, Config, ExternalUrl, LogFormat, Scheme};
 
 /// One problem with one variable.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -286,6 +286,8 @@ mod tests {
         assert_eq!(config.backup_mode, BackupMode::Auto);
         assert_eq!(config.backup_timeout_secs, 3600);
         assert!(config.backup_command.is_empty());
+        assert_eq!(config.listen_addr.to_string(), "127.0.0.1:8080");
+        assert!(config.accept_new_database.is_none());
         assert!(check_report(&source(&[], &[])).is_ok());
     }
 
@@ -306,6 +308,11 @@ mod tests {
                 r#"["/usr/local/bin/backup", "--quiet"]"#,
             ),
             ("IMPLUVIUM_BACKUP_TIMEOUT_SECS", "7200"),
+            ("IMPLUVIUM_LISTEN", "[::1]:9000"),
+            (
+                "IMPLUVIUM_ACCEPT_NEW_DATABASE",
+                "0190a1b2-c3d4-4e5f-8a9b-0c1d2e3f4a5b",
+            ),
         ];
         let config = load(&source(&[], &extra)).unwrap();
         assert_eq!(
@@ -316,6 +323,27 @@ mod tests {
         assert_eq!((config.db_pool_max, config.db_pool_min), (20, 2));
         assert_eq!(config.backup_command, ["/usr/local/bin/backup", "--quiet"]);
         assert_eq!(config.backup_timeout_secs, 7200);
+        assert_eq!(config.listen_addr.to_string(), "[::1]:9000");
+        assert_eq!(
+            config.accept_new_database.as_deref(),
+            Some("0190a1b2-c3d4-4e5f-8a9b-0c1d2e3f4a5b")
+        );
+    }
+
+    #[test]
+    fn listen_address_and_instance_identifier_are_checked() {
+        for pair in [
+            ("IMPLUVIUM_LISTEN", "8080"),
+            ("IMPLUVIUM_LISTEN", "localhost:8080"),
+            ("IMPLUVIUM_LISTEN", "127.0.0.1:0"),
+            ("IMPLUVIUM_ACCEPT_NEW_DATABASE", "not-an-identifier"),
+            (
+                "IMPLUVIUM_ACCEPT_NEW_DATABASE",
+                "0190A1B2-C3D4-4E5F-8A9B-0C1D2E3F4A5B",
+            ),
+        ] {
+            assert_eq!(names(&failing(&source(&[], &[pair]))), [pair.0]);
+        }
     }
 
     #[test]

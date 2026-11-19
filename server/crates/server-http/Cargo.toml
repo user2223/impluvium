@@ -12,12 +12,14 @@ description = "HTTP boundary and web adapters for the impluvium server"
 [dependencies]
 server-api-types = { path = "../server-api-types", version = "=0.1.0" }
 server-domain = { path = "../server-domain", version = "=0.1.0" }
-axum = { version = "=0.8.9", default-features = false, features = ["json", "query", "matched-path"] }
+axum = { version = "=0.8.9", default-features = false, features = ["json", "query", "matched-path", "tokio", "http1"] }
+# The listener type of the serving function; the runtime itself is started by the executable.
+tokio = { version = "=1.54.1", default-features = false, features = ["net"] }
 serde = { version = "=1.0.229", default-features = false, features = ["std"] }
 serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 tower = { version = "=0.5.3", default-features = false, features = ["util"] }
-tokio = { version = "=1.54.1", default-features = false, features = ["rt"] }
+tokio = { version = "=1.54.1", default-features = false, features = ["rt", "sync"] }
 http-body = { version = "=1.1.0", default-features = false }
 serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }

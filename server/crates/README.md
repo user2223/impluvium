@@ -13,10 +13,9 @@ Select its packages explicitly; the workspace default members stay unchanged.
 - `server-bin`: the `impluvium-server` executable, depending on the HTTP layer, the database layer and the domain,
   and on the protocol core of the engine for key derivation.
 
-The entry modules establish the dependency graph. They do not yet serve HTTP,
-connect to a database or implement application contracts; `server-db` provides the pool
-and the first migration, which nothing calls yet. The executable exits
-unsuccessfully until guarded startup is implemented. Two commands exist already:
+`impluvium-server start` runs the guarded start described in `docs/admin/start.md`: the web application and data
+directory checks, the PostgreSQL version check, the database start guard, the pool, and the listener with the
+health probes. Application routes do not exist yet. Further commands:
 `impluvium-server config check` validates the environment without opening a
 listener or a database connection, and `impluvium-server config reference`
 prints the page `docs/admin/configuration.md`, which a test keeps in step with

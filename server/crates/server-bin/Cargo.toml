@@ -21,7 +21,7 @@ serde_json = { version = "=1.0.154", default-features = false, features = ["std"
 server-domain = { path = "../server-domain", version = "=0.1.0" }
 impluvium-protocol = { path = "../../../engine/crates/protocol", version = "=0.1.0", default-features = false }
 zeroize = { version = "=1.9.1", default-features = false, features = ["alloc"] }
-tokio = { version = "=1.54.1", default-features = false, features = ["rt", "signal", "time", "sync"] }
+tokio = { version = "=1.54.1", default-features = false, features = ["rt", "net", "signal", "time", "sync"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "=0.2.191"

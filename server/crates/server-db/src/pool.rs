@@ -47,6 +47,8 @@ impl fmt::Display for DatabaseUrl {
 pub struct PoolOptions {
     /// Largest number of open connections. At least one.
     pub max_connections: u32,
+    /// Number of connections kept open. At most `max_connections`; zero keeps none.
+    pub min_connections: u32,
     /// How long a caller waits for a free connection.
     pub acquire_timeout: Duration,
     /// Longest running time of one statement, applied to every connection.
@@ -60,6 +62,7 @@ impl Default for PoolOptions {
     fn default() -> Self {
         Self {
             max_connections: 10,
+            min_connections: 0,
             acquire_timeout: Duration::from_secs(5),
             statement_timeout: Duration::from_secs(30),
             application_name: "impluvium-server".to_owned(),
@@ -71,6 +74,9 @@ impl PoolOptions {
     fn validate(&self) -> Result<(), DbError> {
         if self.max_connections == 0 {
             return Err(DbError::InvalidOption("max_connections"));
+        }
+        if self.min_connections > self.max_connections {
+            return Err(DbError::InvalidOption("min_connections"));
         }
         if self.acquire_timeout.is_zero() {
             return Err(DbError::InvalidOption("acquire_timeout"));
@@ -115,6 +121,7 @@ impl Database {
             )]);
         let pool = PgPoolOptions::new()
             .max_connections(options.max_connections)
+            .min_connections(options.min_connections)
             .acquire_timeout(options.acquire_timeout)
             .connect_with(connect)
             .await
@@ -131,6 +138,10 @@ impl Database {
     }
 
     /// Applies the embedded migrations that are not applied yet.
+    ///
+    /// The server does not call this: the start guard migrates under its lock, after the backup.
+    /// It exists for tests and tools.
+    #[doc(hidden)]
     pub async fn migrate(&self) -> Result<(), DbError> {
         crate::migrate(&self.pool).await
     }
@@ -174,6 +185,7 @@ mod tests {
         };
         assert!(PoolOptions::default().validate().is_ok());
         assert_eq!(bad(|o| o.max_connections = 0), "max_connections");
+        assert_eq!(bad(|o| o.min_connections = 11), "min_connections");
         assert_eq!(
             bad(|o| o.acquire_timeout = Duration::ZERO),
             "acquire_timeout"

@@ -27,6 +27,10 @@ pub enum Kind {
     Choice(&'static [&'static str]),
     /// A JSON array of strings.
     Arguments,
+    /// An IP address and a port.
+    SocketAddress,
+    /// The identifier of a server instance.
+    InstanceId,
 }
 
 impl Kind {
@@ -48,6 +52,8 @@ impl Kind {
                 format!("one of {}", quoted.join(", "))
             }
             Self::Arguments => "JSON array of strings".to_owned(),
+            Self::SocketAddress => "IP address and port".to_owned(),
+            Self::InstanceId => "instance identifier".to_owned(),
         }
     }
 }
@@ -233,5 +239,23 @@ pub const FIELDS: &[Field] = &[
         presence: Presence::Optional,
         fallback: Fallback::Value("3600"),
         summary: "Seconds after which a running backup is stopped and counted as failed.",
+    },
+    Field {
+        key: "listen_addr",
+        variable: "IMPLUVIUM_LISTEN",
+        file_variable: None,
+        kind: Kind::SocketAddress,
+        presence: Presence::Optional,
+        fallback: Fallback::Value("127.0.0.1:8080"),
+        summary: "Address and port the server listens on. A container needs an address other than loopback.",
+    },
+    Field {
+        key: "accept_new_database",
+        variable: "IMPLUVIUM_ACCEPT_NEW_DATABASE",
+        file_variable: None,
+        kind: Kind::InstanceId,
+        presence: Presence::Optional,
+        fallback: Fallback::None,
+        summary: "Instance identifier for which an empty database may be bound to the existing data directory.",
     },
 ];

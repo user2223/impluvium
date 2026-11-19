@@ -48,6 +48,8 @@ pub enum Context {
 pub enum KeyFileError {
     /// The file does not exist (and the context does not allow creating it).
     Missing,
+    /// Strict creation found a file at the path, possibly written by a concurrent creator.
+    AlreadyExists,
     /// The path is a symbolic link; links are never followed.
     Symlink,
     /// The path exists but is not a regular file.
@@ -77,6 +79,7 @@ impl fmt::Display for KeyFileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Missing => f.write_str("instance key file is missing"),
+            Self::AlreadyExists => f.write_str("instance key file exists already"),
             Self::Symlink => f.write_str("instance key path is a symbolic link"),
             Self::NotRegularFile => f.write_str("instance key path is not a regular file"),
             Self::PermissionsTooOpen => f.write_str("instance key file mode must be 0600 or 0400"),
@@ -157,6 +160,16 @@ pub fn load_or_create(path: &Path, context: Context) -> Result<InstanceKey, KeyF
         }
         Err(error) => Err(error),
     }
+}
+
+/// Creates the key file and fails when anything exists at the path. Unlike [`load_or_create`] with
+/// [`Context::New`], it never returns a key that another creator published first: the caller
+/// that gets `Ok` is the one that created the file.
+pub fn create_new(path: &Path) -> Result<InstanceKey, KeyFileError> {
+    if !sys::create_exclusive(path)? {
+        return Err(KeyFileError::AlreadyExists);
+    }
+    sys::read_validated(path).map(InstanceKey)
 }
 
 #[cfg(unix)]
@@ -254,9 +267,10 @@ mod sys {
     }
 
     /// Publishes a fresh random key at `path` unless a file is already there.
-    /// Returns `Ok` both when this call created the file and when another
-    /// creator was first; the caller reads the file back either way.
-    pub fn create_exclusive(path: &Path) -> Result<(), KeyFileError> {
+    /// Returns `Ok` both when this call created the file (`true`) and when
+    /// another creator was first (`false`); a lenient caller reads the file
+    /// back either way, a strict one treats `false` as an error.
+    pub fn create_exclusive(path: &Path) -> Result<bool, KeyFileError> {
         let name = path.file_name().ok_or(KeyFileError::InvalidPath)?;
         let directory = match path.parent() {
             Some(parent) if !parent.as_os_str().is_empty() => parent,
@@ -280,18 +294,19 @@ mod sys {
         // A hard link never replaces an existing target: of several creators
         // exactly one wins, the others see AlreadyExists and read the winner.
         let published = written.and_then(|()| match fs::hard_link(&temporary, path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == ErrorKind::AlreadyExists => Ok(()),
+            Ok(()) => Ok(true),
+            Err(error) if error.kind() == ErrorKind::AlreadyExists => Ok(false),
             Err(error) => Err(io("publish")(error)),
         });
         // Remove our temporary name on every outcome; the key stays reachable
         // through the published name.
         let _ = fs::remove_file(&temporary);
-        published?;
+        let created = published?;
         // Make the new directory entry durable.
         File::open(directory)
             .and_then(|handle| handle.sync_all())
-            .map_err(io("sync directory"))
+            .map_err(io("sync directory"))?;
+        Ok(created)
     }
 
     fn write_temporary(mut file: File, key: &[u8; KEY_LEN]) -> Result<(), KeyFileError> {
@@ -312,7 +327,7 @@ mod sys {
         Err(KeyFileError::UnsupportedPlatform)
     }
 
-    pub fn create_exclusive(_path: &Path) -> Result<(), KeyFileError> {
+    pub fn create_exclusive(_path: &Path) -> Result<bool, KeyFileError> {
         Err(KeyFileError::UnsupportedPlatform)
     }
 }
@@ -534,6 +549,19 @@ mod tests {
             write_key(&scratch.key(), &winner, 0o600);
             sys::create_exclusive(&scratch.key()).expect("lost race is not an error");
             assert_eq!(fs::read(scratch.key()).unwrap(), winner);
+            assert_eq!(entries(&scratch.0), ["instance.key"]);
+        });
+    }
+
+    #[test]
+    fn strict_creation_fails_when_a_file_exists_and_keeps_it() {
+        with_scratch(|scratch| {
+            let first = create_new(&scratch.key()).expect("first creation");
+            let before = fs::read(scratch.key()).unwrap();
+            let error = create_new(&scratch.key()).unwrap_err();
+            assert!(matches!(error, KeyFileError::AlreadyExists), "{error}");
+            assert_eq!(fs::read(scratch.key()).unwrap(), before);
+            assert_eq!(first.expose_bytes()[..], before[..]);
             assert_eq!(entries(&scratch.0), ["instance.key"]);
         });
     }
