@@ -5,6 +5,6 @@
     "server-domain": { "tests": { "exact": 0 }, "docTests": { "exact": 0 } },
     "server-db": { "tests": { "exact": 0 }, "docTests": { "exact": 0 } },
     "server-http": { "tests": { "exact": 0 }, "docTests": { "exact": 0 } },
-    "server-bin": { "tests": { "exact": 0 }, "docTests": { "exact": 0 } }
+    "server-bin": { "tests": { "exact": 34 }, "docTests": { "exact": 0 } }
   }
 }

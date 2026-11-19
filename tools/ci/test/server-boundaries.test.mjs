@@ -261,6 +261,10 @@ test('server Clippy reports require all selected artifacts, baseline entries and
 });
 test('server test reports require zero suites to be observed and reject missing entries and ambiguous names', t => {
   const f = reports(t), options = { ...f, input: [f.input], baseline: path.join(f.root, 'tools/ci/server-tests.json') };
+  // The fixture copies the repository's baseline; pin every package to zero so the case does not depend on real counts.
+  const zero = JSON.parse(readFileSync(options.baseline));
+  for (const name of Object.keys(zero.packages)) zero.packages[name] = { tests: { exact: 0 }, docTests: { exact: 0 } };
+  writeFileSync(options.baseline, JSON.stringify(zero));
   const suites = f.packages.map(pkg => zeroSuite(pkg.targets[0].name));
   writeFileSync(f.input, suites.join(''));
   assert.deepEqual(countTests(options), []);

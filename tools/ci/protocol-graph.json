@@ -100203,6 +100203,31 @@
         false,
         true,
         []
+      ],
+      [
+        "dependency",
+        "serde_json",
+        "serde_json",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "std"
+        ]
+      ],
+      [
+        "dependency",
+        "serde",
+        "serde",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "derive",
+          "std"
+        ]
       ]
     ],
     "requirements": [
@@ -100913,6 +100938,14 @@
       [
         "libraries/libarchive/Cargo.toml",
         96
+      ],
+      [
+        "server/crates/server-bin/Cargo.toml",
+        117
+      ],
+      [
+        "server/crates/server-bin/Cargo.toml",
+        118
       ],
       [
         "server/crates/server-bin/Cargo.toml",

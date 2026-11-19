@@ -12,6 +12,19 @@ const INTERNAL = /\b(?:P[B]?\d+[a-z]?(?:-\d+)?|W\d+[a-z]?|[A-Z]{2,5}-\d{2,}|E-\d
 const SCRIPT_ROOTS = ['server/', 'desktop/main/', 'libraries/base/'];
 const SCRIPT_EXTENSIONS = ['.ts', '.js', '.mjs', '.vue'];
 const SKIPPED = ['tools/', '.gitea/'];
+const FILE_SUFFIX = '_FILE';
+// The one place that may enumerate the process environment: this file, around exactly this function. The function keeps
+// names and drops values; a change of path or of any context line makes the check fail.
+const ENUMERATION = {
+  file: 'server/crates/server-bin/src/config/env.rs',
+  context: [
+    'pub(super) fn present_names() -> Vec<String> {',
+    'env::vars_os()',
+    '.filter_map(|(name, _)| name.into_string().ok())',
+    '.collect()',
+    '}',
+  ],
+};
 
 const string = value => typeof value === 'string' && value.trim() !== '';
 
@@ -141,7 +154,7 @@ export function rustSites(source, file) {
     const qualified = match[1] !== undefined;
     const name = match[1] ?? match[2];
     if (!qualified && !envImported) reject(match.index, 'env:: used without `use std::env;`');
-    else if (name.startsWith('vars')) reject(match.index, 'enumerating all environment variables is not supported');
+    else if (name.startsWith('vars')) sites.push({ rejected: 'enumerating all environment variables is not supported', line: lineAt(source, match.index), enumeration: name });
     else {
       const found = /^\s*\(\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*\)/.exec(source.slice(reader.lastIndex));
       if (found) sites.push({ name: found[1], line: lineAt(source, match.index), read: true });
@@ -333,6 +346,13 @@ export function exampleSites(source, file) {
 const isDockerfile = base => base === 'Dockerfile' || base.startsWith('Dockerfile.') || base.endsWith('.Dockerfile');
 const skipped = relative => SKIPPED.some(prefix => relative.startsWith(prefix));
 
+// An enumeration is bound when it is `env::vars_os()` on the second line of the exact context, in the one allowed file.
+function enumerationBound(relative, lines, line, name) {
+  if (relative !== ENUMERATION.file || name !== 'vars_os') return false;
+  const first = line - 2;
+  return first >= 0 && ENUMERATION.context.every((item, offset) => (lines[first + offset] ?? '').trim() === item);
+}
+
 function boundBy(entries, relative, lines, line) {
   return entries.find(entry => {
     const pattern = entry.pattern;
@@ -356,6 +376,7 @@ export function check(options) {
   const found = [];
   const used = new Set();
   const everything = files(root);
+  let enumerations = 0;
   const text = new Map();
   const content = relative => {
     if (!text.has(relative)) text.set(relative, read(path.join(root, relative)));
@@ -373,7 +394,14 @@ export function check(options) {
     if (!sites.length) continue;
     const lines = content(relative).split('\n');
     for (const site of sites) {
-      if (site.rejected) {
+      if (site.rejected && site.enumeration) {
+        // Only the dedicated route binds an enumeration; register patterns never do.
+        if (!enumerationBound(relative, lines, site.line, site.enumeration)) {
+          issues.push(problem(relative, site.line, `${site.rejected}, except in ${ENUMERATION.file} inside its exact function ${ENUMERATION.context[0]}`));
+        } else if (++enumerations > 1) {
+          issues.push(problem(relative, site.line, 'a second enumeration of the environment; exactly one is allowed'));
+        }
+      } else if (site.rejected) {
         const entry = boundBy(entries, relative, lines, site.line);
         if (entry) {
           used.add(entry.name);
@@ -401,6 +429,19 @@ export function check(options) {
       issues.push(problem(registerFile, where(entry.name), `${entry.name}: active entry with evidence "read" has no read site; update or retire the entry`));
     }
   }
+  // A `_FILE` variable is the file companion of a registered secret: same place, same standing, itself no secret.
+  const byName = new Map(entries.map(entry => [entry.name, entry]));
+  for (const entry of entries) {
+    if (!entry.name.endsWith(FILE_SUFFIX)) continue;
+    const base = byName.get(entry.name.slice(0, -FILE_SUFFIX.length));
+    if (!base) continue;
+    const problems = [];
+    if (!base.secret) problems.push('the variable it belongs to is not a secret');
+    if (entry.secret) problems.push('it holds a path, not a secret');
+    if (entry.standard !== base.standard) problems.push('standard must equal that of the variable it belongs to');
+    if (entry.component !== base.component || entry.kind !== base.kind) problems.push('component and kind must equal those of the variable it belongs to');
+    for (const message of problems) issues.push(problem(registerFile, where(entry.name), `${entry.name}: file companion of ${base.name}: ${message}`));
+  }
   const exact = name => registered.has(name) || [...registered].some(item => item.endsWith('*') && !name.endsWith('*') && name.startsWith(item.slice(0, -1)));
   for (const relative of everything) {
     if (relative.startsWith('tools/ci/test/')) continue;
@@ -427,6 +468,8 @@ export function check(options) {
 await cli(import.meta.url, `Usage: node tools/ci/check-env.mjs [--root DIR] [--register FILE] [--previous-register FILE]
 Check the register of environment names (default tools/env-register.json) against the code.
 Scans process.env in server/, desktop/main/ and libraries/base/ (ts, js, mjs, vue), Rust env readers, ARG/ENV in Dockerfiles and *.env.example files.
+Enumerating the environment is allowed only in server/crates/server-bin/src/config/env.rs, once, around its exact names-only function.
+A registered NAME_FILE next to a registered secret NAME must agree with it (no secret itself, same standing, component and kind).
 Fails on unregistered names, unsupported access forms, active "read" entries without a read site, unregistered IMPLUVIUM_ names
 and, with --previous-register (the base revision's file), new non-standard names without the IMPLUVIUM_ prefix.
 Exit: 0 passed, 1 failed check, 2 usage or input error.`, {

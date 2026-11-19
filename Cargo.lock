@@ -6322,6 +6322,8 @@ version = "0.1.0"
 name = "server-bin"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "server-http",
 ]
 

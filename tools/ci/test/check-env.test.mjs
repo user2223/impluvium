@@ -330,3 +330,91 @@ test('env: unreadable input is an input error, never a pass', t => {
   const missing = repo(t);
   invoke('check-env', [...args(missing), '--register', path.join(missing, 'tools/nothing.json')], 2);
 });
+
+const enumerationFile = 'server/crates/server-bin/src/config/env.rs';
+const enumeration = 'use std::env;\n\npub(super) fn present_names() -> Vec<String> {\n    env::vars_os()\n        .filter_map(|(name, _)| name.into_string().ok())\n        .collect()\n}\n';
+
+test('env: the one bound enumeration of names passes in its file and context', t => {
+  const root = repo(t);
+  write(root, enumerationFile, enumeration);
+  invoke('check-env', args(root), 0);
+});
+
+for (const [label, file, text, message] of [
+  ['another path', 'server/crates/server-bin/src/config/other.rs', enumeration, /enumerating all environment variables is not supported, except in/],
+  ['another crate', 'server/crates/server-http/src/env.rs', enumeration, /except in/],
+  ['a changed function name', enumerationFile, enumeration.replace('present_names', 'all_names'), /except in/],
+  ['a changed chain (values are used)', enumerationFile, enumeration.replace('name.into_string().ok()', 'name.into_string().ok().map(|n| (n, 1))'), /except in/],
+  ['a changed signature', enumerationFile, enumeration.replace('Vec<String>', 'Vec<(String, String)>'), /except in/],
+  ['env::vars instead of vars_os', enumerationFile, enumeration.replace('vars_os', 'vars'), /except in/],
+  ['a second enumeration in the same file', enumerationFile, enumeration + '\n' + enumeration, /second enumeration/],
+  ['an enumeration outside the function', enumerationFile, enumeration + 'fn extra() -> usize {\n    env::vars_os().count()\n}\n', /except in/],
+]) {
+  test(`env: enumeration rejected: ${label}`, t => {
+    const root = repo(t);
+    write(root, file, text);
+    assert.match(invoke('check-env', args(root), 1).stderr, message);
+  });
+}
+
+test('env: a register pattern cannot bind an enumeration', t => {
+  const root = repo(t);
+  const text = 'use std::env;\nfn names() -> usize { // EXAMPLE_ALL_\n    env::vars_os().count()\n}\n';
+  write(root, lib, text);
+  register(root, data => {
+    const entry = structuredClone(data.entries.find(item => item.name === 'EXAMPLE_SERVICE_*'));
+    entry.name = 'EXAMPLE_ALL_*';
+    entry.pattern = { prefix: 'EXAMPLE_ALL_', file: lib, snippet: ['fn names() -> usize { // EXAMPLE_ALL_', 'env::vars_os().count()'] };
+    data.entries.push(entry);
+  });
+  assert.match(invoke('check-env', args(root), 1).stderr, /enumerating all environment variables/);
+});
+
+test('env: a non-literal read stays an error inside the enumeration file', t => {
+  const root = repo(t);
+  write(root, enumerationFile, enumeration + 'fn read(name: &str) {\n    let _ = env::var(name);\n}\n');
+  assert.match(invoke('check-env', args(root), 1).stderr, /environment name is not a string literal/);
+});
+
+test('env: an invented active read site in the enumeration file does not count', t => {
+  const root = repo(t);
+  write(root, enumerationFile, enumeration);
+  register(root, data => { data.entries.push({ ...data.entries[0], name: 'EXAMPLE_INVENTED' }); });
+  assert.match(invoke('check-env', args(root), 1).stderr, /EXAMPLE_INVENTED: active entry with evidence "read" has no read site/);
+});
+
+test('env: a _FILE companion must agree with its secret', t => {
+  const companion = data => {
+    data.entries.find(entry => entry.name === 'EXAMPLE_TOKEN').secret = true;
+    data.entries.push({ ...data.entries[0], name: 'EXAMPLE_TOKEN_FILE', evidence: 'consumer: the example image', secret: false });
+  };
+  const good = repo(t);
+  register(good, companion);
+  invoke('check-env', args(good), 0);
+  for (const [label, change, message] of [
+    ['a companion that is itself a secret', entry => { entry.secret = true; }, /it holds a path, not a secret/],
+    ['a different standing', entry => { entry.standard = true; }, /standard must equal/],
+    ['a different component', entry => { entry.component = 'desktop'; }, /component and kind must equal/],
+  ]) {
+    const root = repo(t);
+    register(root, data => { companion(data); change(data.entries.find(entry => entry.name === 'EXAMPLE_TOKEN_FILE')); });
+    assert.match(invoke('check-env', args(root), 1).stderr, message, label);
+  }
+  const plain = repo(t);
+  register(plain, data => { companion(data); data.entries.find(entry => entry.name === 'EXAMPLE_TOKEN').secret = false; });
+  assert.match(invoke('check-env', args(plain), 1).stderr, /is not a secret/);
+});
+
+test('env: a new companion of a standard name needs no IMPLUVIUM_ prefix, any other new name still does', t => {
+  const root = repo(t);
+  const previous = path.join(root, 'previous-register.json');
+  writeFileSync(previous, readFileSync(registerFile(root)));
+  register(root, data => {
+    data.entries.find(entry => entry.name === 'EXAMPLE_TOKEN').secret = true;
+    data.entries.find(entry => entry.name === 'EXAMPLE_TOKEN').standard = true;
+    data.entries.push({ ...data.entries[0], name: 'EXAMPLE_TOKEN_FILE', evidence: 'consumer: the example image', standard: true });
+  });
+  invoke('check-env', [...args(root), '--previous-register', previous], 0);
+  register(root, data => { data.entries.find(entry => entry.name === 'EXAMPLE_TOKEN_FILE').standard = false; });
+  assert.match(invoke('check-env', [...args(root), '--previous-register', previous], 1).stderr, /standard must equal|without the IMPLUVIUM_ prefix/);
+});

@@ -14,7 +14,11 @@ Select its packages explicitly; the workspace default members stay unchanged.
 
 The entry modules establish the dependency graph. They do not yet serve HTTP,
 connect to a database or implement application contracts. The executable exits
-unsuccessfully until guarded startup is implemented. Framework dependencies
+unsuccessfully until guarded startup is implemented. Two commands exist already:
+`impluvium-server config check` validates the environment without opening a
+listener or a database connection, and `impluvium-server config reference`
+prints the page `docs/admin/configuration.md`, which a test keeps in step with
+the field table in `server-bin/src/config/fields.rs`. Framework dependencies
 will be added with the code that needs them.
 
 Within this server graph, only `server-http` may directly depend on axum/tower,

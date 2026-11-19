@@ -11,7 +11,9 @@
       { "package": "server-api-types", "path": "server/crates/server-api-types/Cargo.toml" }
     ],
     "server-bin": [
-      { "package": "server-http", "path": "server/crates/server-http/Cargo.toml" }
+      { "package": "server-http", "path": "server/crates/server-http/Cargo.toml" },
+      { "package": "serde" },
+      { "package": "serde_json" }
     ]
   }
 }

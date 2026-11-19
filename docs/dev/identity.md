@@ -185,9 +185,20 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `NUXT_*` | runtime | server | active | consumer: Nuxt (runtime configuration overrides) | yes | no | remove: When the inherited Node server is replaced. | Nuxt maps NUXT_<KEY> variables onto its runtime configuration without any code reading them. |
 | `POSTGRES_USER` | runtime | deploy | active | consumer: the PostgreSQL container image | yes | no | keep: Not planned; the name belongs to the tool that reads it. | Database user of the example deployment. |
 | `POSTGRES_PASSWORD` | runtime | deploy | active | consumer: the PostgreSQL container image | yes | yes | keep: Not planned; the name belongs to the tool that reads it. | Database password of the example deployment. |
-| `IMPLUVIUM_EXTERNAL_URL` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | Public base URL of the server. |
-| `IMPLUVIUM_DATA_DIR` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | Directory for server data; also used by the engine tests. |
-| `IMPLUVIUM_LIBRARY_DIR` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | Directory that holds the game library. |
+| `IMPLUVIUM_EXTERNAL_URL` | runtime | server | active | read | no | no | keep: Not planned; this is the target name. | Public base URL of the server. |
+| `IMPLUVIUM_DATA_DIR` | runtime | server | active | read | no | no | keep: Not planned; this is the target name. | Directory for server data. |
+| `IMPLUVIUM_LIBRARY_DIR` | runtime | server | active | read | no | no | keep: Not planned; this is the target name. | Directory that holds the game library. |
+| `IMPLUVIUM_TRUSTED_PROXIES` | runtime | server | active | read | no | no | keep: Not planned. | Networks (CIDR, comma-separated) of reverse proxies whose forwarding headers are trusted; empty by default. |
+| `IMPLUVIUM_INSECURE_LAN` | runtime | server | active | read | no | no | keep: Not planned. | Allows a plain http external origin for a host that is not this machine. |
+| `DATABASE_URL_FILE` | runtime | server | active | read | yes | no | keep: Not planned. | Path of a file that holds the value of DATABASE_URL; setting both is an error. |
+| `IMPLUVIUM_DB_POOL_MAX` | runtime | server | active | read | no | no | keep: Not planned. | Largest number of database connections in the pool. |
+| `IMPLUVIUM_DB_POOL_MIN` | runtime | server | active | read | no | no | keep: Not planned. | Number of database connections kept open. |
+| `IMPLUVIUM_DB_TIMEOUT_SECS` | runtime | server | active | read | no | no | keep: Not planned. | Seconds to wait for a free database connection. |
+| `IMPLUVIUM_SPA_DIR` | runtime | server | active | read | no | no | keep: Not planned. | Directory with the built web application. |
+| `IMPLUVIUM_LOG` | runtime | server | active | read | no | no | keep: Not planned. | Log filter: a level, or target=level directives separated by commas. |
+| `IMPLUVIUM_LOG_FORMAT` | runtime | server | active | read | no | no | keep: Not planned. | Format of log lines: text or json. |
+| `IMPLUVIUM_BACKUP_MODE` | runtime | server | active | read | no | no | keep: Not planned. | How the backup before pending migrations is made: auto, command or off. |
+| `IMPLUVIUM_BACKUP_COMMAND` | runtime | server | active | read | no | no | keep: Not planned. | JSON array with the operator backup program and its arguments, started without a shell. |
 | `IMPLUVIUM_WEBAUTHN_RP_ID` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | Relying-party domain for passkey sign-in. |
 | `IMPLUVIUM_DISABLE_PASSWORD_LOGIN` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | Turns off username and password sign-in. |
 | `IMPLUVIUM_METADATA_TIMEOUT` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | Timeout in milliseconds for metadata requests. |
