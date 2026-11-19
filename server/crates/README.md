@@ -23,8 +23,12 @@ the field table in `server-bin/src/config/fields.rs`. A third command,
 `impluvium-server routes --json`, prints the inventory of the routes the server
 serves, with policy, contract and limits of each; it needs no database or key
 file. The inventory and the router are built from the same route registry in
-`server-http`. Further framework dependencies will be added with the code that
-needs them.
+`server-http`, which also answers every error in one JSON shape: `server-api-types`
+defines the error codes and keeps their catalog in `error-codes.json`, and a test
+fails when that file drifts from the code. `server-http` adds request ids, the
+protective response headers and the health probes; `server-bin` holds the JSON
+log writer and the bounded graceful shutdown. Further framework dependencies will
+be added with the code that needs them.
 
 Within this server graph, only `server-http` may directly depend on axum/tower,
 or Hyper with server support, and only `server-db` may reach sqlx packages through

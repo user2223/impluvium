@@ -4,7 +4,9 @@
 //! Executable composition; startup stays unavailable until its guards exist.
 
 mod config;
+mod logging;
 mod routes;
+mod shutdown;
 
 use std::process::ExitCode;
 

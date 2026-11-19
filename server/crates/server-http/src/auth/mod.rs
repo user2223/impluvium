@@ -20,6 +20,7 @@ use std::sync::Arc;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
+use server_api_types::ErrorCode;
 use server_domain::credential::CredentialPort;
 use server_domain::principal::Principal;
 
@@ -30,7 +31,7 @@ pub use cookie::{
 pub use credentials::{CredentialsError, extract as extract_credential};
 pub use origin::{ExternalOrigin, OriginError, Scheme};
 
-use crate::router::error_response;
+use crate::error::error_response;
 
 /// Everything the gate needs besides the policy of a route: the external
 /// origin, the trusted proxies and the credential port.
@@ -99,10 +100,7 @@ pub struct GateMissing;
 
 impl IntoResponse for GateMissing {
     fn into_response(self) -> Response {
-        error_response(
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            "internal_error",
-        )
+        error_response(ErrorCode::InternalError)
     }
 }
 

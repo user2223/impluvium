@@ -24,7 +24,7 @@ use server_domain::principal::{
 use tower::ServiceExt;
 
 use super::tests::{TEST_ORIGIN, test_context, test_peer};
-use super::{ApplicationRouter, build, enforce};
+use super::{AppOptions, ApplicationRouter, build, enforce, finish};
 use crate::auth::{
     ClientIp, CurrentPrincipal, ExternalOrigin, PeerAddress, Scheme, SecurityContext,
 };
@@ -265,11 +265,14 @@ fn cookie(value: &str) -> String {
 }
 
 fn error_code(reply: &Reply) -> String {
-    reply.body.clone()
+    serde_json::from_str::<serde_json::Value>(&reply.body)
+        .ok()
+        .and_then(|value| value["code"].as_str().map(str::to_owned))
+        .unwrap_or_else(|| reply.body.clone())
 }
 
 fn code(name: &str) -> String {
-    format!("{{\"code\":\"{name}\"}}")
+    name.to_owned()
 }
 
 #[test]
@@ -752,7 +755,10 @@ fn a_handler_without_the_gate_fails_before_any_effect() {
         EFFECTS.fetch_add(1, Ordering::SeqCst);
         "done"
     }
-    let ungated = enforce(Router::new().route("/ungated", post(effect)));
+    let ungated = finish(
+        enforce(Router::new().route("/ungated", post(effect))),
+        &AppOptions::default(),
+    );
     let reply = call(&ungated, "POST", "/ungated", &[], Some(test_peer()));
     assert_eq!(reply.status, StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(error_code(&reply), code("internal_error"));
@@ -766,7 +772,10 @@ fn a_handler_without_the_gate_fails_before_any_effect() {
         effect,
     )
     .unwrap();
-    let no_context = enforce(Router::new().route("/gated", route.endpoint));
+    let no_context = finish(
+        enforce(Router::new().route("/gated", route.endpoint)),
+        &AppOptions::default(),
+    );
     let reply = call(
         &no_context,
         "POST",

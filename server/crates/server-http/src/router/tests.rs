@@ -13,7 +13,7 @@ use server_domain::credential::NoCredentials;
 use server_domain::policy::{Policy, Requirement};
 use tower::ServiceExt;
 
-use super::{ApplicationRouter, build, enforce};
+use super::{AppOptions, ApplicationRouter, build, enforce, finish};
 use crate::auth::{ExternalOrigin, PeerAddress, Scheme, SecurityContext};
 use crate::proxy::TrustedProxies;
 use crate::registry::{
@@ -147,6 +147,13 @@ fn send(router: Router, method: &str, path: &str, body: &'static str) -> Reply {
             body: String::from_utf8(bytes.to_vec()).unwrap(),
         }
     })
+}
+
+/// The error code of a body that follows the web error shape.
+fn code_of(body: &str) -> String {
+    let value: serde_json::Value = serde_json::from_str(body).unwrap();
+    assert!(value["message"].is_string() && value["request_id"].is_string());
+    value["code"].as_str().unwrap().to_owned()
 }
 
 fn app(registry: Registry) -> Router {
@@ -339,9 +346,10 @@ fn inventory_and_router_agree() {
 #[test]
 fn unmarked_response_becomes_an_internal_error() {
     let raw = Router::new().route("/unmarked", get(|| async { "bypass" }));
-    let reply = send(enforce(raw), "GET", "/unmarked", "");
+    let router = finish(enforce(raw), &AppOptions::default());
+    let reply = send(router, "GET", "/unmarked", "");
     assert_eq!(reply.status, StatusCode::INTERNAL_SERVER_ERROR);
-    assert_eq!(reply.body, "{\"code\":\"internal_error\"}");
+    assert_eq!(code_of(&reply.body), "internal_error");
     assert!(!reply.body.contains("bypass"));
 }
 
@@ -361,7 +369,7 @@ fn build_installs_the_marker_check() {
         .unwrap();
     let reply = send(app(registry), "GET", "/api/v1/bypass", "");
     assert_eq!(reply.status, StatusCode::INTERNAL_SERVER_ERROR);
-    assert_eq!(reply.body, "{\"code\":\"internal_error\"}");
+    assert_eq!(code_of(&reply.body), "internal_error");
 }
 
 #[test]
@@ -411,7 +419,7 @@ fn head_and_options_do_not_bypass_the_policy() {
     );
     let options_protected = send(router, "OPTIONS", "/api/v1/items/7", "");
     assert_eq!(options_protected.status, StatusCode::METHOD_NOT_ALLOWED);
-    assert_eq!(options_protected.body, "{\"code\":\"method_not_allowed\"}");
+    assert_eq!(code_of(&options_protected.body), "method_not_allowed");
 }
 
 #[test]
@@ -420,7 +428,7 @@ fn unsupported_method_answers_405_and_never_the_handler() {
     let reply = send(router, "DELETE", "/api/v1/items/7", "");
     assert_eq!(reply.status, StatusCode::METHOD_NOT_ALLOWED);
     assert_eq!(reply.headers[header::ALLOW], "GET, HEAD");
-    assert_eq!(reply.body, "{\"code\":\"method_not_allowed\"}");
+    assert_eq!(code_of(&reply.body), "method_not_allowed");
 }
 
 #[test]
@@ -439,7 +447,7 @@ fn unknown_paths_get_the_api_error_not_a_page() {
         let reply = send(router.clone(), "GET", path, "");
         assert_eq!(reply.status, StatusCode::NOT_FOUND, "{path}");
         assert_eq!(reply.headers[header::CONTENT_TYPE], "application/json");
-        assert_eq!(reply.body, "{\"code\":\"not_found\"}");
+        assert_eq!(code_of(&reply.body), "not_found");
     }
     // An empty registry serves nothing but the built-in answers.
     assert_eq!(
@@ -452,7 +460,7 @@ fn unknown_paths_get_the_api_error_not_a_page() {
 fn protected_routes_deny_anonymous_callers() {
     let reply = send(app(sample()), "GET", "/api/v1/items/7", "");
     assert_eq!(reply.status, StatusCode::UNAUTHORIZED);
-    assert_eq!(reply.body, "{\"code\":\"unauthenticated\"}");
+    assert_eq!(code_of(&reply.body), "unauthenticated");
 }
 
 #[test]

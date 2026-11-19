@@ -8,3 +8,9 @@ edition = "2024"
 license = "AGPL-3.0-only"
 publish = false
 description = "Public web contracts and wire adapters for the impluvium server"
+
+[dependencies]
+serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
+
+[dev-dependencies]
+serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }

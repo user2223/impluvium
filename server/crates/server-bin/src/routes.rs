@@ -95,7 +95,28 @@ mod tests {
     #[test]
     fn application_inventory_lists_only_what_is_served() {
         let document = parse(&render(&registry::application()));
-        assert_eq!(document["routes"], json!([]));
+        let served: Vec<(&str, &str)> = document["routes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| {
+                (
+                    entry["method"].as_str().unwrap(),
+                    entry["path"].as_str().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            served,
+            [("GET", "/api/health/live"), ("GET", "/api/health/ready")]
+        );
+        assert!(
+            document["routes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|entry| entry["policy"]["access"] == "public")
+        );
         let fallbacks = document["fallbacks"].as_array().unwrap();
         let kinds: Vec<&str> = fallbacks
             .iter()

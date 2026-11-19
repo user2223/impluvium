@@ -4,3 +4,7 @@
 //! Public web contracts, wire adapters and error codes.
 //!
 //! Database models do not belong to this interface.
+
+pub mod error;
+
+pub use error::{ApiError, CatalogEntry, ErrorCode, FieldError, catalog};

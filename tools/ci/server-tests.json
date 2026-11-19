@@ -1,10 +1,10 @@
 {
   "version": 1,
   "packages": {
-    "server-api-types": { "tests": { "exact": 0 }, "docTests": { "exact": 0 } },
+    "server-api-types": { "tests": { "exact": 8 }, "docTests": { "exact": 0 } },
     "server-domain": { "tests": { "exact": 24 }, "docTests": { "exact": 0 } },
     "server-db": { "tests": { "exact": 0 }, "docTests": { "exact": 0 } },
-    "server-http": { "tests": { "exact": 68 }, "docTests": { "exact": 2 } },
-    "server-bin": { "tests": { "exact": 53 }, "docTests": { "exact": 0 } }
+    "server-http": { "tests": { "exact": 97 }, "docTests": { "exact": 2 } },
+    "server-bin": { "tests": { "exact": 77 }, "docTests": { "exact": 0 } }
   }
 }

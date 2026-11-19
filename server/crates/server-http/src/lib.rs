@@ -9,8 +9,15 @@
 
 pub mod auth;
 pub mod csrf;
+pub mod error;
+pub mod extract;
+mod guard;
+pub mod headers;
+pub mod health;
+pub mod observe;
 pub mod proxy;
 pub mod registry;
+pub mod request_id;
 pub mod router;
 
 pub use server_api_types as api_types;

@@ -1,0 +1,65 @@
+{
+  "absent_prefixes": ["access-control-"],
+  "classes": {
+    "spa_html": {
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      "x-frame-options": "DENY",
+      "cross-origin-opener-policy": "same-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
+      "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://www.giantbomb.com https://images.pcgamingwiki.com https://images.igdb.com https://*.steamstatic.com; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",
+      "strict-transport-security": null,
+      "cross-origin-embedder-policy": null,
+      "cross-origin-resource-policy": null,
+      "x-xss-protection": null
+    },
+    "api_json": {
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      "x-frame-options": null,
+      "cross-origin-opener-policy": null,
+      "permissions-policy": null,
+      "content-security-policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+      "strict-transport-security": null,
+      "cross-origin-embedder-policy": null,
+      "cross-origin-resource-policy": null,
+      "x-xss-protection": null
+    },
+    "error_json": {
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      "x-frame-options": "DENY",
+      "cross-origin-opener-policy": null,
+      "permissions-policy": null,
+      "content-security-policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+      "strict-transport-security": null,
+      "cross-origin-embedder-policy": null,
+      "cross-origin-resource-policy": null,
+      "x-xss-protection": null
+    },
+    "file": {
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      "x-frame-options": null,
+      "cross-origin-opener-policy": null,
+      "permissions-policy": null,
+      "content-security-policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+      "strict-transport-security": null,
+      "cross-origin-embedder-policy": null,
+      "cross-origin-resource-policy": null,
+      "x-xss-protection": null
+    },
+    "redirect": {
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      "x-frame-options": null,
+      "cross-origin-opener-policy": null,
+      "permissions-policy": null,
+      "content-security-policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+      "strict-transport-security": null,
+      "cross-origin-embedder-policy": null,
+      "cross-origin-resource-policy": null,
+      "x-xss-protection": null
+    }
+  }
+}

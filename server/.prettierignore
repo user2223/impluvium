@@ -7,3 +7,6 @@ pnpm-lock.yaml
 /torrential/
 .data/**
 **/.data/**
+
+# JSON files under crates are written and checked by the Rust tests
+crates/**/*.json

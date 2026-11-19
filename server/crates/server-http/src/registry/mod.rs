@@ -12,6 +12,7 @@ mod route;
 
 use std::error::Error;
 use std::fmt;
+use std::sync::Arc;
 
 use server_domain::policy::Policy;
 
@@ -20,6 +21,7 @@ pub use route::{
     BodyKind, Contract, Csrf, Limits, Method, ParamSpec, ParamType, ResponseKind, Route,
 };
 
+use crate::health::{self, NoDependencies, ReadinessPort};
 use crate::router::{FallbackInfo, fallbacks};
 
 /// Why a route could not be built or registered.
@@ -180,7 +182,20 @@ impl Registry {
 }
 
 /// The registry of the running server. Area modules register their routes
-/// here; none are implemented yet, so no application route is served.
+/// here; so far only the health probes exist. This variant has no
+/// dependencies to wait for, so the readiness probe always answers ready.
 pub fn application() -> Registry {
-    Registry::new()
+    application_with(Arc::new(NoDependencies))
+}
+
+/// The registry of the running server with the readiness port that the
+/// readiness probe consults.
+pub fn application_with(readiness: Arc<dyn ReadinessPort>) -> Registry {
+    let mut registry = Registry::new();
+    for route in health::routes(readiness) {
+        registry
+            .register(route)
+            .expect("the built-in routes do not conflict");
+    }
+    registry
 }

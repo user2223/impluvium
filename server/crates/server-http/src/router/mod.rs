@@ -7,6 +7,8 @@
 //! its policy gate. Unknown paths and unsupported methods are answered by
 //! built-in public handlers with an API error, never by a page. A final
 //! layer turns any response that bypassed a policy into an internal error.
+//! Around the routes sit, from the inside out: the panic guard, the error
+//! renderer, the protective headers and the request identity with logging.
 
 mod gate;
 
@@ -18,12 +20,16 @@ use axum::middleware;
 use axum::response::Response;
 use axum::routing::MethodRouter;
 use axum::{Extension, Router};
+use server_api_types::ErrorCode;
 use server_domain::policy::Policy;
 
 use crate::auth::SecurityContext;
+use crate::error::{error_response, render_errors};
+use crate::guard::catch_panics;
+use crate::headers::{HeaderPolicy, ScriptHash, apply};
+use crate::observe::{DiscardLogs, RequestLogSink, observe};
 use crate::registry::{Method, Registry};
 
-pub(crate) use gate::error_response;
 pub(crate) use gate::{GateState, enforce_policy};
 use gate::{mark, require_marker};
 
@@ -61,16 +67,52 @@ pub(crate) fn fallbacks() -> Vec<FallbackInfo> {
     .collect()
 }
 
-/// The assembled application router. The framework type stays private.
+/// The assembled application router.
 pub struct ApplicationRouter {
-    #[allow(dead_code)] // Read by the server start-up once it exists, and by the tests.
     pub(crate) router: Router,
+}
+
+impl ApplicationRouter {
+    /// The framework router, for the code that serves connections and for
+    /// tests of the whole stack. Callers outside this crate use it only to
+    /// serve it.
+    #[doc(hidden)]
+    pub fn into_router(self) -> Router {
+        self.router
+    }
+}
+
+/// What the layers around the routes need besides the routes themselves.
+#[derive(Clone)]
+pub struct AppOptions {
+    /// Receives one entry per request.
+    pub log_sink: Arc<dyn RequestLogSink>,
+    /// Hashes of the inline scripts of the single-page application shell.
+    pub script_hashes: Vec<ScriptHash>,
+}
+
+impl Default for AppOptions {
+    fn default() -> Self {
+        Self {
+            log_sink: Arc::new(DiscardLogs),
+            script_hashes: Vec::new(),
+        }
+    }
+}
+
+/// Builds the router from the registry with default options.
+pub fn build(registry: Registry, context: SecurityContext) -> ApplicationRouter {
+    build_with(registry, context, &AppOptions::default())
 }
 
 /// Builds the router from the registry. The security context reaches every
 /// route gate, including the built-in fallbacks; a gate that does not find
 /// it answers with an internal error.
-pub fn build(registry: Registry, context: SecurityContext) -> ApplicationRouter {
+pub fn build_with(
+    registry: Registry,
+    context: SecurityContext,
+    options: &AppOptions,
+) -> ApplicationRouter {
     let mut grouped: BTreeMap<String, (Vec<Method>, MethodRouter)> = BTreeMap::new();
     for route in registry.into_routes() {
         let path = route.path.as_str().to_owned();
@@ -93,11 +135,24 @@ pub fn build(registry: Registry, context: SecurityContext) -> ApplicationRouter 
         });
         router = router.route(&path, endpoint);
     }
-    let router =
-        router.fallback(|| async { mark(error_response(StatusCode::NOT_FOUND, "not_found")) });
+    let router = router.fallback(|| async { mark(error_response(ErrorCode::NotFound)) });
     ApplicationRouter {
-        router: enforce(router.layer(Extension(Arc::new(context)))),
+        router: finish(enforce(router.layer(Extension(Arc::new(context)))), options),
     }
+}
+
+/// Adds the layers around the routes: the panic guard, the error renderer,
+/// the protective headers, and the request identity with logging outermost.
+pub(crate) fn finish(router: Router, options: &AppOptions) -> Router {
+    let policy = Arc::new(HeaderPolicy::new(&options.script_hashes));
+    router
+        .layer(middleware::from_fn(catch_panics))
+        .layer(middleware::from_fn(render_errors))
+        .layer(middleware::from_fn_with_state(policy, apply))
+        .layer(middleware::from_fn_with_state(
+            Arc::clone(&options.log_sink),
+            observe,
+        ))
 }
 
 /// Adds the final marker check. Every router that serves requests passes
@@ -116,7 +171,7 @@ fn allow_header(methods: &[Method]) -> String {
 }
 
 fn method_not_allowed(allow: String) -> Response {
-    let mut response = error_response(StatusCode::METHOD_NOT_ALLOWED, "method_not_allowed");
+    let mut response = error_response(ErrorCode::MethodNotAllowed);
     if let Ok(value) = header::HeaderValue::from_str(&allow) {
         response.headers_mut().insert(header::ALLOW, value);
     }

@@ -49,7 +49,7 @@ test('the server scaffold adds no inherited product names', () => {
 for (const [owner, source, section] of [
   ['server-domain', 'axum = "0.8"', 'dependencies'],
   ['server-domain', 'web = { package = "tower", version = "0.5" }', 'dev-dependencies'],
-  ['server-api-types', 'db = { package = "sqlx", version = "0.8", optional = true }', 'dependencies'],
+  ['server-api-types', 'db = { package = "sqlx", version = "0.8", optional = true }', 'target.\'cfg(unix)\'.dependencies'],
   ['server-domain', 'sqlx = "0.8"', 'target.\'cfg(windows)\'.build-dependencies'],
   ['server-domain', 'reqwest = "0.13"', 'dependencies'],
   ['server-domain', 'actix-web = "4"', 'dependencies'],

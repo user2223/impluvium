@@ -6,15 +6,16 @@
 use std::sync::Arc;
 
 use axum::extract::{Request, State};
-use axum::http::{StatusCode, header};
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
+use server_api_types::ErrorCode;
 use server_domain::credential::Credential;
 use server_domain::policy::{Decision, Policy};
 use server_domain::principal::Principal;
 
 use crate::auth::{ClientIp, CurrentPrincipal, PeerAddress, SecurityContext, extract_credential};
 use crate::csrf;
+use crate::error::error_response;
 use crate::proxy;
 use crate::registry::Csrf;
 
@@ -44,17 +45,6 @@ pub(crate) fn mark(mut response: Response) -> Response {
     response
 }
 
-/// Minimal JSON error body. Stable error codes and the full error contract
-/// replace this in the error layer.
-pub(crate) fn error_response(status: StatusCode, code: &'static str) -> Response {
-    (
-        status,
-        [(header::CONTENT_TYPE, "application/json")],
-        format!("{{\"code\":\"{code}\"}}"),
-    )
-        .into_response()
-}
-
 /// Runs the gate of a route before its handler: client address, credential,
 /// CSRF check where the contract demands it, and the policy decision. The
 /// handler only runs when all of them pass.
@@ -65,15 +55,15 @@ pub(crate) async fn enforce_policy(
 ) -> Response {
     let response = match admit(&state, request).await {
         Ok(request) => next.run(request).await,
-        Err(Reject(status, code)) => error_response(status, code),
+        Err(Reject(code)) => error_response(code),
     };
     mark(response)
 }
 
-/// Why the gate turned a request away: status and stable error code.
-struct Reject(StatusCode, &'static str);
+/// Why the gate turned a request away: the stable error code.
+struct Reject(ErrorCode);
 
-const INTERNAL: Reject = Reject(StatusCode::INTERNAL_SERVER_ERROR, "internal_error");
+const INTERNAL: Reject = Reject(ErrorCode::InternalError);
 
 async fn admit(state: &GateState, mut request: Request) -> Result<Request, Reject> {
     let Some(context) = request.extensions().get::<Arc<SecurityContext>>().cloned() else {
@@ -83,9 +73,9 @@ async fn admit(state: &GateState, mut request: Request) -> Result<Request, Rejec
         return Err(INTERNAL);
     };
     let client_ip = proxy::client_ip(context.proxies(), peer, request.headers())
-        .map_err(|_| Reject(StatusCode::BAD_REQUEST, "invalid_forwarding_headers"))?;
+        .map_err(|_| Reject(ErrorCode::InvalidForwardingHeaders))?;
     let credential = extract_credential(request.headers(), context.origin())
-        .map_err(|_| Reject(StatusCode::UNAUTHORIZED, "invalid_credentials"))?;
+        .map_err(|_| Reject(ErrorCode::InvalidCredentials))?;
     // Without a bearer token the check runs first, so a request from another
     // origin never reaches the credential port. A bearer token is exempt only
     // when it resolves to a principal; an unresolved one is checked as well.
@@ -105,9 +95,9 @@ async fn admit(state: &GateState, mut request: Request) -> Result<Request, Rejec
     match state.policy.decide(&principal) {
         Decision::Allow => {}
         Decision::Unauthenticated => {
-            return Err(Reject(StatusCode::UNAUTHORIZED, "unauthenticated"));
+            return Err(Reject(ErrorCode::Unauthenticated));
         }
-        Decision::Forbidden => return Err(Reject(StatusCode::FORBIDDEN, "forbidden")),
+        Decision::Forbidden => return Err(Reject(ErrorCode::Forbidden)),
     }
     request.extensions_mut().insert(ClientIp(client_ip));
     request
@@ -117,8 +107,7 @@ async fn admit(state: &GateState, mut request: Request) -> Result<Request, Rejec
 }
 
 fn check_csrf(request: &Request, context: &SecurityContext) -> Result<(), Reject> {
-    csrf::check(request.headers(), context.origin())
-        .map_err(|_| Reject(StatusCode::FORBIDDEN, "csrf_rejected"))
+    csrf::check(request.headers(), context.origin()).map_err(|_| Reject(ErrorCode::CsrfRejected))
 }
 
 /// Resolves a credential. Unknown, expired and revoked credentials give no
@@ -144,6 +133,6 @@ pub(crate) async fn require_marker(request: Request, next: Next) -> Response {
     if response.extensions().get::<PolicyApplied>().is_some() {
         response
     } else {
-        error_response(StatusCode::INTERNAL_SERVER_ERROR, "internal_error")
+        error_response(ErrorCode::InternalError)
     }
 }

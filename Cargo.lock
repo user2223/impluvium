@@ -6317,6 +6317,10 @@ dependencies = [
 [[package]]
 name = "server-api-types"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "server-bin"
@@ -6328,6 +6332,7 @@ dependencies = [
  "serde_json",
  "server-domain",
  "server-http",
+ "tokio",
  "zeroize",
 ]
 
@@ -6347,6 +6352,9 @@ name = "server-http"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "http-body",
+ "serde",
+ "serde_json",
  "server-api-types",
  "server-domain",
  "tokio",
