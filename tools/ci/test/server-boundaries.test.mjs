@@ -26,6 +26,7 @@ function fixture(t) {
     const file = `server/crates/${name}/Cargo.toml`;
     put(root, file, read(file));
   }
+  put(root, 'engine/crates/protocol/Cargo.toml', '[package]\nname = "impluvium-protocol"\n');
   for (const file of ['tools/ci/clippy-baseline.json', 'tools/ci/server-tests.json', 'tools/ci/server-dependencies.json', '.gitea/workflows/ci.yml']) put(root, file, read(file));
   return root;
 }
@@ -133,6 +134,9 @@ for (const [before, after, message] of [
   ['-p server-api-types', '', /cargo fmt: expected exactly/],
   ['--package server-api-types', '', /clippy-ratchet: expected exactly/],
   ['--package server-bin', '--package unknown', /clippy-ratchet: expected exactly/],
+  ['--exclude impluvium-protocol', '--exclude server-domain', /clippy-ratchet: expected exactly/],
+  ['--exclude impluvium-protocol', '--exclude impluvium-client', /clippy-ratchet: expected exactly/],
+  ['-p server-bin \\\n            -- -D warnings', '-p server-bin --exclude impluvium-protocol \\\n            -- -D warnings', /cargo clippy: expected exactly/],
   ['tools/ci/server-tests.json "${previous[@]}"', 'tools/ci/test-baseline.json "${previous[@]}"', /count-tests: incorrect baseline/],
   ['-- -D warnings', '-- --cap-lints warn', /must deny warnings/],
   ['run: node tools/ci/check-server-boundaries.mjs --root .', 'run: echo skipped', /must run the server boundary checker/],

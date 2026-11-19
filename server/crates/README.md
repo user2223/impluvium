@@ -10,7 +10,8 @@ Select its packages explicitly; the workspace default members stay unchanged.
 - `server-domain`: framework-independent policies and application ports.
 - `server-db`: database adapters depending on the domain.
 - `server-http`: HTTP adapters depending on the domain and public API types.
-- `server-bin`: the `impluvium-server` executable, depending on the HTTP layer.
+- `server-bin`: the `impluvium-server` executable, depending on the HTTP layer and the domain, and on the protocol
+  core of the engine for key derivation.
 
 The entry modules establish the dependency graph. They do not yet serve HTTP,
 connect to a database or implement application contracts. The executable exits

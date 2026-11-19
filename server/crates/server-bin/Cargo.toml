@@ -17,3 +17,9 @@ path = "src/main.rs"
 server-http = { path = "../server-http", version = "=0.1.0" }
 serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
 serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }
+server-domain = { path = "../server-domain", version = "=0.1.0" }
+impluvium-protocol = { path = "../../../engine/crates/protocol", version = "=0.1.0", default-features = false }
+zeroize = { version = "=1.9.1", default-features = false, features = ["alloc"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.191"

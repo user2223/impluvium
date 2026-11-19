@@ -4,3 +4,5 @@
 //! Principals, permissions, policies and application ports.
 //!
 //! This layer is independent of HTTP and database frameworks.
+
+pub mod identity;

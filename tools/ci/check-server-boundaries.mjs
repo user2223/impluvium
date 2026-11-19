@@ -12,7 +12,7 @@ export const serverPackages = ['server-api-types', 'server-domain', 'server-db',
 const directory = name => `server/crates/${name}`;
 const composition = {
   'server-api-types': [], 'server-domain': [], 'server-db': ['server-domain'],
-  'server-http': ['server-domain', 'server-api-types'], 'server-bin': ['server-http'],
+  'server-http': ['server-domain', 'server-api-types'], 'server-bin': ['server-http', 'server-domain'],
 };
 const admissionFile = 'tools/ci/server-dependencies.json';
 const validAdmission = entries => Array.isArray(entries) && entries.every(entry => plainObject(entry) &&
@@ -65,6 +65,9 @@ export function resolvedIssues(file, root) {
   return issues;
 }
 
+// Engine packages that server crates may depend on; the server job's report tools may exclude them.
+const engineDependencies = ['impluvium-protocol'];
+
 export function workflowIssues(file) {
   const workflow = yamlData(file), issues = [];
   const steps = workflow.jobs?.server?.steps ?? [];
@@ -74,11 +77,14 @@ export function workflowIssues(file) {
     }
   }
   const invocations = steps.flatMap(step => commands(step.run ?? '', file).map(tokens => executable(tokens).map(token => token.value)));
-  const checkSelection = (label, matches, flag) => {
+  // Report tools may exclude the engine packages that the server crates compile against; those packages are
+  // checked by the protocol jobs. Cargo invocations and server packages never accept an exclusion.
+  const checkSelection = (label, matches, flag, excludable = []) => {
     const selected = matches.flatMap(words => words.flatMap((word, index) => word === flag ? [words[index + 1]] : []));
+    const excluded = matches.flatMap(words => words.flatMap((word, index) => word === '--exclude' ? [words[index + 1]] : []));
     if (matches.length !== 1 || selected.length !== serverPackages.length ||
-        !serverPackages.every(name => selected.includes(name)) || matches.some(words =>
-          words.includes('--workspace') || words.includes('--exclude'))) {
+        !serverPackages.every(name => selected.includes(name)) || matches.some(words => words.includes('--workspace')) ||
+        excluded.some(name => !excludable.includes(name))) {
       issues.push(problem(file, 1, `${label}: expected exactly the five explicit server packages`));
     }
   };
@@ -91,7 +97,7 @@ export function workflowIssues(file) {
   }
   for (const [tool, baseline] of [['clippy-ratchet', 'clippy-baseline'], ['count-tests', 'server-tests']]) {
     const matches = invocations.filter(words => words[0] === 'node' && words[1] === `tools/ci/${tool}.mjs`);
-    checkSelection(`server ${tool}`, matches, '--package');
+    checkSelection(`server ${tool}`, matches, '--package', engineDependencies);
     if (!matches.some(words => words[words.indexOf('--baseline') + 1] === `tools/ci/${baseline}.json`)) {
       issues.push(problem(file, 1, `server ${tool}: incorrect baseline`));
     }

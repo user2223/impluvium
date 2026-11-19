@@ -368,7 +368,8 @@ jobs:
           set -e
           node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json "${previous[@]}" \
             --metadata "$RUNNER_TEMP/server-metadata.json" --input "$RUNNER_TEMP/server-clippy.jsonl" \
-            --package server-api-types --package server-domain --package server-db --package server-http --package server-bin
+            --package server-api-types --package server-domain --package server-db --package server-http --package server-bin \
+            --exclude impluvium-protocol
           test "$clippy_status" -eq 0
       - name: Server Rust tests (separate baseline)
         run: |

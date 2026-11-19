@@ -13,7 +13,11 @@
     "server-bin": [
       { "package": "server-http", "path": "server/crates/server-http/Cargo.toml" },
       { "package": "serde" },
-      { "package": "serde_json" }
+      { "package": "serde_json" },
+      { "package": "server-domain", "path": "server/crates/server-domain/Cargo.toml" },
+      { "package": "impluvium-protocol", "path": "engine/crates/protocol/Cargo.toml" },
+      { "package": "zeroize" },
+      { "package": "libc" }
     ]
   }
 }

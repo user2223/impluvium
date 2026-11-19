@@ -6322,9 +6322,13 @@ version = "0.1.0"
 name = "server-bin"
 version = "0.1.0"
 dependencies = [
+ "impluvium-protocol",
+ "libc",
  "serde",
  "serde_json",
+ "server-domain",
  "server-http",
+ "zeroize",
 ]
 
 [[package]]

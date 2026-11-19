@@ -100228,6 +100228,38 @@
           "derive",
           "std"
         ]
+      ],
+      [
+        "dependency",
+        "impluvium-protocol",
+        "impluvium-protocol",
+        "normal",
+        null,
+        false,
+        false,
+        []
+      ],
+      [
+        "dependency",
+        "libc",
+        "libc",
+        "normal",
+        "cfg(unix)",
+        false,
+        true,
+        []
+      ],
+      [
+        "dependency",
+        "zeroize",
+        "zeroize",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "alloc"
+        ]
       ]
     ],
     "requirements": [
@@ -100941,6 +100973,14 @@
       ],
       [
         "server/crates/server-bin/Cargo.toml",
+        119
+      ],
+      [
+        "server/crates/server-bin/Cargo.toml",
+        120
+      ],
+      [
+        "server/crates/server-bin/Cargo.toml",
         117
       ],
       [
@@ -100949,7 +100989,15 @@
       ],
       [
         "server/crates/server-bin/Cargo.toml",
+        115
+      ],
+      [
+        "server/crates/server-bin/Cargo.toml",
         114
+      ],
+      [
+        "server/crates/server-bin/Cargo.toml",
+        121
       ],
       [
         "server/crates/server-db/Cargo.toml",

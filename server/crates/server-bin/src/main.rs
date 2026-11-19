@@ -7,6 +7,10 @@ mod config;
 
 use std::process::ExitCode;
 
+// Not yet reachable from the startup path; the module is exercised by its tests.
+#[allow(dead_code)]
+mod keys;
+
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args_os()
         .skip(1)
