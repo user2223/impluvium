@@ -11,6 +11,7 @@
 //! with their own error envelope are not covered by this module.
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Upper bound for the length of an error message in bytes.
 pub const MAX_MESSAGE_LEN: usize = 200;
@@ -28,7 +29,7 @@ pub const MAX_FIELD_LEN: usize = 64;
 macro_rules! error_codes {
     ($($(#[$doc:meta])* $variant:ident => ($wire:literal, $status:literal, $message:literal),)+) => {
         /// The closed set of error codes. The wire value is the snake_case name.
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
         #[serde(rename_all = "snake_case")]
         pub enum ErrorCode {
             $($(#[$doc])* $variant,)+
@@ -171,7 +172,7 @@ impl FieldError {
 /// For a response that was not produced with a specific code, the HTTP status
 /// on the wire wins: the body names the nearest generic code, and the status
 /// in the catalog is only that code's default.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ApiError {
     /// Stable machine-readable code.
     pub code: ErrorCode,
@@ -179,8 +180,10 @@ pub struct ApiError {
     pub message: String,
     /// Identifier of the request, as in the `X-Request-Id` response header.
     pub request_id: String,
-    /// Invalid fields of a validation error; omitted when empty.
+    /// Invalid fields of a validation error; omitted when empty. The element type is spelled out
+    /// because `FieldError` is bounded on read and so deserialises through a helper type.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(optional, type = "Array<{ field: string, code: string }>")]
     pub fields: Vec<FieldError>,
 }
 
@@ -342,6 +345,17 @@ mod tests {
         );
         let back: ApiError = serde_json::from_value(value).unwrap();
         assert_eq!(back, invalid);
+    }
+
+    #[test]
+    fn typescript_union_names_every_wire_value() {
+        use ts_rs::TS;
+        let union = ErrorCode::inline(&ts_rs::Config::new());
+        let expected: HashSet<String> = ErrorCode::ALL
+            .iter()
+            .map(|code| format!("\"{}\"", code.as_str()))
+            .collect();
+        assert_eq!(crate::enums::tests::union_members(&union), expected);
     }
 
     #[test]

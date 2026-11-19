@@ -100275,18 +100275,6 @@
       ],
       [
         "dependency",
-        "serde_json",
-        "serde_json",
-        "dev",
-        null,
-        false,
-        false,
-        [
-          "std"
-        ]
-      ],
-      [
-        "dependency",
         "http-body",
         "http-body",
         "dev",
@@ -100479,6 +100467,18 @@
         false,
         [
           "net"
+        ]
+      ],
+      [
+        "dependency",
+        "ts-rs",
+        "ts-rs",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "serde-compat"
         ]
       ]
     ],
@@ -101193,11 +101193,15 @@
       ],
       [
         "server/crates/server-api-types/Cargo.toml",
-        123
+        117
       ],
       [
         "server/crates/server-api-types/Cargo.toml",
         118
+      ],
+      [
+        "server/crates/server-api-types/Cargo.toml",
+        138
       ],
       [
         "server/crates/server-bin/Cargo.toml",
@@ -101217,7 +101221,7 @@
       ],
       [
         "server/crates/server-bin/Cargo.toml",
-        133
+        132
       ],
       [
         "server/crates/server-bin/Cargo.toml",
@@ -101229,7 +101233,7 @@
       ],
       [
         "server/crates/server-bin/Cargo.toml",
-        135
+        134
       ],
       [
         "server/crates/server-bin/Cargo.toml",
@@ -101241,23 +101245,23 @@
       ],
       [
         "server/crates/server-db/Cargo.toml",
+        126
+      ],
+      [
+        "server/crates/server-db/Cargo.toml",
         127
       ],
       [
         "server/crates/server-db/Cargo.toml",
-        128
-      ],
-      [
-        "server/crates/server-db/Cargo.toml",
-        134
+        133
       ],
       [
         "server/crates/server-http/Cargo.toml",
-        136
+        135
       ],
       [
         "server/crates/server-http/Cargo.toml",
-        124
+        123
       ],
       [
         "server/crates/server-http/Cargo.toml",
@@ -101265,11 +101269,11 @@
       ],
       [
         "server/crates/server-http/Cargo.toml",
-        125
+        124
       ],
       [
         "server/crates/server-http/Cargo.toml",
-        126
+        125
       ],
       [
         "server/crates/server-http/Cargo.toml",
@@ -101281,15 +101285,23 @@
       ],
       [
         "server/crates/server-http/Cargo.toml",
+        136
+      ],
+      [
+        "server/crates/server-http/Cargo.toml",
         137
       ],
       [
         "server/crates/server-http/Cargo.toml",
-        138
+        122
       ],
       [
-        "server/crates/server-http/Cargo.toml",
-        122
+        "tools/server-xtask/Cargo.toml",
+        128
+      ],
+      [
+        "tools/server-xtask/Cargo.toml",
+        116
       ],
       [
         "tools/server-xtask/Cargo.toml",
@@ -101302,10 +101314,6 @@
       [
         "tools/server-xtask/Cargo.toml",
         131
-      ],
-      [
-        "tools/server-xtask/Cargo.toml",
-        132
       ],
       [
         "torrential/Cargo.toml",

@@ -392,6 +392,8 @@ jobs:
             --metadata "$RUNNER_TEMP/server-metadata.json" --input "$RUNNER_TEMP/server-tests.txt" \
             --package server-api-types --package server-domain --package server-db --package server-http --package server-bin
           test "$test_status" -eq 0
+      - name: Wire shapes (TypeScript declarations match the Rust types)
+        run: cargo xtask api-types --check
       - name: Enable pnpm (corepack, version from package.json)
         run: corepack enable && pnpm --version
       - name: Install dependencies (server and its Nuxt layer)

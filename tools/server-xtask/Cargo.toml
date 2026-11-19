@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2024"
 license = "AGPL-3.0-only"
 publish = false
-description = "Runs the pinned sqlx-cli for the server database schema and its query metadata"
+description = "Runs the pinned sqlx-cli for the server database schema and its query metadata, and writes the TypeScript wire shapes"
 
 [dependencies]
 # sqlx-cli is built from this lock file (`cargo xtask`, always --locked) and is never installed
@@ -17,3 +17,4 @@ sqlx-cli = { version = "=0.9.0", default-features = false, features = ["postgres
 sqlx = { version = "=0.9.0", default-features = false, features = ["any", "postgres", "runtime-tokio"] }
 clap = { version = "=4.6.7", features = ["derive"] }
 tokio = { version = "=1.54.1", default-features = false, features = ["rt-multi-thread", "macros"] }
+server-api-types = { path = "../../server/crates/server-api-types", version = "=0.1.0" }

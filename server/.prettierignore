@@ -10,3 +10,6 @@ pnpm-lock.yaml
 
 # JSON files under crates are written and checked by the Rust tests
 crates/**/*.json
+
+# TypeScript wire shapes written by `cargo xtask api-types`; CI checks them against the Rust types
+shared/api/shapes/

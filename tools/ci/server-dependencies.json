@@ -3,7 +3,8 @@
   "packages": {
     "server-api-types": [
       { "package": "serde" },
-      { "package": "serde_json" }
+      { "package": "serde_json" },
+      { "package": "ts-rs" }
     ],
     "server-domain": [],
     "server-db": [

@@ -6,7 +6,8 @@ import vueI18n from "@intlify/eslint-plugin-vue-i18n";
 import noPrismaDelete from "./rules/no-prisma-delete.mts";
 
 export default withNuxt([
-  globalIgnores([".data/*"]),
+  // The wire shapes are generated from the Rust types and checked for drift in CI.
+  globalIgnores([".data/*", "shared/api/shapes/**"]),
 
   eslintConfigPrettier,
 

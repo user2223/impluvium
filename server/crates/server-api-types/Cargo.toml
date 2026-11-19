@@ -11,6 +11,7 @@ description = "Public web contracts and wire adapters for the impluvium server"
 
 [dependencies]
 serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
-
-[dev-dependencies]
 serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }
+# Derives the TypeScript declarations of the wire shapes; the serde attributes are read by `serde-compat`.
+# Without default features, so no formatter is built and the output stays byte-stable.
+ts-rs = { version = "=12.0.1", default-features = false, features = ["serde-compat"] }
