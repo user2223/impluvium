@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use axum::http::StatusCode;
 use common::{get, router_with};
 use server_domain::credential::BoxFuture;
+use server_http::emoji::EmojiFiles;
 use server_http::health::ReadinessPort;
 use server_http::registry;
 use server_http::router::AppOptions;
@@ -28,7 +29,7 @@ impl ReadinessPort for Switch {
 fn ready_follows_the_dependencies_while_live_stays_up() {
     let switch = Arc::new(Switch(AtomicBool::new(false)));
     let router = router_with(
-        registry::application_with(switch.clone()),
+        registry::application_with(switch.clone(), Arc::new(EmojiFiles::empty())),
         &AppOptions::default(),
     );
     let live = get(&router, "/api/health/live");
@@ -53,11 +54,24 @@ fn probes_are_public_and_listed_in_the_inventory() {
         .collect();
     assert_eq!(
         listed,
-        [("GET", "/api/health/live"), ("GET", "/api/health/ready")]
+        [
+            ("GET", "/api/health/live"),
+            ("GET", "/api/health/ready"),
+            ("GET", "/api/v1/emoji/{codepoint}"),
+            ("GET", "/auth/callback/oidc"),
+            ("GET", "/auth/oidc"),
+            ("GET", "/auth/signout"),
+        ]
     );
-    assert!(
-        inventory
-            .iter()
-            .all(|info| info.policy.public_reason().is_some())
-    );
+    for info in inventory
+        .iter()
+        .filter(|info| info.path.starts_with("/api/health/"))
+    {
+        assert!(info.policy.public_reason().is_some(), "{}", info.path);
+    }
+    let emoji = inventory
+        .iter()
+        .find(|info| info.path == "/api/v1/emoji/{codepoint}")
+        .expect("the emoji route is listed");
+    assert!(emoji.policy.public_reason().is_none());
 }

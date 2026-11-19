@@ -42,6 +42,7 @@ use server_db::{
 };
 use server_domain::credential::NoCredentials;
 use server_http::auth::{ExternalOrigin, OriginError, Scheme as OriginScheme, SecurityContext};
+use server_http::emoji::EmojiFiles;
 use server_http::observe::{RequestLogEntry, RequestLogSink};
 use server_http::proxy::{InvalidNetwork, Network, TrustedProxies};
 use server_http::registry;
@@ -52,6 +53,7 @@ use crate::config::{
     self, BackupMode as ConfiguredBackup, Cidr, Config, ExternalUrl, LogFormat, Scheme, Source,
 };
 use crate::data_dir::{self, DataDirectory};
+use crate::emoji;
 use crate::instance_keys::FileKeys;
 use crate::logging::{self, JsonLogger, Level};
 use crate::readiness::Readiness;
@@ -179,20 +181,29 @@ impl RequestLogSink for TextRequests {
 /// What the checks before the database leave behind. Dropping it releases the data directory lock.
 struct Prepared {
     spa: SpaArtifact,
+    emoji: EmojiFiles,
     _data_dir: DataDirectory,
 }
 
-/// Steps 2 and 3: the web application directory and the data directory.
+/// Steps 2 and 3: the web application directory, the emoji directory when one is configured, and
+/// the data directory.
 fn prepare(config: &Config) -> Result<Prepared, String> {
     let Some(dir) = &config.spa_dir else {
         return Err("IMPLUVIUM_SPA_DIR is required to start".to_owned());
     };
     let spa = spa::validate_artifact(Path::new(dir))
         .map_err(|error| format!("IMPLUVIUM_SPA_DIR: {error}"))?;
+    let emoji = match &config.emoji_dir {
+        Some(dir) => {
+            emoji::load(Path::new(dir)).map_err(|error| format!("IMPLUVIUM_EMOJI_DIR: {error}"))?
+        }
+        None => EmojiFiles::empty(),
+    };
     let data_dir =
         data_dir::open(&config.data_dir).map_err(|error| format!("IMPLUVIUM_DATA_DIR: {error}"))?;
     Ok(Prepared {
         spa,
+        emoji,
         _data_dir: data_dir,
     })
 }
@@ -265,6 +276,12 @@ fn execute(source: &Source) -> Exit {
         prepared.spa.files,
         prepared.spa.script_hashes.len()
     ));
+    if config.emoji_dir.is_some() {
+        console.info(&format!(
+            "emoji pictures checked: {} files",
+            prepared.emoji.len()
+        ));
+    }
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -275,11 +292,21 @@ fn execute(source: &Source) -> Exit {
             return Exit::Failed;
         }
     };
-    runtime.block_on(serve_product(&config, prepared.spa, &console))
+    runtime.block_on(serve_product(
+        &config,
+        prepared.spa,
+        Arc::new(prepared.emoji),
+        &console,
+    ))
 }
 
 /// Steps 4 to 8, and the stop.
-async fn serve_product(config: &Config, spa: SpaArtifact, console: &Console) -> Exit {
+async fn serve_product(
+    config: &Config,
+    spa: SpaArtifact,
+    emoji: Arc<EmojiFiles>,
+    console: &Console,
+) -> Exit {
     let url = DatabaseUrl::new(config.database_url.expose());
     match read_server_version_num(&url).await {
         Err(error) => {
@@ -322,7 +349,7 @@ async fn serve_product(config: &Config, spa: SpaArtifact, console: &Console) -> 
         }
     };
     report_start(&started, console);
-    run_owned(config, spa, console, &url, started).await
+    run_owned(config, spa, emoji, console, &url, started).await
 }
 
 fn report_start(started: &Started, console: &Console) {
@@ -356,6 +383,7 @@ fn report_start(started: &Started, console: &Console) {
 async fn run_owned(
     config: &Config,
     spa: SpaArtifact,
+    emoji: Arc<EmojiFiles>,
     console: &Console,
     url: &DatabaseUrl,
     started: Started,
@@ -375,7 +403,7 @@ async fn run_owned(
             return Exit::Failed;
         }
     };
-    let exit = serve_owned(config, spa, console, &owner).await;
+    let exit = serve_owned(config, spa, emoji, console, &owner).await;
     // Do not wait long for connections that an abandoned request still holds.
     let _ = tokio::time::timeout(Duration::from_secs(5), database.close()).await;
     if exit == Exit::OwnershipLost {
@@ -390,6 +418,7 @@ async fn run_owned(
 async fn serve_owned(
     config: &Config,
     spa: SpaArtifact,
+    emoji: Arc<EmojiFiles>,
     console: &Console,
     owner: &OwnerGuard,
 ) -> Exit {
@@ -408,7 +437,8 @@ async fn serve_owned(
     };
     let app = build_with(
         registry::application_with(
-            Arc::clone(&readiness) as Arc<dyn server_http::health::ReadinessPort>
+            Arc::clone(&readiness) as Arc<dyn server_http::health::ReadinessPort>,
+            emoji,
         ),
         SecurityContext::new(origin, proxies, Arc::new(NoCredentials)),
         &app_options,
@@ -586,6 +616,43 @@ mod tests {
             "{message}"
         );
         drop(first);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_emoji_directory_is_checked_before_the_data_directory_is_locked() {
+        let data = Scratch::new("start-emoji-data");
+        let data_dir = data.path().to_string_lossy().into_owned();
+        let web = Scratch::new("start-emoji-web");
+        crate::spa::write_test_artifact(web.path());
+        let web_dir = web.path().to_string_lossy().into_owned();
+        let pictures = Scratch::new("start-emoji-files");
+        std::fs::write(pictures.path().join("1f600.svg"), "<svg/>").unwrap();
+        let pictures_dir = pictures.path().to_string_lossy().into_owned();
+        let missing = data.path().join("no-emoji").to_string_lossy().into_owned();
+        let message = prepare(&config(&[
+            ("IMPLUVIUM_DATA_DIR", data_dir.as_str()),
+            ("IMPLUVIUM_SPA_DIR", web_dir.as_str()),
+            ("IMPLUVIUM_EMOJI_DIR", missing.as_str()),
+        ]))
+        .err()
+        .expect("a missing emoji directory is refused");
+        assert!(message.starts_with("IMPLUVIUM_EMOJI_DIR: "), "{message}");
+        assert!(!data.path().join(".impluvium-lock").exists());
+        let prepared = prepare(&config(&[
+            ("IMPLUVIUM_DATA_DIR", data_dir.as_str()),
+            ("IMPLUVIUM_SPA_DIR", web_dir.as_str()),
+            ("IMPLUVIUM_EMOJI_DIR", pictures_dir.as_str()),
+        ]))
+        .unwrap();
+        assert_eq!(prepared.emoji.len(), 1);
+        drop(prepared);
+        let without = prepare(&config(&[
+            ("IMPLUVIUM_DATA_DIR", data_dir.as_str()),
+            ("IMPLUVIUM_SPA_DIR", web_dir.as_str()),
+        ]))
+        .unwrap();
+        assert!(without.emoji.is_empty());
     }
 
     #[cfg(unix)]

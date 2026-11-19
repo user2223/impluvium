@@ -196,6 +196,15 @@ pub const FIELDS: &[Field] = &[
         summary: "Directory with the built web application; required to start the server.",
     },
     Field {
+        key: "emoji_dir",
+        variable: "IMPLUVIUM_EMOJI_DIR",
+        file_variable: None,
+        kind: Kind::Directory,
+        presence: Presence::Optional,
+        fallback: Fallback::None,
+        summary: "Directory with the emoji pictures, SVG files named by code point; without it the emoji route has no pictures.",
+    },
+    Field {
         key: "log_filter",
         variable: "IMPLUVIUM_LOG",
         file_variable: None,

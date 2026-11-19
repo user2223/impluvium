@@ -195,6 +195,7 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `IMPLUVIUM_DB_POOL_MIN` | runtime | server | active | read | no | no | keep: Not planned. | Number of database connections kept open. |
 | `IMPLUVIUM_DB_TIMEOUT_SECS` | runtime | server | active | read | no | no | keep: Not planned. | Seconds to wait for a free database connection. |
 | `IMPLUVIUM_SPA_DIR` | runtime | server | active | read | no | no | keep: Not planned. | Directory with the built web application. |
+| `IMPLUVIUM_EMOJI_DIR` | runtime | server | active | read | no | no | keep: Not planned. | Directory with the emoji pictures. |
 | `IMPLUVIUM_LOG` | runtime | server | active | read | no | no | keep: Not planned. | Log filter: a level, or target=level directives separated by commas. |
 | `IMPLUVIUM_LOG_FORMAT` | runtime | server | active | read | no | no | keep: Not planned. | Format of log lines: text or json. |
 | `IMPLUVIUM_BACKUP_MODE` | runtime | server | active | read | no | no | keep: Not planned. | How the backup before pending migrations is made: auto, command or off. |

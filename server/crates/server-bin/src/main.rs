@@ -6,6 +6,7 @@
 mod backup;
 mod config;
 mod data_dir;
+mod emoji;
 mod instance_keys;
 mod logging;
 mod readiness;

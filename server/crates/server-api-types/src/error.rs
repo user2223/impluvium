@@ -113,6 +113,8 @@ error_codes! {
     InternalError => ("internal_error", 500, "An internal error occurred."),
     /// A dependency of the server is not available yet.
     NotReady => ("not_ready", 503, "The service is not ready to handle requests."),
+    /// The endpoint is registered but has no implementation yet.
+    NotImplemented => ("not_implemented", 501, "This function is not available yet."),
 }
 
 #[cfg(test)]

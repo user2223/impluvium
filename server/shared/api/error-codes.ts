@@ -29,6 +29,7 @@ export const errorCodes = [
   { code: "request_timeout", status: 408 },
   { code: "internal_error", status: 500 },
   { code: "not_ready", status: 503 },
+  { code: "not_implemented", status: 501 },
 ] as const;
 
 export type ErrorCodeName = (typeof errorCodes)[number]["code"];

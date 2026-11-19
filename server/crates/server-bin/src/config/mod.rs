@@ -282,6 +282,7 @@ mod tests {
         assert_eq!((config.db_pool_max, config.db_pool_min), (10, 0));
         assert_eq!(config.db_timeout_secs, 30);
         assert!(config.spa_dir.is_none());
+        assert!(config.emoji_dir.is_none());
         assert_eq!(config.log_filter, "info");
         assert_eq!(config.backup_mode, BackupMode::Auto);
         assert_eq!(config.backup_timeout_secs, 3600);
@@ -300,6 +301,7 @@ mod tests {
             ("IMPLUVIUM_DB_POOL_MIN", "2"),
             ("IMPLUVIUM_DB_TIMEOUT_SECS", "5"),
             ("IMPLUVIUM_SPA_DIR", "/srv/impluvium/web"),
+            ("IMPLUVIUM_EMOJI_DIR", "/srv/impluvium/emoji"),
             ("IMPLUVIUM_LOG", "warn,server_http=debug"),
             ("IMPLUVIUM_LOG_FORMAT", "json"),
             ("IMPLUVIUM_BACKUP_MODE", "command"),
@@ -320,6 +322,10 @@ mod tests {
             std::path::Path::new("/srv/impluvium/games")
         );
         assert_eq!(config.trusted_proxies.len(), 2);
+        assert_eq!(
+            config.emoji_dir.as_deref(),
+            Some(std::path::Path::new("/srv/impluvium/emoji"))
+        );
         assert_eq!((config.db_pool_max, config.db_pool_min), (20, 2));
         assert_eq!(config.backup_command, ["/usr/local/bin/backup", "--quiet"]);
         assert_eq!(config.backup_timeout_secs, 7200);

@@ -16,6 +16,12 @@ have passed.
    256 MiB in total and 32 MiB per file. The server reads all files into memory during this check and serves
    exactly those bytes; changing the directory afterwards has no effect until the next start. The hashes of
    `index.html` go into the content security policy of the page.
+   Right after it, the optional emoji pictures. When `IMPLUVIUM_EMOJI_DIR` is set, the directory must hold only plain files
+   named `<code point>.svg`, where the code point is one to twelve lowercase hexadecimal numbers of up to six
+   digits joined by `-`, such as `1f600.svg` or `1f1e9-1f1ea.svg`. Links, subdirectories, other names, files
+   that are not UTF-8 text containing an `<svg` element, files over 256 KiB, more than 20000 files and more than 64 MiB in total are
+   refused. The server reads the files into memory and serves exactly those bytes. Without the setting the
+   emoji route knows no pictures and answers `404`.
 3. **Data directory.** It must exist, belong to the user that runs the server and must not be writable by its
    group or by others. The server takes an exclusive lock on the file `.impluvium-lock` inside it and keeps
    it as long as it runs.
@@ -41,6 +47,7 @@ have passed.
 | `empty database with existing data directory` | The database is empty but the data directory has data. If you restored the data directory and want to use a new database with it, see below. |
 | `IMPLUVIUM_SPA_DIR is required to start` | The setting is missing. Point it at the built web application. |
 | `IMPLUVIUM_SPA_DIR: ...` | The web application directory is missing, does not match its manifest, or exceeds a size limit. Rebuild or redeploy it. |
+| `IMPLUVIUM_EMOJI_DIR: ...` | The emoji directory is missing, holds something other than plain `<code point>.svg` files, or exceeds a limit. |
 | `cannot listen on the configured address` | The address in `IMPLUVIUM_LISTEN` is in use or not available on this machine. |
 
 ## What the web application serves
@@ -109,3 +116,20 @@ Start it again, or let your supervisor restart it.
 | 1 | A check failed, the start was refused, or the server failed. |
 | 3 | The database lock was lost while serving. |
 | 4 | Stopped by a signal, but a request was still running when the 30 seconds ran out. |
+
+## Routes under `/auth`, the emoji route and the flags
+
+- `GET /auth/callback/oidc` answers `307 Temporary Redirect` to `/api/v1/auth/oidc/callback` and appends the
+  query string exactly as it arrived, byte for byte; an empty query is dropped. It is the address that
+  single sign-on providers were registered with before the API moved. The answer is never cached.
+- `GET /auth/oidc` and `GET /auth/signout` exist so that they never get the page shell. They are not
+  implemented yet and answer with the API error `not_implemented` (`501`); `GET /auth/signout` changes nothing.
+  Other methods on the three routes get `405`.
+- `GET /api/v1/emoji/{codepoint}` serves one emoji picture to callers with the right `emoji:read`: the roles
+  user and admin have it, an API token needs it explicitly and its owner must still hold it, and a session
+  that has not finished its second factor is refused. Earlier versions allowed only administrators and the
+  setup. The code point must follow the grammar above (otherwise `400`); an unknown one is `404`.
+  The picture is `image/svg+xml`, cached privately for a year.
+- The flags of the language selection are not served by the emoji route. The web application ships them as
+  static files at `/flags/<code point>.svg`, copied by the build from the emoji package for exactly the
+  supported languages, so they load without signing in, also on the setup page.

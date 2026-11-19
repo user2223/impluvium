@@ -1,7 +1,9 @@
 import { spawn } from 'node:child_process';
-import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { findPackageJSON } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { flagCodepoints } from '../../server/utils/locale-flags.ts';
 import { createSpaManifest, validateSpaManifest } from '../../server/server/utils/spa-contract.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -9,6 +11,19 @@ const app = join(root, 'server');
 const [profile] = process.argv.slice(2);
 if (!['server', 'spa', 'assemble'].includes(profile) || process.argv.length !== 3) {
   throw new Error('Usage: node tools/web-spa/build.mjs server|spa|assemble');
+}
+
+// The flags of the language selection are static files under /flags, copied from the emoji package
+// for exactly the shipped languages, so that they load without sign-in (also on the setup page).
+async function copyFlags(output) {
+  const manifest = findPackageJSON('@discordapp/twemoji', pathToFileURL(join(app, 'package.json')).href);
+  if (!manifest) throw new Error('The emoji package is not installed');
+  const source = join(dirname(manifest), 'dist', 'svg');
+  const target = join(output, 'flags');
+  await mkdir(target, { recursive: true });
+  for (const codepoint of flagCodepoints) {
+    await copyFile(join(source, `${codepoint}.svg`), join(target, `${codepoint}.svg`));
+  }
 }
 
 if (profile === 'assemble') {
@@ -41,6 +56,7 @@ if (profile === 'assemble') {
   if (code !== 0) process.exitCode = code ?? 1;
   else if (profile === 'spa') {
     const output = join(app, '.output/spa/public');
+    await copyFlags(output);
     const manifest = await createSpaManifest(output);
     await writeFile(join(output, 'csp-hashes.json'), JSON.stringify(manifest, null, 2) + '\n');
     await validateSpaManifest(output);

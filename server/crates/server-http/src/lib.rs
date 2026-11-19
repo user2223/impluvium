@@ -8,7 +8,9 @@
 //! [`router`] assembles the framework router from the same definitions.
 
 pub mod auth;
+pub mod auth_paths;
 pub mod csrf;
+pub mod emoji;
 pub mod error;
 pub mod extract;
 mod guard;

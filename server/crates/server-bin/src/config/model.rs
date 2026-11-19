@@ -122,6 +122,7 @@ pub struct Config {
     pub db_pool_min: u32,
     pub db_timeout_secs: u32,
     pub spa_dir: Option<PathBuf>,
+    pub emoji_dir: Option<PathBuf>,
     pub log_filter: String,
     pub log_format: LogFormat,
     pub backup_mode: BackupMode,

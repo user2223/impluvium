@@ -79,6 +79,7 @@ impl Source {
             env::var("IMPLUVIUM_DB_TIMEOUT_SECS"),
         );
         s.record("IMPLUVIUM_SPA_DIR", env::var("IMPLUVIUM_SPA_DIR"));
+        s.record("IMPLUVIUM_EMOJI_DIR", env::var("IMPLUVIUM_EMOJI_DIR"));
         s.record("IMPLUVIUM_LOG", env::var("IMPLUVIUM_LOG"));
         s.record("IMPLUVIUM_LOG_FORMAT", env::var("IMPLUVIUM_LOG_FORMAT"));
         s.record("IMPLUVIUM_BACKUP_MODE", env::var("IMPLUVIUM_BACKUP_MODE"));

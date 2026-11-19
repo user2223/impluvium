@@ -10,9 +10,10 @@
         class="grid w-full cursor-default grid-cols-1 rounded-md bg-zinc-900 py-1.5 pr-2 pl-3 text-left text-zinc-300 outline-1 -outline-offset-1 outline-zinc-700 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6"
       >
         <span class="col-start-1 row-start-1 flex items-center gap-3 pr-6">
-          <EmojiText
-            :emoji="localeToEmoji(wiredLocale)"
-            class="-mt-0.5 shrink-0 max-w-6"
+          <img
+            :src="localeFlagUrl(wiredLocale)"
+            alt=""
+            class="inline-block emoji -mt-0.5 shrink-0 max-w-6"
           />
           <span class="block truncate">{{
             currentLocaleInformation?.name ?? wiredLocale
@@ -48,9 +49,10 @@
               ]"
             >
               <div class="flex items-center">
-                <EmojiText
-                  :emoji="localeToEmoji(listLocale.code)"
-                  class="-mt-0.5 shrink-0 max-w-6"
+                <img
+                  :src="localeFlagUrl(listLocale.code)"
+                  alt=""
+                  class="inline-block emoji -mt-0.5 shrink-0 max-w-6"
                 />
                 <span
                   :class="[
@@ -89,6 +91,7 @@ import {
 import { ChevronUpDownIcon } from "@heroicons/vue/16/solid";
 import { CheckIcon } from "@heroicons/vue/24/outline";
 import type { Locale } from "vue-i18n";
+import { localeFlagUrl } from "~/utils/locale-flags";
 
 const { showText = true } = defineProps<{ showText?: boolean }>();
 
@@ -96,40 +99,6 @@ const { locales, locale: currLocale, setLocale } = useI18n();
 
 function changeLocale(locale: Locale) {
   setLocale(locale);
-}
-
-function localeToEmoji(local: string): string {
-  switch (local) {
-    // Default locale
-    case "en":
-    case "en-us":
-      return "🇺🇸";
-
-    case "en-gb":
-      return "🇬🇧";
-    case "en-ca":
-      return "🇨🇦";
-    case "en-au":
-      return "🇦🇺";
-    case "en-pirate":
-      return "🏴‍☠️";
-    case "fr":
-      return "🇫🇷";
-    case "de":
-      return "🇩🇪";
-    case "es":
-      return "🇪🇸";
-    case "it":
-      return "🇮🇹";
-    case "zh":
-      return "🇨🇳";
-    case "zh-tw":
-      return "🇹🇼";
-
-    default: {
-      return "❓";
-    }
-  }
 }
 
 const wiredLocale = computed({

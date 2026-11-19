@@ -108,15 +108,23 @@ mod tests {
             .collect();
         assert_eq!(
             served,
-            [("GET", "/api/health/live"), ("GET", "/api/health/ready")]
+            [
+                ("GET", "/api/health/live"),
+                ("GET", "/api/health/ready"),
+                ("GET", "/api/v1/emoji/{codepoint}"),
+                ("GET", "/auth/callback/oidc"),
+                ("GET", "/auth/oidc"),
+                ("GET", "/auth/signout"),
+            ]
         );
-        assert!(
-            document["routes"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .all(|entry| entry["policy"]["access"] == "public")
-        );
+        let protected: Vec<&str> = document["routes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|entry| entry["policy"]["access"] == "protected")
+            .map(|entry| entry["path"].as_str().unwrap())
+            .collect();
+        assert_eq!(protected, ["/api/v1/emoji/{codepoint}"]);
         let fallbacks = document["fallbacks"].as_array().unwrap();
         let kinds: Vec<&str> = fallbacks
             .iter()
