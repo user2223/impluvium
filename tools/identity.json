@@ -25,6 +25,7 @@
              "keyring_service": "drop", "url_scheme": "drop", "user_agent": "Drop Desktop Client",
              "app_name": "Drop", "linux_package": "drop-desktop-client", "desktop_program": "drop-app"},
   "bindings": [
+    {"value": "programs.server", "file": "server/crates/server-bin/Cargo.toml", "regex": "^name = \"(impluvium-server)\"$"},
     {"value": "desktop.product_name", "file": "desktop/src-tauri/tauri.conf.json", "json": "/productName"},
     {"value": "desktop.identifier", "file": "desktop/src-tauri/tauri.conf.json", "json": "/identifier"},
     {"value": "product.publisher", "file": "desktop/src-tauri/tauri.conf.json", "json": "/bundle/publisher"},

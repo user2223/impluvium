@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "server-bin"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+description = "Executable composition and lifecycle of the impluvium server"
+
+[[bin]]
+name = "impluvium-server"
+path = "src/main.rs"
+
+[dependencies]
+server-http = { path = "../server-http", version = "=0.1.0" }

@@ -1,6 +1,11 @@
 {
   "version": 1,
   "packages": {
+    "server-api-types": 0,
+    "server-domain": 0,
+    "server-db": 0,
+    "server-http": 0,
+    "server-bin": 0,
     "impluvium-hashchunk-bench": 0,
     "impluvium-protocol": 0,
     "impluvium-client": 0,

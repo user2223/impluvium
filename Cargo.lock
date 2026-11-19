@@ -6315,6 +6315,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "server-api-types"
+version = "0.1.0"
+
+[[package]]
+name = "server-bin"
+version = "0.1.0"
+dependencies = [
+ "server-http",
+]
+
+[[package]]
+name = "server-db"
+version = "0.1.0"
+dependencies = [
+ "server-domain",
+]
+
+[[package]]
+name = "server-domain"
+version = "0.1.0"
+
+[[package]]
+name = "server-http"
+version = "0.1.0"
+dependencies = [
+ "server-api-types",
+ "server-domain",
+]
+
+[[package]]
 name = "servo_arc"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

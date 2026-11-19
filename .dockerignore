@@ -7,6 +7,17 @@
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
 !server/
+# Cargo loads these members even when the image builds only torrential.
+!server/crates/server-api-types/Cargo.toml
+!server/crates/server-api-types/src/
+!server/crates/server-domain/Cargo.toml
+!server/crates/server-domain/src/
+!server/crates/server-db/Cargo.toml
+!server/crates/server-db/src/
+!server/crates/server-http/Cargo.toml
+!server/crates/server-http/src/
+!server/crates/server-bin/Cargo.toml
+!server/crates/server-bin/src/
 !libraries/base/
 !tools/web-spa/
 

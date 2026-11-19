@@ -28,11 +28,23 @@ for the self-tests. Repository walks skip `.git`, `node_modules`, `target`,
 
 ```sh
 node tools/ci/check-pins.mjs --root .
+node tools/ci/check-server-boundaries.mjs --root .
 node tools/ci/check-features.mjs --root . --previous-baseline /tmp/base-feature-gates.json
 cargo metadata --locked --all-features --format-version=1 > /tmp/metadata.json
 pnpm --filter "{./engine/protocol/ts}..." list --depth Infinity --json > /tmp/pnpm-graph.json
 node tools/ci/check-licence-boundary.mjs --root . --metadata /tmp/metadata.json --pnpm-graph /tmp/pnpm-graph.json --pnpm-lock pnpm-lock.yaml
 ```
+
+`check-server-boundaries` admits direct server dependencies only through
+`tools/ci/server-dependencies.json`, by actual package name and optional local
+manifest path. Admission covers normal, build, dev, optional and target-specific
+dependencies, including aliases and workspace inheritance. The server job adds
+`--metadata FILE`, using locked offline Cargo metadata from the same workspace.
+The resolved check rejects normal paths from non-database server roots to
+`sqlx`/`sqlx-*` and direct axum/tower or Hyper server dependencies outside the
+HTTP crate. It requires all five roots, complete resolved edges, dependency
+kinds and features. Metadata is workspace-wide; the checker selects the five
+server roots and leaves other workspace packages' HTTP dependencies alone.
 
 `check-pins` applies generic checks to every file under `.gitea/workflows/` and
 `.github/workflows/`. Only `ci.yml` must have the six required job IDs, without

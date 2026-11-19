@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "server-domain"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+description = "Framework-independent policies and ports for the impluvium server"

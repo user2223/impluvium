@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const tools = ['check-pins', 'check-features', 'check-licence-boundary', 'clippy-ratchet', 'tsc-ratchet', 'count-tests', 'check-lock-versions',
+const tools = ['check-server-boundaries', 'check-pins', 'check-features', 'check-licence-boundary', 'clippy-ratchet', 'tsc-ratchet', 'count-tests', 'check-lock-versions',
   'check-protocol-graph', 'capture-protocol-graph', 'capture-protocol-workspace', 'check-protocol-breaking', 'protocol-base', 'protocol-tools', 'protocol-matrix'];
 for (const tool of tools) {
   test(`${tool}: help and unknown-option exit conventions`, () => {

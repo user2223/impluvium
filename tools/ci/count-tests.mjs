@@ -97,6 +97,7 @@ export function check(options) {
     issues.push(...parsed.issues);
     for (const [name, entry] of parsed.packages) {
       if (!Object.hasOwn(limits, name)) issues.push(problem(options.baseline, 1, `${name}: observed package missing from baseline`));
+      if (!names.includes(name)) issues.push(problem(file, 1, `${name}: observed package outside --package selection`));
       if (!packages.has(name)) packages.set(name, { counts: { tests: 0, docTests: 0 }, seen: new Set() });
       const total = packages.get(name);
       for (const kind of kinds) {

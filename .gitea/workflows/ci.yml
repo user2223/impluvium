@@ -70,6 +70,8 @@ jobs:
         run: node --test tools/ci/test/*.test.mjs
       - name: HTTP route inventory
         run: node tools/ci/check-api-routes.mjs
+      - name: Server crate boundaries and package selections
+        run: node tools/ci/check-server-boundaries.mjs --root .
       - name: Pins (images, actions, tools, locked Cargo commands, frozen installs, Node major, required jobs)
         run: |
           node tools/ci/check-pins.mjs --root .
@@ -306,6 +308,84 @@ jobs:
       image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:2992a8a0448aba1c093255787390b2a090fefbfd76cc25db107f527e9bd65d3a
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Rust toolchain (stable, rust-toolchain.toml)
+        run: |
+          curl -sSfo "$RUNNER_TEMP/rustup-init" \
+            "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init"
+          echo "${RUSTUP_SHA256}  $RUNNER_TEMP/rustup-init" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/rustup-init"
+          "$RUNNER_TEMP/rustup-init" -y --profile minimal --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustup toolchain install
+          rustup show active-toolchain
+      - name: Server Rust baselines of the base revision
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/base"
+          case "$EVENT_NAME:$GITHUB_REF" in
+            pull_request:*) base="$PR_BASE_SHA" ;;
+            push:refs/heads/*) base="$PUSH_BEFORE" ;;
+            *) echo "No base revision for this run ($EVENT_NAME $GITHUB_REF)"; exit 0 ;;
+          esac
+          test -n "$base"
+          if [ "$EVENT_NAME" = push ] && [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "New branch: only the current baselines are checked."
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$base"
+          git show "$base:.gitea/workflows/ci.yml" > "$RUNNER_TEMP/base/ci.yml"
+          for name in clippy-baseline server-tests; do
+            if git cat-file -e "$base:tools/ci/$name.json" 2>/dev/null; then
+              git show "$base:tools/ci/$name.json" > "$RUNNER_TEMP/base/$name.json"
+            elif grep -q "tools/ci/$name.json" "$RUNNER_TEMP/base/ci.yml"; then
+              echo "tools/ci/$name.json is used by the base but missing there"
+              exit 1
+            else
+              echo "tools/ci/$name.json: new baseline"
+            fi
+          done
+      - name: Server Rust metadata and format
+        run: |
+          cargo fetch --locked
+          cargo metadata --locked --offline --format-version=1 > "$RUNNER_TEMP/server-metadata.json"
+          node tools/ci/check-server-boundaries.mjs --root . --metadata "$RUNNER_TEMP/server-metadata.json"
+          cargo fmt --check -p server-api-types -p server-domain -p server-db -p server-http -p server-bin
+      - name: Server Rust Clippy (zero warnings)
+        run: |
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/clippy-baseline.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/clippy-baseline.json")
+          fi
+          set +e
+          cargo clippy --locked --all-targets --message-format=json \
+            -p server-api-types -p server-domain -p server-db -p server-http -p server-bin \
+            -- -D warnings > "$RUNNER_TEMP/server-clippy.jsonl"
+          clippy_status=$?
+          set -e
+          node tools/ci/clippy-ratchet.mjs --baseline tools/ci/clippy-baseline.json "${previous[@]}" \
+            --metadata "$RUNNER_TEMP/server-metadata.json" --input "$RUNNER_TEMP/server-clippy.jsonl" \
+            --package server-api-types --package server-domain --package server-db --package server-http --package server-bin
+          test "$clippy_status" -eq 0
+      - name: Server Rust tests (separate baseline)
+        run: |
+          previous=()
+          if [ -f "$RUNNER_TEMP/base/server-tests.json" ]; then
+            previous=(--previous-baseline "$RUNNER_TEMP/base/server-tests.json")
+          fi
+          set +e
+          cargo test --locked --no-fail-fast \
+            -p server-api-types -p server-domain -p server-db -p server-http -p server-bin > "$RUNNER_TEMP/server-tests.txt" 2>&1
+          test_status=$?
+          set -e
+          cat "$RUNNER_TEMP/server-tests.txt"
+          node tools/ci/count-tests.mjs --baseline tools/ci/server-tests.json "${previous[@]}" \
+            --metadata "$RUNNER_TEMP/server-metadata.json" --input "$RUNNER_TEMP/server-tests.txt" \
+            --package server-api-types --package server-domain --package server-db --package server-http --package server-bin
+          test "$test_status" -eq 0
       - name: Enable pnpm (corepack, version from package.json)
         run: corepack enable && pnpm --version
       - name: Install dependencies (server and its Nuxt layer)
@@ -503,7 +583,8 @@ jobs:
           set -e
           cat "$RUNNER_TEMP/tests.txt"
           node tools/ci/count-tests.mjs --baseline tools/ci/test-baseline.json "${previous[@]}" \
-            --metadata "$RUNNER_TEMP/metadata.json" --input "$RUNNER_TEMP/tests.txt"
+            --metadata "$RUNNER_TEMP/metadata.json" --input "$RUNNER_TEMP/tests.txt" \
+            --package torrential --package droplet-rs --package droplet_types --package libarchive-drop
           test "$test_status" -eq 0
       - name: Protocol xtask (generator-free unit tests and Clippy)
         run: |

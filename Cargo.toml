@@ -17,6 +17,11 @@ members = [
   "engine/crates/client",
   "engine/protocol/xtask",
   "engine/protocol/benchmarks/hashchunk",
+  "server/crates/server-api-types",
+  "server/crates/server-domain",
+  "server/crates/server-db",
+  "server/crates/server-http",
+  "server/crates/server-bin",
 ]
 # Plain `cargo` commands from the repository root use the stable toolchain of
 # rust-toolchain.toml and cover the server side, libraries and engine packages.

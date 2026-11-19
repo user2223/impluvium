@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "packages": {
+    "server-api-types": [],
+    "server-domain": [],
+    "server-db": [
+      { "package": "server-domain", "path": "server/crates/server-domain/Cargo.toml" }
+    ],
+    "server-http": [
+      { "package": "server-domain", "path": "server/crates/server-domain/Cargo.toml" },
+      { "package": "server-api-types", "path": "server/crates/server-api-types/Cargo.toml" }
+    ],
+    "server-bin": [
+      { "package": "server-http", "path": "server/crates/server-http/Cargo.toml" }
+    ]
+  }
+}

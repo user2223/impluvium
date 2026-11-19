@@ -100173,6 +100173,36 @@
         false,
         true,
         []
+      ],
+      [
+        "dependency",
+        "server-http",
+        "server-http",
+        "normal",
+        null,
+        false,
+        true,
+        []
+      ],
+      [
+        "dependency",
+        "server-domain",
+        "server-domain",
+        "normal",
+        null,
+        false,
+        true,
+        []
+      ],
+      [
+        "dependency",
+        "server-api-types",
+        "server-api-types",
+        "normal",
+        null,
+        false,
+        true,
+        []
       ]
     ],
     "requirements": [
@@ -100883,6 +100913,22 @@
       [
         "libraries/libarchive/Cargo.toml",
         96
+      ],
+      [
+        "server/crates/server-bin/Cargo.toml",
+        114
+      ],
+      [
+        "server/crates/server-db/Cargo.toml",
+        115
+      ],
+      [
+        "server/crates/server-http/Cargo.toml",
+        116
+      ],
+      [
+        "server/crates/server-http/Cargo.toml",
+        115
       ],
       [
         "torrential/Cargo.toml",

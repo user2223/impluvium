@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "server-http"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+description = "HTTP boundary and web adapters for the impluvium server"
+
+[dependencies]
+server-api-types = { path = "../server-api-types", version = "=0.1.0" }
+server-domain = { path = "../server-domain", version = "=0.1.0" }
