@@ -569,6 +569,19 @@ jobs:
           passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed; 0 ignored;.*/\1/p' \
             "$RUNNER_TEMP/server-db-backup-tests.txt")
           test "$passed" = "3"
+      - name: Start guard tests (lock, identity, initialisation, migration history, every test must run and pass)
+        run: |
+          set +e
+          cargo test --locked -p server-db --test server_db_start_guard -- --ignored --test-threads=1 \
+            > "$RUNNER_TEMP/server-db-guard-tests.txt" 2>&1
+          test_status=$?
+          set -e
+          cat "$RUNNER_TEMP/server-db-guard-tests.txt"
+          test "$test_status" -eq 0
+          # Exactly this many tests exist; a smaller number means tests were skipped or lost.
+          passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed; 0 ignored;.*/\1/p' \
+            "$RUNNER_TEMP/server-db-guard-tests.txt")
+          test "$passed" = "14"
       - name: Legacy schema parity (inherited chain and plain-SQL fixture, every test must run and pass)
         run: |
           set +e

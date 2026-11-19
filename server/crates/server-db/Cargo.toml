@@ -17,5 +17,8 @@ server-domain = { path = "../server-domain", version = "=0.1.0" }
 # decision about TLS support.
 sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros"] }
 
+# The start guard watches its lock connection from a task and bounds waits.
+tokio = { version = "=1.54.1", default-features = false, features = ["rt", "sync", "time"] }
+
 [dev-dependencies]
 tokio = { version = "=1.54.1", default-features = false, features = ["rt", "macros", "time"] }

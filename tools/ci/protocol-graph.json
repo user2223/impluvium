@@ -100450,6 +100450,20 @@
         false,
         true,
         []
+      ],
+      [
+        "dependency",
+        "tokio",
+        "tokio",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "rt",
+          "sync",
+          "time"
+        ]
       ]
     ],
     "requirements": [
@@ -101216,6 +101230,10 @@
       [
         "server/crates/server-db/Cargo.toml",
         131
+      ],
+      [
+        "server/crates/server-db/Cargo.toml",
+        137
       ],
       [
         "server/crates/server-http/Cargo.toml",

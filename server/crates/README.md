@@ -67,6 +67,12 @@ ignored in a normal `cargo test` run. Run them against a disposable server with
 `IMPLUVIUM_TEST_DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/postgres cargo test -p server-db --test
 server_db_postgres -- --ignored --test-threads=1`; every test creates and drops its own database, and a missing
 variable fails the run. CI runs them in the job `server-db` against PostgreSQL 16, 17 and 18.
+The start guard (`server-db/src/start_guard.rs`) is the database part of the server start: one owner per database
+through a session-level advisory lock, the identity check of database, data directory marker and instance key, the
+resumable first initialisation, the migration history check, the backup before a migration and the migration itself.
+Its order and refusals are described in the module documentation; the instance key stays in `server-bin` and reaches
+the guard through the `InstanceKeys` trait. Its database tests are in `server/crates/server-db/tests/server_db_start_guard.rs`
+and run like the others.
 The backup tests in `server/crates/server-db/tests/server_db_backup.rs` work the same way and also need the
 PostgreSQL client tools (`pg_dump` and `pg_restore`, version 18 in CI). The backup module itself is described in
 `docs/admin/backup.md`; its unit tests use fake tools and run in the normal server job.
