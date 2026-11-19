@@ -35,7 +35,7 @@ Setting both is an error. The file must be a regular file of at most 65536 bytes
 
 - The external origin has a scheme, a host and optionally a port, but no path, query or credentials. A plain `http` origin is accepted only for this machine (`localhost`, any name ending in `.localhost`, `127.0.0.0/8` and `::1`) or when `IMPLUVIUM_INSECURE_LAN` is `true`. Use `https` otherwise; the server itself may sit behind a TLS proxy and speak plain http to it.
 - Paths must be absolute.
-- A trusted proxy is a network such as `10.0.0.0/8` with no bits set below the prefix length. The prefix length 0 is refused because it would trust every address, and so is any network inside the IPv4-mapped range `::ffff:0:0/96`: write IPv4 networks in IPv4 notation.
+- A trusted proxy is a network such as `192.0.2.10/32` (a single IPv4 address) or `2001:db8::10/128` (a single IPv6 address), with no bits set below the prefix length. List the addresses of your proxies only, with `/32` or `/128`, and not whole networks: every machine in a trusted network can set the client address of its requests.  The prefix length 0 is refused because it would trust every address, and so is any network inside the IPv4-mapped range `::ffff:0:0/96`: write IPv4 networks in IPv4 notation.
 - The pool minimum must not exceed the pool maximum.
 - `IMPLUVIUM_BACKUP_COMMAND` is required when `IMPLUVIUM_BACKUP_MODE` is `command` and refused otherwise. It is a JSON array with the program first; the server starts it without a shell. Do not put secrets into the arguments: `config check` shows only the program and one placeholder per argument.
 - Booleans are exactly `true` or `false`. Names are case-sensitive.

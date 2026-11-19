@@ -5,5 +5,8 @@
 //!
 //! This layer is independent of HTTP and database frameworks.
 
+pub mod credential;
 pub mod identity;
+pub mod permissions;
 pub mod policy;
+pub mod principal;

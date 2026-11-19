@@ -12,6 +12,8 @@
 use std::error::Error;
 use std::fmt;
 
+use crate::principal::{Principal, SessionClass, SessionStage};
+
 /// A named right such as `emoji:read`: lowercase `scope:action`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Right(&'static str);
@@ -43,7 +45,7 @@ fn is_word(part: &str) -> bool {
 pub enum SessionKind {
     /// An interactive session or an API token.
     Any,
-    /// An interactive (browser) session only.
+    /// A browser session only. Store sessions and tokens do not qualify.
     Interactive,
     /// An API token only.
     Token,
@@ -63,10 +65,16 @@ impl SessionKind {
 /// Required multi-factor level of the session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MfaLevel {
-    /// No second factor needed.
+    /// No second factor needed: the sign-in must be finished, which for an
+    /// account with a second factor means it was completed.
     NotRequired,
-    /// The second factor must be completed.
+    /// The second factor must be completed in a browser session. Store
+    /// sessions never satisfy this level.
     Completed,
+    /// A step of the second-factor sign-in itself: only a session that still
+    /// has to complete its second factor passes. Every other level rejects
+    /// such a session.
+    Pending,
 }
 
 impl MfaLevel {
@@ -75,6 +83,7 @@ impl MfaLevel {
         match self {
             Self::NotRequired => "not_required",
             Self::Completed => "completed",
+            Self::Pending => "pending",
         }
     }
 }
@@ -152,6 +161,52 @@ impl Requirement {
     pub fn fresh_login_within_secs(&self) -> Option<u32> {
         self.fresh_login_secs
     }
+
+    /// Whether the principal satisfies every part of the requirement.
+    ///
+    /// Anonymous callers never do. A store session passes only a requirement
+    /// that names at least one right, and never an interactive-only one. A token or device without any effective
+    /// right does not either, even if the requirement names no right. Tokens
+    /// and devices satisfy the second-factor level `NotRequired` only, never
+    /// `Completed`, `Pending` or a login-freshness requirement.
+    pub fn is_satisfied_by(&self, principal: &Principal) -> bool {
+        let rights = principal.rights();
+        let (kind_ok, mfa_ok, fresh_ok) = match principal {
+            Principal::Anonymous => return false,
+            Principal::Session(session) => {
+                let finished = session.stage() == SessionStage::Authenticated;
+                let browser = session.class() == SessionClass::Browser;
+                // A store session only passes where specific rights are asked.
+                let store_ok = browser || !self.rights.is_empty();
+                (
+                    match self.session {
+                        SessionKind::Any => store_ok,
+                        SessionKind::Interactive => browser,
+                        SessionKind::Token => false,
+                    },
+                    match self.mfa {
+                        MfaLevel::Pending => !finished,
+                        MfaLevel::NotRequired => finished,
+                        MfaLevel::Completed => finished && browser,
+                    },
+                    self.fresh_login_secs.is_none_or(|limit| {
+                        finished && browser && session.login_age_secs() <= limit
+                    }),
+                )
+            }
+            Principal::Token(_) | Principal::Device(_) => (
+                match principal {
+                    Principal::Token(_) => {
+                        matches!(self.session, SessionKind::Any | SessionKind::Token)
+                    }
+                    _ => self.session == SessionKind::Any,
+                },
+                self.mfa == MfaLevel::NotRequired,
+                self.fresh_login_secs.is_none() && !rights.is_empty(),
+            ),
+        };
+        kind_ok && mfa_ok && fresh_ok && rights.contains_all(&self.rights)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -171,6 +226,8 @@ pub enum Decision {
     Allow,
     /// The caller has to authenticate first.
     Unauthenticated,
+    /// The caller is known but does not satisfy the policy.
+    Forbidden,
 }
 
 impl Policy {
@@ -204,13 +261,25 @@ impl Policy {
         }
     }
 
-    /// Decision for a caller without credentials. Callers with a principal
-    /// are evaluated once the principal model exists; until then every
-    /// protected route denies.
+    /// Decision for a caller without credentials.
     pub fn decide_anonymous(&self) -> Decision {
+        self.decide(&Principal::Anonymous)
+    }
+
+    /// Decision for the given caller. Public policies allow everyone;
+    /// protected ones ask the anonymous caller to authenticate and reject a
+    /// known caller that falls short.
+    pub fn decide(&self, principal: &Principal) -> Decision {
         match &self.0 {
             Kind::Public { .. } => Decision::Allow,
-            Kind::Protected(_) => Decision::Unauthenticated,
+            Kind::Protected(_) if principal.is_anonymous() => Decision::Unauthenticated,
+            Kind::Protected(requirement) => {
+                if requirement.is_satisfied_by(principal) {
+                    Decision::Allow
+                } else {
+                    Decision::Forbidden
+                }
+            }
         }
     }
 }

@@ -316,6 +316,11 @@ impl Route {
     {
         let path = PathTemplate::parse(path).map_err(RegistryError::InvalidPath)?;
         validate(method, &path, &contract)?;
+        // An exemption would leave a cookie-authenticated write without CSRF
+        // protection, so only public routes may be exempt.
+        if matches!(contract.csrf, Csrf::Exempt(_)) && policy.public_reason().is_none() {
+            return Err(RegistryError::CsrfMismatch(path.as_str().to_owned()));
+        }
         let base: MethodRouter = match method {
             Method::Get => routing::get(handler),
             Method::Post => routing::post(handler),
@@ -324,7 +329,10 @@ impl Route {
             Method::Delete => routing::delete(handler),
         };
         let limit = usize::try_from(contract.limits.max_body_bytes).unwrap_or(usize::MAX);
-        let gate = middleware::from_fn_with_state(GateState::new(policy.clone()), enforce_policy);
+        let gate = middleware::from_fn_with_state(
+            GateState::new(policy.clone(), contract.csrf),
+            enforce_policy,
+        );
         // The body limit is the outer layer: it must be in place before the
         // handler reads the body.
         let gated: MethodRouter = base.layer(gate);

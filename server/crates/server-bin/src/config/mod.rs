@@ -22,6 +22,7 @@ use serde_json::{Map, Value};
 
 mod env;
 mod fields;
+mod http_settings;
 mod model;
 mod reference;
 mod secret;

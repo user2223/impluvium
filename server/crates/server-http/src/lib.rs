@@ -7,6 +7,9 @@
 //! the [`registry`], which also produces the machine-readable inventory; the
 //! [`router`] assembles the framework router from the same definitions.
 
+pub mod auth;
+pub mod csrf;
+pub mod proxy;
 pub mod registry;
 pub mod router;
 

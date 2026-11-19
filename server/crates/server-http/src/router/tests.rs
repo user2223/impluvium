@@ -1,20 +1,42 @@
 // SPDX-FileCopyrightText: 2026 the impluvium contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
 use axum::body::{Body, Bytes, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use axum::routing::get;
+use server_domain::credential::NoCredentials;
 use server_domain::policy::{Policy, Requirement};
 use tower::ServiceExt;
 
 use super::{ApplicationRouter, build, enforce};
+use crate::auth::{ExternalOrigin, PeerAddress, Scheme, SecurityContext};
+use crate::proxy::TrustedProxies;
 use crate::registry::{
     BodyKind, Contract, Csrf, Limits, Method, ParamType, PathError, PathTemplate, Registry,
     RegistryError, ResponseKind, Route,
 };
+
+/// The external origin of the test router.
+pub(super) const TEST_ORIGIN: &str = "https://app.example.test";
+
+/// The peer of requests that do not name one.
+pub(super) fn test_peer() -> SocketAddr {
+    SocketAddr::from(([192, 0, 2, 1], 4000))
+}
+
+/// A context with the test origin, no trusted proxy and no credential.
+pub(super) fn test_context() -> SecurityContext {
+    SecurityContext::new(
+        ExternalOrigin::new(Scheme::Https, "app.example.test", None).unwrap(),
+        TrustedProxies::default(),
+        Arc::new(NoCredentials),
+    )
+}
 
 fn limits() -> Limits {
     Limits::new(8, Duration::from_secs(5))
@@ -112,6 +134,8 @@ fn send(router: Router, method: &str, path: &str, body: &'static str) -> Reply {
         let request = Request::builder()
             .method(method)
             .uri(path)
+            .header(header::ORIGIN, TEST_ORIGIN)
+            .extension(PeerAddress(test_peer()))
             .body(Body::from(body))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
@@ -126,7 +150,7 @@ fn send(router: Router, method: &str, path: &str, body: &'static str) -> Reply {
 }
 
 fn app(registry: Registry) -> Router {
-    let ApplicationRouter { router } = build(registry);
+    let ApplicationRouter { router } = build(registry, test_context());
     router
 }
 

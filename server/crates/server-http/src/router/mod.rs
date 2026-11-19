@@ -11,18 +11,21 @@
 mod gate;
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
-use axum::Router;
 use axum::http::{StatusCode, header};
 use axum::middleware;
 use axum::response::Response;
 use axum::routing::MethodRouter;
+use axum::{Extension, Router};
 use server_domain::policy::Policy;
 
+use crate::auth::SecurityContext;
 use crate::registry::{Method, Registry};
 
+pub(crate) use gate::error_response;
 pub(crate) use gate::{GateState, enforce_policy};
-use gate::{error_response, mark, require_marker};
+use gate::{mark, require_marker};
 
 const UNKNOWN_PATH_REASON: &str = "unknown paths answer with an API error";
 const METHOD_NOT_ALLOWED_REASON: &str = "unsupported methods answer with an API error";
@@ -64,8 +67,10 @@ pub struct ApplicationRouter {
     pub(crate) router: Router,
 }
 
-/// Builds the router from the registry.
-pub fn build(registry: Registry) -> ApplicationRouter {
+/// Builds the router from the registry. The security context reaches every
+/// route gate, including the built-in fallbacks; a gate that does not find
+/// it answers with an internal error.
+pub fn build(registry: Registry, context: SecurityContext) -> ApplicationRouter {
     let mut grouped: BTreeMap<String, (Vec<Method>, MethodRouter)> = BTreeMap::new();
     for route in registry.into_routes() {
         let path = route.path.as_str().to_owned();
@@ -91,7 +96,7 @@ pub fn build(registry: Registry) -> ApplicationRouter {
     let router =
         router.fallback(|| async { mark(error_response(StatusCode::NOT_FOUND, "not_found")) });
     ApplicationRouter {
-        router: enforce(router),
+        router: enforce(router.layer(Extension(Arc::new(context)))),
     }
 }
 
@@ -118,5 +123,7 @@ fn method_not_allowed(allow: String) -> Response {
     mark(response)
 }
 
+#[cfg(test)]
+mod auth_tests;
 #[cfg(test)]
 mod tests;
