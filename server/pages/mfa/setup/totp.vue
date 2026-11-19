@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import type { FetchError } from "ofetch";
+import { failureText } from "~/shared/api/error";
 
 useHead({
   title: "Set up TOTP",
@@ -78,8 +78,7 @@ async function complete(code: string) {
     await $apiFetch("POST /api/v1/user/mfa/totp/finish", { body: { code } });
     router.push("/mfa/setup/successful");
   } catch (e) {
-    error.value =
-      (e as FetchError).data?.message ?? (e as FetchError).statusMessage;
+    error.value = failureText(e, e instanceof Error ? e.message : String(e));
   }
 }
 </script>

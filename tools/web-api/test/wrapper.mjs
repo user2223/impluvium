@@ -13,6 +13,7 @@ export async function loadWrapper() {
     compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
   }).outputText;
   for (const [alias, file] of [
+    ['~/shared/api/error', 'server/shared/api/error.ts'],
     ['~/shared/api/generated/routes', 'server/shared/api/generated/routes.ts'],
     ['~/shared/api/request', 'server/shared/api/request.ts'],
     ['./browser-transport', 'server/composables/browser-transport.ts'],

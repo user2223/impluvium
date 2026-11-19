@@ -345,6 +345,7 @@ import { XCircleIcon } from "@heroicons/vue/16/solid";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/20/solid";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import { FetchError } from "ofetch";
+import { failureText } from "~/shared/api/error";
 import type { GameType } from "~/shared/api/generated/enums";
 import type { ApiResponse } from "~/shared/api/types";
 
@@ -408,7 +409,7 @@ async function searchGame() {
   } catch (e) {
     gameSearchLoading.value = false;
     if (e instanceof FetchError) {
-      gameSearchResultsError.value = e.data?.message ?? t("errors.unknown");
+      gameSearchResultsError.value = failureText(e, t("errors.unknown"));
     } else {
       gameSearchResultsError.value = (e as string)?.toString();
     }

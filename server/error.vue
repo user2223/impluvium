@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { NuxtError } from "#app";
+import { failureMessage, readFailure } from "~/shared/api/error";
 
 useLocaleHtmlAttributes();
 
@@ -14,6 +15,9 @@ const { t } = useI18n();
 const route = useRoute();
 const statusCode = props.error?.statusCode;
 const message = computed(() => {
+  // A failed request keeps only what the server catalog allows to show.
+  const reading = readFailure(props.error?.cause);
+  if (reading) return failureMessage(reading);
   let data: unknown = props.error?.data;
   if (typeof data === "string") {
     try {

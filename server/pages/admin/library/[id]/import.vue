@@ -364,6 +364,7 @@ import {
   PlusIcon,
 } from "@heroicons/vue/20/solid";
 import { FetchError } from "ofetch";
+import { failureText } from "~/shared/api/error";
 import { GameType } from "~/shared/api/generated/enums";
 import type { ImportVersion, VersionGuess } from "~/shared/api/types";
 
@@ -429,7 +430,7 @@ async function startImport() {
     router.push(`/admin/task/${taskId.taskId}`);
   } catch (error) {
     if (error instanceof FetchError) {
-      importError.value = error.data?.message ?? t("errors.unknown");
+      importError.value = failureText(error, t("errors.unknown"));
     } else {
       importError.value = (error as string)?.toString();
     }

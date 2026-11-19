@@ -1,5 +1,6 @@
-import type { $Fetch, FetchError, FetchOptions } from "ofetch";
+import type { $Fetch, FetchOptions } from "ofetch";
 import type { ApiFetch, ApiFetchKey, ApiOptions } from "~/shared/api/client";
+import { type ApiError, failureMessage, readFailure } from "~/shared/api/error";
 import { apiRoutes } from "~/shared/api/generated/routes";
 import { assertApiFetchOptions, resolveApiPath } from "~/shared/api/request";
 import { createBrowserTransport } from "./browser-transport";
@@ -33,6 +34,9 @@ export const $apiFetch: ApiFetch = (key, ...args) => {
   });
 };
 
+/** A failed request. `apiError` is set only for a valid server catalog error. */
+export type ApiRequestError = Error & { apiError?: ApiError };
+
 async function dropTransport<T>(
   request: string,
   options: FetchOptions & { failTitle?: string } = {},
@@ -42,23 +46,22 @@ async function dropTransport<T>(
   try {
     return (await transport(request, fetchOptions)) as T;
   } catch (error) {
+    const reading = readFailure(error);
+    // The original error is rethrown. Its own `data` getter cannot be
+    // replaced, so `apiError` is the only typed view of the body.
+    if (reading) {
+      (error as ApiRequestError).apiError =
+        reading.kind === "api" ? reading.error : undefined;
+    }
     if (
       generation === sessionContext().generation &&
       !fetchOptions.signal?.aborted &&
       !(error instanceof DOMException && error.name === "AbortError") &&
       failTitle
     ) {
-      const data: unknown = (error as FetchError)?.data;
-      const message =
-        data &&
-        typeof data === "object" &&
-        "message" in data &&
-        typeof data.message === "string"
-          ? data.message
-          : "The request could not be completed. Please try again.";
       createModal(
         ModalType.Notification,
-        { title: failTitle, description: message },
+        { title: failTitle, description: failureMessage(reading) },
         (_, close) => close(),
       );
     }

@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 import { startAuthentication } from "@simplewebauthn/browser";
-import type { FetchError } from "ofetch";
+import { failureText } from "~/shared/api/error";
 
 const loading = ref<boolean>(false);
 const success = ref(false);
@@ -80,7 +80,7 @@ async function tryAuthWrapper() {
     await tryAuth();
     success.value = true;
   } catch (e) {
-    error.value = (e as FetchError)?.data?.message ?? e;
+    error.value = failureText(e, e instanceof Error ? e.message : String(e));
   }
   loading.value = false;
 }

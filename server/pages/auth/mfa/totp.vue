@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import { XCircleIcon } from "@heroicons/vue/20/solid";
 import { CheckIcon } from "@heroicons/vue/24/outline";
-import type { FetchError } from "ofetch";
+import { failureText } from "~/shared/api/error";
 
 definePageMeta({
   layout: false,
@@ -65,7 +65,7 @@ async function signin(code: string) {
   try {
     await $apiFetch("POST /api/v1/auth/mfa/totp", { body: { code } });
   } catch (e) {
-    error.value = (e as FetchError)?.data?.message ?? e;
+    error.value = failureText(e, e instanceof Error ? e.message : String(e));
     loading.value = false;
     return;
   }

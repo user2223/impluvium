@@ -91,6 +91,7 @@ import {
   browserSupportsWebAuthn,
 } from "@simplewebauthn/browser";
 import { FetchError } from "ofetch";
+import { failureText } from "~/shared/api/error";
 
 const username = ref("");
 const password = ref("");
@@ -142,7 +143,7 @@ async function signin_wrapper() {
     await signin();
   } catch (e) {
     if (e instanceof FetchError) {
-      error.value = e.data.message || t("errors.unknown");
+      error.value = failureText(e, t("errors.unknown"));
     } else {
       error.value = e as string;
     }

@@ -42,8 +42,8 @@ test('failTitle handles foreign error bodies and suppresses stale or aborted err
       await assert.rejects($apiFetch('GET /api/v1', { failTitle: 'Synthetic title' }), /Synthetic/);
       assert.equal(notices.length, 1);
       assert.equal(notices[0].data.title, 'Synthetic title');
-      assert.equal(notices[0].data.description, typeof data?.message === 'string'
-        ? data.message : 'The request could not be completed. Please try again.');
+      // A failure without an HTTP response never shows text from its body.
+      assert.equal(notices[0].data.description, 'The request could not be completed. Please try again.');
     }
     notices.length = 0;
     let fail;

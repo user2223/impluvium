@@ -90,3 +90,57 @@ test('typed browser responses normalize real ofetch empty bodies and HTTP 204 to
     await new Promise((accept, reject) => server.close((error) => error ? reject(error) : accept()));
   }
 });
+
+test('failed typed requests show catalog messages only, and a proxy page produces the generic text', async () => {
+  const html = '<html><body><script>alert(1)</script>Bad gateway</body></html>';
+  const server = createServer((request, response) => {
+    if (request.url.startsWith('/api/v1/user')) {
+      response.statusCode = 502;
+      response.setHeader('Content-Type', 'text/html');
+      response.setHeader('X-Request-Id', 'proxy-0001');
+      response.end(html);
+    } else {
+      response.statusCode = 404;
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ code: 'not_found', message: 'The requested resource does not exist.', request_id: 'abc-0002' }));
+    }
+  });
+  await new Promise((accept) => server.listen(0, '127.0.0.1', accept));
+  const originals = new Map();
+  function install(name, value) {
+    originals.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
+    Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
+  }
+  try {
+    const require = createRequire(join(root, 'server/package.json'));
+    const { ofetch } = require('ofetch');
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const modals = [];
+    install('$fetch', { raw: (url, options) => ofetch.raw(new URL(url, origin).href, options) });
+    install('ModalType', { Notification: 'notification' });
+    install('createModal', (type, content) => modals.push({ type, ...content }));
+    const { $apiFetch } = await loadWrapper();
+
+    const proxied = await $apiFetch('GET /api/v1/user', { failTitle: 'Failed' }).then(() => null, (error) => error);
+    assert.ok(proxied);
+    assert.equal(proxied.apiError, undefined);
+    assert.ok(proxied instanceof Error);
+    assert.equal(proxied.status, 502);
+    assert.equal(modals.length, 1);
+    assert.equal(modals[0].description, 'The server returned an unexpected response (HTTP 502). Request id: proxy-0001.');
+    assert.doesNotMatch(modals[0].description, /html|script|Bad gateway/);
+
+    const missing = await $apiFetch('GET /api/v1/admin/search/game', { query: { q: 'x', type: 'Game' }, failTitle: 'Failed' })
+      .then(() => null, (error) => error);
+    assert.equal(missing.apiError.code, 'not_found');
+    assert.equal(modals.length, 2);
+    assert.equal(modals[1].description, 'The requested resource does not exist.');
+  } finally {
+    for (const [name, descriptor] of originals) {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+      else delete globalThis[name];
+    }
+    server.closeAllConnections();
+    await new Promise((accept, reject) => server.close((error) => error ? reject(error) : accept()));
+  }
+});

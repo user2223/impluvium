@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { KeyIcon, XCircleIcon } from "@heroicons/vue/24/outline";
-import type { FetchError } from "ofetch";
+import { failureText } from "~/shared/api/error";
 import { startRegistration } from "@simplewebauthn/browser";
 
 const router = useRouter();
@@ -86,7 +86,7 @@ async function attemptPasskeyWrapper() {
     await attemptPasskey();
   } catch (e) {
     console.error(e);
-    error.value = (e as FetchError)?.data?.message ?? e;
+    error.value = failureText(e, e instanceof Error ? e.message : String(e));
   }
   loading.value = false;
 }
