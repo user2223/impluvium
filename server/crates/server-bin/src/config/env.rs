@@ -86,6 +86,10 @@ impl Source {
             "IMPLUVIUM_BACKUP_COMMAND",
             env::var("IMPLUVIUM_BACKUP_COMMAND"),
         );
+        s.record(
+            "IMPLUVIUM_BACKUP_TIMEOUT_SECS",
+            env::var("IMPLUVIUM_BACKUP_TIMEOUT_SECS"),
+        );
         s
     }
 

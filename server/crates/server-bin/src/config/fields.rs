@@ -225,4 +225,13 @@ pub const FIELDS: &[Field] = &[
         fallback: Fallback::Described("none; required when the backup mode is `command`"),
         summary: "Operator backup program and arguments, started without a shell.",
     },
+    Field {
+        key: "backup_timeout_secs",
+        variable: "IMPLUVIUM_BACKUP_TIMEOUT_SECS",
+        file_variable: None,
+        kind: Kind::Number { min: 1, max: 86400 },
+        presence: Presence::Optional,
+        fallback: Fallback::Value("3600"),
+        summary: "Seconds after which a running backup is stopped and counted as failed.",
+    },
 ];

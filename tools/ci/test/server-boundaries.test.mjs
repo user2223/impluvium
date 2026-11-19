@@ -173,6 +173,7 @@ function resolvedFixture(t) {
     node.deps.push({ name: `renamed_${node.deps.length}`, pkg: to, dep_kinds: [{ kind, target }] });
   };
   edge(ids['server-bin'], ids['server-http']);
+  edge(ids['server-bin'], ids['server-db']);
   edge(ids['server-http'], ids['server-domain']);
   edge(ids['server-http'], ids['server-api-types']);
   edge(ids['server-db'], ids['server-domain']);
@@ -199,6 +200,26 @@ test('resolved ownership permits SQL only from the database and HTTP frameworks 
   f.edge(f.ids['server-db'], f.add('sqlx'));
   for (const name of ['axum', 'tower', 'hyper', 'hyper-util']) f.edge(f.ids['server-http'], f.add(name, ['server']));
   assert.deepEqual(f.run(), []);
+});
+test('the binary reaches sqlx and its family through the database crate', t => {
+  const f = resolvedFixture(t), sqlx = f.add('sqlx');
+  f.edge(f.ids['server-db'], sqlx); f.edge(sqlx, f.add('sqlx-core'));
+  assert.deepEqual(f.run(), []);
+});
+test('a direct binary edge to sqlx fails even when the database crate reaches it first', t => {
+  const f = resolvedFixture(t), sqlx = f.add('sqlx');
+  f.edge(f.ids['server-db'], sqlx); f.edge(f.ids['server-bin'], sqlx);
+  assert.match(f.run().join('\n'), /server-bin: sqlx is reachable.*server-bin -> sqlx/);
+  const g = resolvedFixture(t), other = g.add('sqlx-postgres');
+  g.edge(g.ids['server-db'], other); g.edge(g.ids['server-bin'], other);
+  assert.match(g.run().join('\n'), /server-bin: sqlx is reachable.*server-bin -> sqlx-postgres/);
+});
+test('sqlx through another package fails even when the database crate also reaches it', t => {
+  const f = resolvedFixture(t), sqlx = f.add('sqlx'), helper = f.add('helper');
+  f.edge(f.ids['server-db'], sqlx); f.edge(f.ids['server-http'], helper); f.edge(helper, sqlx);
+  const issues = f.run().join('\n');
+  assert.match(issues, /server-http: sqlx is reachable.*server-http -> helper -> sqlx/);
+  assert.match(issues, /server-bin: sqlx is reachable.*server-http -> helper -> sqlx/);
 });
 for (const name of ['axum', 'tower', 'hyper', 'hyper-util']) test(`resolved direct ${name} server dependency outside HTTP fails`, t => {
   const f = resolvedFixture(t);

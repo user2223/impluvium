@@ -452,6 +452,11 @@ jobs:
       IMPLUVIUM_TEST_DATABASE_URL: postgres://postgres:disposable-ci-password@postgres:5432/postgres
       # Checked queries use the metadata in the repository; only the steps that regenerate it use a database.
       SQLX_OFFLINE: "true"
+      # The PostgreSQL client tools of the backup tests come from the PostgreSQL apt repository. Version 18
+      # dumps servers 16, 17 and 18. The key file is pinned by checksum (key fingerprint
+      # B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8), the package by its exact version.
+      POSTGRESQL_APT_SIGNER_SHA256SUM: 0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76
+      POSTGRESQL_CLIENT_PACKAGE: postgresql-client-18=18.7-1.pgdg24.04+2
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Rust toolchain (stable, rust-toolchain.toml)
@@ -476,6 +481,22 @@ jobs:
           done
           echo "PostgreSQL did not accept connections in time"
           exit 1
+      - name: PostgreSQL client tools (pg_dump and pg_restore 18 from the PostgreSQL apt repository)
+        run: |
+          SUDO=""
+          if [ "$(id -u)" -ne 0 ]; then SUDO=sudo; fi
+          export DEBIAN_FRONTEND=noninteractive
+          curl -sSfo "$RUNNER_TEMP/postgresql-key.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "${POSTGRESQL_APT_SIGNER_SHA256SUM}  $RUNNER_TEMP/postgresql-key.asc" | sha256sum -c -
+          $SUDO install -d -m 0755 /usr/share/postgresql-common/pgdg
+          $SUDO install -m 0644 "$RUNNER_TEMP/postgresql-key.asc" /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
+            | $SUDO tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          $SUDO apt-get update
+          $SUDO apt-get install -y --no-install-recommends "${POSTGRESQL_CLIENT_PACKAGE}"
+          dpkg-query -W postgresql-client-18 libpq5
+          pg_dump --version
+          pg_restore --version
       # The metadata steps build against the database, not against .sqlx, so they run first: drift that breaks
       # the offline build below still gets its regenerated files printed.
       - name: Query metadata tool (version and lock file)
@@ -535,6 +556,19 @@ jobs:
           passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed; 0 ignored;.*/\1/p' \
             "$RUNNER_TEMP/server-db-tests.txt")
           test "$passed" = "15"
+      - name: Backup tests (real pg_dump and pg_restore against this server, every test must run and pass)
+        run: |
+          set +e
+          cargo test --locked -p server-db --test server_db_backup -- --ignored --test-threads=1 \
+            > "$RUNNER_TEMP/server-db-backup-tests.txt" 2>&1
+          test_status=$?
+          set -e
+          cat "$RUNNER_TEMP/server-db-backup-tests.txt"
+          test "$test_status" -eq 0
+          # Exactly this many tests exist; a smaller number means tests were skipped or lost.
+          passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed; 0 ignored;.*/\1/p' \
+            "$RUNNER_TEMP/server-db-backup-tests.txt")
+          test "$passed" = "3"
       - name: Legacy schema parity (inherited chain and plain-SQL fixture, every test must run and pass)
         run: |
           set +e

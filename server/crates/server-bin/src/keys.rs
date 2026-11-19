@@ -119,6 +119,11 @@ impl fmt::Debug for InstanceKey {
 }
 
 impl InstanceKey {
+    /// The raw key bytes, only for copying the key into a backup set. Never log or print them.
+    pub fn expose_bytes(&self) -> &[u8; KEY_LEN] {
+        &self.0
+    }
+
     /// Public metadata of the single content signing key.
     pub fn content_key(&self) -> SigningKeyMetadata {
         let public = protocol_keys::derive_content_key(&self.0).public_key();

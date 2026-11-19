@@ -27,7 +27,7 @@ mod model;
 mod reference;
 mod secret;
 
-use env::Source;
+pub(crate) use env::Source;
 use fields::{FIELDS, Fallback, Field, Presence};
 use model::{BackupMode, Config, Scheme};
 
@@ -284,6 +284,7 @@ mod tests {
         assert!(config.spa_dir.is_none());
         assert_eq!(config.log_filter, "info");
         assert_eq!(config.backup_mode, BackupMode::Auto);
+        assert_eq!(config.backup_timeout_secs, 3600);
         assert!(config.backup_command.is_empty());
         assert!(check_report(&source(&[], &[])).is_ok());
     }
@@ -304,6 +305,7 @@ mod tests {
                 "IMPLUVIUM_BACKUP_COMMAND",
                 r#"["/usr/local/bin/backup", "--quiet"]"#,
             ),
+            ("IMPLUVIUM_BACKUP_TIMEOUT_SECS", "7200"),
         ];
         let config = load(&source(&[], &extra)).unwrap();
         assert_eq!(
@@ -313,6 +315,7 @@ mod tests {
         assert_eq!(config.trusted_proxies.len(), 2);
         assert_eq!((config.db_pool_max, config.db_pool_min), (20, 2));
         assert_eq!(config.backup_command, ["/usr/local/bin/backup", "--quiet"]);
+        assert_eq!(config.backup_timeout_secs, 7200);
     }
 
     #[test]
@@ -354,6 +357,8 @@ mod tests {
             ("IMPLUVIUM_DB_POOL_MIN", "-1"),
             ("IMPLUVIUM_DB_TIMEOUT_SECS", "0"),
             ("IMPLUVIUM_DB_TIMEOUT_SECS", "301"),
+            ("IMPLUVIUM_BACKUP_TIMEOUT_SECS", "0"),
+            ("IMPLUVIUM_BACKUP_TIMEOUT_SECS", "86401"),
         ] {
             assert_eq!(names(&failing(&source(&[], &[pair]))), [pair.0]);
         }

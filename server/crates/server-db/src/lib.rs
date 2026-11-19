@@ -6,9 +6,13 @@
 //! This crate owns the one PostgreSQL connection pool of the server and the
 //! embedded schema migrations. It is the only product crate that reaches sqlx; the development tool `server-xtask` uses it too.
 //!
+//! The [`backup`] module makes the database backups that precede migrations and the
+//! standalone backup command.
+//!
 //! The pool connects without TLS. Reaching a database over an untrusted network
 //! needs a later, explicit decision about TLS support.
 
+pub mod backup;
 mod error;
 mod migrations;
 mod pool;

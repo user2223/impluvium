@@ -6623,6 +6623,7 @@ dependencies = [
  "libc",
  "serde",
  "serde_json",
+ "server-db",
  "server-domain",
  "server-http",
  "tokio",

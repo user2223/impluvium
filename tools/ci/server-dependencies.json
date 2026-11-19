@@ -23,6 +23,7 @@
     ],
     "server-bin": [
       { "package": "server-http", "path": "server/crates/server-http/Cargo.toml" },
+      { "package": "server-db", "path": "server/crates/server-db/Cargo.toml" },
       { "package": "serde" },
       { "package": "serde_json" },
       { "package": "server-domain", "path": "server/crates/server-domain/Cargo.toml" },

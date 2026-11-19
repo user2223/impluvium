@@ -3,8 +3,8 @@
   "packages": {
     "server-api-types": { "tests": { "exact": 8 }, "docTests": { "exact": 0 } },
     "server-domain": { "tests": { "exact": 24 }, "docTests": { "exact": 0 } },
-    "server-db": { "tests": { "exact": 4 }, "docTests": { "exact": 0 } },
+    "server-db": { "tests": { "exact": 29 }, "docTests": { "exact": 0 } },
     "server-http": { "tests": { "exact": 97 }, "docTests": { "exact": 2 } },
-    "server-bin": { "tests": { "exact": 77 }, "docTests": { "exact": 0 } }
+    "server-bin": { "tests": { "exact": 79 }, "docTests": { "exact": 0 } }
   }
 }

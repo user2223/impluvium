@@ -127,6 +127,7 @@ pub struct Config {
     pub backup_mode: BackupMode,
     #[serde(default, serialize_with = "redact_arguments")]
     pub backup_command: Vec<String>,
+    pub backup_timeout_secs: u32,
 }
 
 /// Shows the program and one placeholder per argument: arguments may carry

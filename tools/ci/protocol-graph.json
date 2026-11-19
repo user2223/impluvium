@@ -100440,6 +100440,16 @@
           "macros",
           "rt-multi-thread"
         ]
+      ],
+      [
+        "dependency",
+        "server-db",
+        "server-db",
+        "normal",
+        null,
+        false,
+        true,
+        []
       ]
     ],
     "requirements": [
@@ -101174,6 +101184,10 @@
       [
         "server/crates/server-bin/Cargo.toml",
         118
+      ],
+      [
+        "server/crates/server-bin/Cargo.toml",
+        136
       ],
       [
         "server/crates/server-bin/Cargo.toml",

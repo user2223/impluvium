@@ -3,6 +3,7 @@
 
 //! Executable composition; startup stays unavailable until its guards exist.
 
+mod backup;
 mod config;
 mod logging;
 mod routes;
@@ -21,12 +22,13 @@ fn main() -> ExitCode {
         .collect();
     let words: Vec<&str> = arguments.iter().map(String::as_str).collect();
     match words.as_slice() {
+        ["backup"] => backup::run(),
         ["config", "check"] => config::run_check(),
         ["config", "reference"] => config::run_reference(),
         ["routes", "--json"] => routes::run_json(),
         _ => {
             eprintln!("impluvium-server: startup is not available yet");
-            eprintln!("available commands: config check, config reference, routes --json");
+            eprintln!("available commands: backup, config check, config reference, routes --json");
             ExitCode::FAILURE
         }
     }

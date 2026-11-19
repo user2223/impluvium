@@ -10,8 +10,8 @@ Select its packages explicitly; the workspace default members stay unchanged.
 - `server-domain`: framework-independent policies and application ports.
 - `server-db`: the PostgreSQL pool, the embedded migrations in `server/migrations` and database adapters, depending on the domain.
 - `server-http`: HTTP adapters depending on the domain and public API types.
-- `server-bin`: the `impluvium-server` executable, depending on the HTTP layer and the domain, and on the protocol
-  core of the engine for key derivation.
+- `server-bin`: the `impluvium-server` executable, depending on the HTTP layer, the database layer and the domain,
+  and on the protocol core of the engine for key derivation.
 
 The entry modules establish the dependency graph. They do not yet serve HTTP,
 connect to a database or implement application contracts; `server-db` provides the pool
@@ -32,8 +32,9 @@ log writer and the bounded graceful shutdown. Further framework dependencies wil
 be added with the code that needs them.
 
 Within this server graph, only `server-http` may directly depend on axum/tower,
-or Hyper with server support, and only `server-db` may reach sqlx packages through
-normal dependencies. Every direct dependency needs an entry for its owning
+or Hyper with server support, and sqlx packages may be reached through normal
+dependencies only by `server-db` itself and through `server-db` by `server-bin`;
+a direct edge from any other package fails the boundary check. Every direct dependency needs an entry for its owning
 crate in `tools/ci/server-dependencies.json`. Entries identify the actual package
 name and, for local dependencies, the repository-relative manifest path. The
 domain and public API types currently admit no dependencies. Adding a dependency
@@ -66,6 +67,9 @@ ignored in a normal `cargo test` run. Run them against a disposable server with
 `IMPLUVIUM_TEST_DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/postgres cargo test -p server-db --test
 server_db_postgres -- --ignored --test-threads=1`; every test creates and drops its own database, and a missing
 variable fails the run. CI runs them in the job `server-db` against PostgreSQL 16, 17 and 18.
+The backup tests in `server/crates/server-db/tests/server_db_backup.rs` work the same way and also need the
+PostgreSQL client tools (`pg_dump` and `pg_restore`, version 18 in CI). The backup module itself is described in
+`docs/admin/backup.md`; its unit tests use fake tools and run in the normal server job.
 
 The inherited Prisma migrations in `server/prisma/migrations` stay in the repository only as the reference for
 the old schema. `server/crates/server-db/tests/fixtures/legacy-baseline.sql` holds that schema as plain SQL, as test

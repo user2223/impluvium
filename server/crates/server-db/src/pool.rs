@@ -22,6 +22,12 @@ impl DatabaseUrl {
     pub fn new(url: impl Into<String>) -> Self {
         Self(url.into())
     }
+
+    /// The URL text. Only code that hands the URL on to a database client may call this; the
+    /// text must never reach a log or an error message.
+    pub(crate) fn expose(&self) -> &str {
+        &self.0
+    }
 }
 
 impl fmt::Debug for DatabaseUrl {

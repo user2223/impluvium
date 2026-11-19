@@ -12,7 +12,7 @@ export const serverPackages = ['server-api-types', 'server-domain', 'server-db',
 const directory = name => `server/crates/${name}`;
 const composition = {
   'server-api-types': [], 'server-domain': [], 'server-db': ['server-domain'],
-  'server-http': ['server-domain', 'server-api-types'], 'server-bin': ['server-http', 'server-domain'],
+  'server-http': ['server-domain', 'server-api-types'], 'server-bin': ['server-http', 'server-domain', 'server-db'],
 };
 const admissionFile = 'tools/ci/server-dependencies.json';
 const validAdmission = entries => Array.isArray(entries) && entries.every(entry => plainObject(entry) &&
@@ -51,14 +51,20 @@ export function resolvedIssues(file, root) {
     }
     if (name === 'server-db') continue;
     const visited = new Set();
+    // sqlx and its family may be reached only through server-db: an edge into them from any other package fails.
+    const isSqlx = pkg => /^sqlx(?:-|$)/.test(pkg.name);
+    const database = path.join(root, directory('server-db'), 'Cargo.toml');
     const visit = (id, route) => {
       if (visited.has(id)) return;
       visited.add(id);
       const pkg = packages.get(id), chain = [...route, pkg.name];
-      if (/^sqlx(?:-|$)/.test(pkg.name)) {
-        issues.push(problem(file, 1, `${name}: sqlx is reachable via normal dependencies: ${chain.join(' -> ')}`));
+      for (const dep of nodes.get(id).deps.filter(dep => dep.dep_kinds.some(kind => kind.kind === null))) {
+        const target = packages.get(dep.pkg);
+        if (isSqlx(target) && pkg.manifest_path !== database && !isSqlx(pkg)) {
+          issues.push(problem(file, 1, `${name}: sqlx is reachable via normal dependencies: ${[...chain, target.name].join(' -> ')}`));
+        }
+        visit(dep.pkg, chain);
       }
-      for (const dep of nodes.get(id).deps.filter(dep => dep.dep_kinds.some(kind => kind.kind === null))) visit(dep.pkg, chain);
     };
     visit(origin.id, []);
   }

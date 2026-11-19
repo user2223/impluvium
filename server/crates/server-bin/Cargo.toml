@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 server-http = { path = "../server-http", version = "=0.1.0" }
+server-db = { path = "../server-db", version = "=0.1.0" }
 serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
 serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }
 server-domain = { path = "../server-domain", version = "=0.1.0" }

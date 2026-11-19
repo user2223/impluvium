@@ -199,6 +199,12 @@ Names ending in `*` stand for a family of names. Shell scripts are not scanned; 
 | `IMPLUVIUM_LOG_FORMAT` | runtime | server | active | read | no | no | keep: Not planned. | Format of log lines: text or json. |
 | `IMPLUVIUM_BACKUP_MODE` | runtime | server | active | read | no | no | keep: Not planned. | How the backup before pending migrations is made: auto, command or off. |
 | `IMPLUVIUM_BACKUP_COMMAND` | runtime | server | active | read | no | no | keep: Not planned. | JSON array with the operator backup program and its arguments, started without a shell. |
+| `IMPLUVIUM_BACKUP_TIMEOUT_SECS` | runtime | server | active | read | no | no | keep: Not planned. | Seconds after which a running backup is stopped and counted as failed. |
+| `PGHOST` | runtime | server | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | libpq server host or socket directory. The backup refuses to run when it is set and the database URL has no host, because the server would use it and pg_dump would not. |
+| `PGHOSTADDR` | runtime | server | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | libpq server address. Treated like PGHOST by the backup check. |
+| `PGPORT` | runtime | server | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | libpq server port. The backup refuses to run when it is set and the database URL has no port. |
+| `PGUSER` | runtime | server | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | libpq user name. The backup refuses to run when it is set and the database URL has no user. |
+| `PGDATABASE` | runtime | server | active | read | yes | no | keep: Not planned; the name belongs to the tool that reads it. | libpq database name. The backup refuses to run when it is set and the database URL has no database. |
 | `IMPLUVIUM_WEBAUTHN_RP_ID` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | Relying-party domain for passkey sign-in. |
 | `IMPLUVIUM_DISABLE_PASSWORD_LOGIN` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | Turns off username and password sign-in. |
 | `IMPLUVIUM_METADATA_TIMEOUT` | runtime | server | planned | read | no | no | keep: Not planned; this is the target name. | Timeout in milliseconds for metadata requests. |

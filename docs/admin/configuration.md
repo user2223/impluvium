@@ -25,6 +25,7 @@ Check a configuration with `impluvium-server config check`: the command validate
 | `IMPLUVIUM_LOG_FORMAT` | - | one of `text`, `json` | no | `text` | Format of log lines. |
 | `IMPLUVIUM_BACKUP_MODE` | - | one of `auto`, `command`, `off` | no | `auto` | How the backup before pending migrations is made. |
 | `IMPLUVIUM_BACKUP_COMMAND` | - | JSON array of strings | no | none; required when the backup mode is `command` | Operator backup program and arguments, started without a shell. |
+| `IMPLUVIUM_BACKUP_TIMEOUT_SECS` | - | integer from 1 to 86400 | no | `3600` | Seconds after which a running backup is stopped and counted as failed. |
 
 ## Secrets
 
