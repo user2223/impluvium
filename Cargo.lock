@@ -6346,8 +6346,11 @@ version = "0.1.0"
 name = "server-http"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "server-api-types",
  "server-domain",
+ "tokio",
+ "tower",
 ]
 
 [[package]]

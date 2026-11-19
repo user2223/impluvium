@@ -19,8 +19,12 @@ unsuccessfully until guarded startup is implemented. Two commands exist already:
 `impluvium-server config check` validates the environment without opening a
 listener or a database connection, and `impluvium-server config reference`
 prints the page `docs/admin/configuration.md`, which a test keeps in step with
-the field table in `server-bin/src/config/fields.rs`. Framework dependencies
-will be added with the code that needs them.
+the field table in `server-bin/src/config/fields.rs`. A third command,
+`impluvium-server routes --json`, prints the inventory of the routes the server
+serves, with policy, contract and limits of each; it needs no database or key
+file. The inventory and the router are built from the same route registry in
+`server-http`. Further framework dependencies will be added with the code that
+needs them.
 
 Within this server graph, only `server-http` may directly depend on axum/tower,
 or Hyper with server support, and only `server-db` may reach sqlx packages through

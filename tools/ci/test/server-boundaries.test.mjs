@@ -67,9 +67,9 @@ test('server boundary CLI returns failure for an intentionally forbidden depende
 });
 test('framework ownership permits the HTTP and database adapters and separate development tools', t => {
   const root = fixture(t);
-  append(root, manifest('server-http'), 'axum = "0.8"\ntower = "0.5"\n');
+  // server-http already declares and is admitted for axum and tower.
   append(root, manifest('server-db'), 'sqlx = "0.8"\n');
-  admit(root, 'server-http', 'axum'); admit(root, 'server-http', 'tower'); admit(root, 'server-db', 'sqlx');
+  admit(root, 'server-db', 'sqlx');
   put(root, 'tools/server-xtask/Cargo.toml', '[package]\nname = "server-xtask"\n[dependencies]\nsqlx = "0.8"\n');
   assert.deepEqual(check({ root }), []);
   append(root, manifest('server-http'), 'sqlx = "0.8"\n');

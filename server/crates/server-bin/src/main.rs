@@ -4,6 +4,7 @@
 //! Executable composition; startup stays unavailable until its guards exist.
 
 mod config;
+mod routes;
 
 use std::process::ExitCode;
 
@@ -20,9 +21,10 @@ fn main() -> ExitCode {
     match words.as_slice() {
         ["config", "check"] => config::run_check(),
         ["config", "reference"] => config::run_reference(),
+        ["routes", "--json"] => routes::run_json(),
         _ => {
             eprintln!("impluvium-server: startup is not available yet");
-            eprintln!("available commands: config check, config reference");
+            eprintln!("available commands: config check, config reference, routes --json");
             ExitCode::FAILURE
         }
     }

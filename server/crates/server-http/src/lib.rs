@@ -3,7 +3,12 @@
 
 //! HTTP adapters composing application policies with public web contracts.
 //!
-//! The framework router will remain private to this crate.
+//! The framework router stays private to this crate. Routes are declared in
+//! the [`registry`], which also produces the machine-readable inventory; the
+//! [`router`] assembles the framework router from the same definitions.
+
+pub mod registry;
+pub mod router;
 
 pub use server_api_types as api_types;
 pub use server_domain as domain;

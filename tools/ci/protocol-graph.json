@@ -100260,6 +100260,40 @@
         [
           "alloc"
         ]
+      ],
+      [
+        "dependency",
+        "axum",
+        "axum",
+        "normal",
+        null,
+        false,
+        false,
+        []
+      ],
+      [
+        "dependency",
+        "tokio",
+        "tokio",
+        "dev",
+        null,
+        false,
+        false,
+        [
+          "rt"
+        ]
+      ],
+      [
+        "dependency",
+        "tower",
+        "tower",
+        "dev",
+        null,
+        false,
+        false,
+        [
+          "util"
+        ]
       ]
     ],
     "requirements": [
@@ -101005,11 +101039,23 @@
       ],
       [
         "server/crates/server-http/Cargo.toml",
+        122
+      ],
+      [
+        "server/crates/server-http/Cargo.toml",
         116
       ],
       [
         "server/crates/server-http/Cargo.toml",
         115
+      ],
+      [
+        "server/crates/server-http/Cargo.toml",
+        123
+      ],
+      [
+        "server/crates/server-http/Cargo.toml",
+        124
       ],
       [
         "torrential/Cargo.toml",

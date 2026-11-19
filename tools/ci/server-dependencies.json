@@ -8,7 +8,10 @@
     ],
     "server-http": [
       { "package": "server-domain", "path": "server/crates/server-domain/Cargo.toml" },
-      { "package": "server-api-types", "path": "server/crates/server-api-types/Cargo.toml" }
+      { "package": "server-api-types", "path": "server/crates/server-api-types/Cargo.toml" },
+      { "package": "axum" },
+      { "package": "tower" },
+      { "package": "tokio" }
     ],
     "server-bin": [
       { "package": "server-http", "path": "server/crates/server-http/Cargo.toml" },
