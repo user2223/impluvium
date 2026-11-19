@@ -66,3 +66,10 @@ ignored in a normal `cargo test` run. Run them against a disposable server with
 `IMPLUVIUM_TEST_DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/postgres cargo test -p server-db --test
 server_db_postgres -- --ignored --test-threads=1`; every test creates and drops its own database, and a missing
 variable fails the run. CI runs them in the job `server-db` against PostgreSQL 16, 17 and 18.
+
+The inherited Prisma migrations in `server/prisma/migrations` stay in the repository only as the reference for
+the old schema. `server/crates/server-db/tests/fixtures/legacy-baseline.sql` holds that schema as plain SQL, as test
+material that no product migration embeds and the server never starts with. The ignored test target
+`server_db_legacy_schema` applies the chain and the fixture to two databases and fails with a readable diff when
+their catalogs (types, columns, constraint names including historical NOT NULL names, indexes) differ; CI runs it
+on every PostgreSQL version of the `server-db` job.

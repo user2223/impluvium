@@ -535,6 +535,19 @@ jobs:
           passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed; 0 ignored;.*/\1/p' \
             "$RUNNER_TEMP/server-db-tests.txt")
           test "$passed" = "15"
+      - name: Legacy schema parity (inherited chain and plain-SQL fixture, every test must run and pass)
+        run: |
+          set +e
+          cargo test --locked -p server-db --test server_db_legacy_schema -- --ignored --test-threads=1 \
+            > "$RUNNER_TEMP/server-db-legacy-tests.txt" 2>&1
+          test_status=$?
+          set -e
+          cat "$RUNNER_TEMP/server-db-legacy-tests.txt"
+          test "$test_status" -eq 0
+          # Exactly this many tests exist; a smaller number means tests were skipped or lost.
+          passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed; 0 ignored;.*/\1/p' \
+            "$RUNNER_TEMP/server-db-legacy-tests.txt")
+          test "$passed" = "3"
 
   desktop-ui:
     runs-on: impluvium-linux

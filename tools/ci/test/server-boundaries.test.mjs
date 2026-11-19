@@ -44,7 +44,11 @@ test('the real workspace and synthetic composition pass the server boundary chec
   assert.deepEqual(check({ root: fixture(t) }), []);
 });
 test('the server scaffold adds no inherited product names', () => {
-  assert.deepEqual(names(path.join(repository, 'server/crates'), []), { result: {}, issues: [] });
+  // Only the one line of the schema fixture is exempt, exactly as in tools/ci/names-allow.json.
+  const fixtureEntry = JSON.parse(readFileSync(path.join(repository, 'tools/ci/names-allow.json'), 'utf8')).entries
+    .find(entry => entry.path === 'server/crates/server-db/tests/fixtures/legacy-baseline.sql');
+  const allowed = [{ lines: fixtureEntry.lines, matches: name => name === 'server-db/tests/fixtures/legacy-baseline.sql' }];
+  assert.deepEqual(names(path.join(repository, 'server/crates'), allowed), { result: {}, issues: [] });
 });
 for (const [owner, source, section] of [
   ['server-domain', 'axum = "0.8"', 'dependencies'],

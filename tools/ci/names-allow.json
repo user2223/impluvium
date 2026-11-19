@@ -22,6 +22,9 @@
     "\"keyring_service\": \"drop\", \"url_scheme\": \"drop\", \"user_agent\": \"Drop Desktop Client\",",
     "\"app_name\": \"Drop\", \"linux_package\": \"drop-desktop-client\", \"desktop_program\": \"drop-app\"},"
   ],"reason":"The legacy block holds the old values that importers read."},
+  {"path":"server/crates/server-db/tests/fixtures/legacy-baseline.sql","lines":[
+    "\"serverName\" text DEFAULT 'Drop'::text NOT NULL"
+  ],"reason":"Test fixture that must equal the schema of the inherited migration chain, which has this default."},
   {"path":"docs/dev/identity.md","reason":"Generated page; it prints the legacy block."},
   {"path":"tools/env-register.json","reason":"The register records inherited names until they are retired."},
   {"path":"tools/ci/names-allow.json","reason":"Quotes the lines it allows."},

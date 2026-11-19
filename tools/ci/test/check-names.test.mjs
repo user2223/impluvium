@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { copyOf, invoke, replace } from './helpers.mjs';
 
 const repo = t => copyOf(t, 'names-repository');
@@ -144,4 +144,48 @@ test('names: --print-baseline prints the current counts to stdout and writes not
   // The printed text is a valid baseline for the changed tree.
   writeFileSync(baselinePath(root), result.stdout);
   invoke('check-names', args(root), 0);
+});
+
+const LEGACY_FIXTURE = 'server/crates/server-db/tests/fixtures/legacy-baseline.sql';
+const LEGACY_LINE = `"serverName" text DEFAULT 'Drop'::text NOT NULL`;
+const legacyEntry = () => JSON.parse(readFileSync(new URL('../names-allow.json', import.meta.url), 'utf8')).entries
+  .find(item => item.path === LEGACY_FIXTURE);
+
+// The repository's own allow entry for the schema fixture, installed into a copy of the synthetic repository.
+function withLegacyFixture(t, content = `CREATE TABLE x (\n    ${LEGACY_LINE}\n);\n`, place = LEGACY_FIXTURE) {
+  const root = repo(t);
+  const allowFile = path.join(root, 'tools/ci/names-allow.json');
+  const allow = JSON.parse(readFileSync(allowFile, 'utf8'));
+  allow.entries.push(legacyEntry());
+  writeFileSync(allowFile, JSON.stringify(allow));
+  mkdirSync(path.dirname(path.join(root, place)), { recursive: true });
+  writeFileSync(path.join(root, place), content);
+  return root;
+}
+
+test('names: the schema fixture is allowed by exactly one line and path', () => {
+  const entry = legacyEntry();
+  assert.deepEqual(entry.lines, [LEGACY_LINE]);
+  assert.equal(entry.glob, undefined);
+  assert.ok(entry.reason.trim());
+});
+
+test('names: the allowed schema line passes at the fixture path', t => {
+  invoke('check-names', args(withLegacyFixture(t)), 0);
+});
+
+test('names: the same schema line at another path fails', t => {
+  const root = withLegacyFixture(t);
+  writeFileSync(path.join(root, 'docs/other.sql'), `${LEGACY_LINE}\n`);
+  assert.match(invoke('check-names', args(root), 1).stderr, /docs\/other\.sql.*1 lines for word exceed baseline 0/);
+});
+
+test('names: any other name finding in the schema fixture fails', t => {
+  const root = withLegacyFixture(t, `    ${LEGACY_LINE}\n-- Drop is a name\n`);
+  assert.match(invoke('check-names', args(root), 1).stderr, new RegExp(`${LEGACY_FIXTURE.replaceAll('.', '\\.')}.*1 lines for word exceed baseline 0`));
+});
+
+test('names: removing the allowed line from the schema fixture makes its entry stale', t => {
+  const root = withLegacyFixture(t, 'CREATE TABLE x ();\n');
+  assert.match(invoke('check-names', args(root), 1).stderr, /legacy-baseline\.sql:1: allow-list line no longer present/);
 });
