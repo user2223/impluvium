@@ -16,6 +16,11 @@
 //! attribute is refused. Beyond the build tooling, this check refuses links, special files and
 //! anything beyond fixed size and count limits.
 //!
+//! The check also reads every file into memory. The bytes that were hashed are the bytes that the
+//! server later sends, so the files on disk can change after the check without effect. This is why
+//! the size limits are small: the whole application is held in memory. Precompressed siblings of
+//! files (`.br`, `.gz`) are ordinary files of the manifest and are covered by the same checks.
+//!
 //! The hashes of `index.html` become the script hashes of the content security policy.
 //!
 //! Not mirrored: the HTML scanner below is a small tokenizer, not a full HTML parser. It handles
@@ -32,6 +37,7 @@ use std::path::{Path, PathBuf};
 use impluvium_protocol::hash::Algorithm;
 use serde::Deserialize;
 use server_http::headers::ScriptHash;
+use server_http::spa::{SpaEntry, SpaFiles};
 
 /// The manifest file name.
 pub(crate) const MANIFEST: &str = "csp-hashes.json";
@@ -40,21 +46,23 @@ const MAX_MANIFEST_BYTES: u64 = 4 * 1024 * 1024;
 /// Largest HTML file; the scanner reads it into memory.
 const MAX_HTML_BYTES: u64 = 4 * 1024 * 1024;
 /// Largest single file.
-const MAX_FILE_BYTES: u64 = 256 * 1024 * 1024;
-/// Largest total size of all files.
-const MAX_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
+const MAX_FILE_BYTES: u64 = 32 * 1024 * 1024;
+/// Largest total size of all files; they are all held in memory.
+const MAX_TOTAL_BYTES: u64 = 256 * 1024 * 1024;
 /// Largest number of files.
 const MAX_FILES: usize = 20_000;
 /// Deepest directory nesting.
 const MAX_DEPTH: usize = 12;
 
-/// A checked web application directory.
+/// A checked web application directory, with the checked files in memory.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct SpaArtifact {
     /// The hashes of the inline scripts of `index.html`, for the content security policy.
     pub(crate) script_hashes: Vec<ScriptHash>,
     /// The number of files covered by the manifest.
     pub(crate) files: usize,
+    /// The files as they were checked, ready to be served.
+    pub(crate) served: SpaFiles,
 }
 
 /// Why a directory is not a usable web application. Names are relative to the directory.
@@ -82,8 +90,12 @@ pub(crate) enum SpaArtifactError {
     ScriptMismatch(String),
     /// An HTML file has an inline style or cannot be scanned.
     HtmlRefused(String),
+    /// An HTML file has an inline script that the policy of the page would not allow.
+    ScriptNotInShell(String),
     /// A script hash of the manifest is not a SHA-256 hash.
     BadScriptHash,
+    /// The checked files cannot be served.
+    NotServable,
     /// Reading failed.
     Io(io::ErrorKind),
 }
@@ -112,7 +124,12 @@ impl fmt::Display for SpaArtifactError {
             Self::HtmlRefused(name) => {
                 write!(f, "{name:?} has an inline style or cannot be checked")
             }
+            Self::ScriptNotInShell(name) => write!(
+                f,
+                "{name:?} has an inline script that index.html does not have; all HTML files share its policy"
+            ),
             Self::BadScriptHash => write!(f, "{MANIFEST} holds a script hash that is not SHA-256"),
+            Self::NotServable => f.write_str("the web application files cannot be served"),
             Self::Io(kind) => write!(f, "the web application could not be read: {kind}"),
         }
     }
@@ -256,11 +273,12 @@ pub(crate) fn validate_artifact(dir: &Path) -> Result<SpaArtifact, SpaArtifactEr
     }
     let mut computed_scripts: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut total: u64 = 0;
+    let mut loaded = Vec::with_capacity(manifest.files.len());
     for (name, entry) in &manifest.files {
         let Some(path) = disk.get(name) else {
             return Err(SpaArtifactError::MissingFromDisk(name.clone()));
         };
-        let is_html = name.ends_with(".html");
+        let is_html = server_http::spa::is_html_file(name);
         let limit = if is_html {
             MAX_HTML_BYTES
         } else {
@@ -274,29 +292,24 @@ pub(crate) fn validate_artifact(dir: &Path) -> Result<SpaArtifact, SpaArtifactEr
         if size != entry.size {
             return Err(SpaArtifactError::FileMismatch(name.clone()));
         }
-        let mut hasher = Algorithm::Sha256.hasher();
-        let mut html = Vec::new();
-        let mut reader = file.take(limit + 1);
-        let mut buffer = [0u8; 64 * 1024];
-        loop {
-            let count = reader.read(&mut buffer)?;
-            if count == 0 {
-                break;
-            }
-            hasher.update(&buffer[..count]);
-            if is_html {
-                html.extend_from_slice(&buffer[..count]);
-            }
-        }
-        if base64(&hasher.finish()) != entry.sha256 {
+        let mut content = Vec::with_capacity(usize::try_from(size).unwrap_or(0));
+        file.take(limit + 1).read_to_end(&mut content)?;
+        if u64::try_from(content.len()).ok() != Some(entry.size)
+            || base64(&Algorithm::Sha256.digest(&content)) != entry.sha256
+        {
             return Err(SpaArtifactError::FileMismatch(name.clone()));
         }
         if is_html {
-            let text = String::from_utf8_lossy(&html);
+            let text = String::from_utf8_lossy(&content);
             let hashes = inline_script_hashes(&text)
                 .map_err(|_| SpaArtifactError::HtmlRefused(name.clone()))?;
             computed_scripts.insert(name.clone(), hashes);
         }
+        loaded.push(SpaEntry {
+            name: name.clone(),
+            bytes: content,
+            sha256: entry.sha256.clone(),
+        });
     }
     if manifest.scripts.len() != computed_scripts.len()
         || computed_scripts.iter().any(|(name, computed)| {
@@ -312,14 +325,26 @@ pub(crate) fn validate_artifact(dir: &Path) -> Result<SpaArtifact, SpaArtifactEr
             .map_or_else(|| MANIFEST.to_owned(), |(name, _)| name.clone());
         return Err(SpaArtifactError::ScriptMismatch(name));
     }
+    // Every HTML file is served with the policy built from the hashes of `index.html`.
+    let shell = computed_scripts.get("index.html");
+    if let Some((name, _)) = computed_scripts.iter().find(|(name, hashes)| {
+        name.as_str() != "index.html"
+            && hashes
+                .iter()
+                .any(|hash| !shell.is_some_and(|allowed| allowed.contains(hash)))
+    }) {
+        return Err(SpaArtifactError::ScriptNotInShell(name.clone()));
+    }
     let mut script_hashes = Vec::new();
     for quoted in computed_scripts.get("index.html").into_iter().flatten() {
         let bare = quoted.trim_matches('\'');
         script_hashes.push(ScriptHash::parse(bare).map_err(|_| SpaArtifactError::BadScriptHash)?);
     }
+    let served = SpaFiles::new(loaded).map_err(|_| SpaArtifactError::NotServable)?;
     Ok(SpaArtifact {
         script_hashes,
         files: manifest.files.len(),
+        served,
     })
 }
 
@@ -513,6 +538,25 @@ fn needs_hash(script_type: Option<&str>, language: Option<&str>) -> bool {
     )
 }
 
+/// A small valid web application directory, for the tests of other modules.
+#[cfg(test)]
+pub(crate) fn write_test_artifact(dir: &Path) {
+    const INDEX: &str = "<!doctype html><title>app</title><script>window.boot = 1;</script>";
+    let digest = |bytes: &[u8]| base64(&Algorithm::Sha256.digest(bytes));
+    let entry = |bytes: &[u8]| serde_json::json!({"size": bytes.len(), "sha256": digest(bytes)});
+    fs::write(dir.join("index.html"), INDEX).expect("write the test shell");
+    fs::write(dir.join("loading.css"), "body{}").expect("write the test style");
+    let manifest = serde_json::json!({
+        "version": 1,
+        "files": {
+            "index.html": entry(INDEX.as_bytes()),
+            "loading.css": entry(b"body{}"),
+        },
+        "scripts": { "index.html": [format!("'sha256-{}'", digest(b"window.boot = 1;"))] },
+    });
+    fs::write(dir.join(MANIFEST), manifest.to_string()).expect("write the test manifest");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -573,6 +617,55 @@ mod tests {
         let artifact = validate_artifact(scratch.path()).unwrap();
         assert_eq!(artifact.files, 3);
         assert_eq!(artifact.script_hashes.len(), 1);
+    }
+
+    #[test]
+    fn precompressed_siblings_are_covered_by_the_manifest() {
+        let scratch = Scratch::new("spa-compressed");
+        let mut manifest = good(&scratch);
+        let sibling = scratch.path().join("_nuxt/app.js.br");
+        fs::write(&sibling, b"br-bytes").unwrap();
+        manifest["files"]["_nuxt/app.js.br"] =
+            serde_json::json!({"size": 8, "sha256": digest(b"br-bytes")});
+        write_manifest(&scratch, &manifest);
+        assert_eq!(validate_artifact(scratch.path()).unwrap().files, 4);
+        fs::write(&sibling, b"br-bytez").unwrap();
+        assert_eq!(
+            validate_artifact(scratch.path()).unwrap_err(),
+            SpaArtifactError::FileMismatch("_nuxt/app.js.br".to_owned())
+        );
+        fs::write(&sibling, b"br-bytes").unwrap();
+        fs::write(scratch.path().join("_nuxt/app.js.gz"), b"x").unwrap();
+        assert_eq!(
+            validate_artifact(scratch.path()).unwrap_err(),
+            SpaArtifactError::NotInManifest("_nuxt/app.js.gz".to_owned())
+        );
+    }
+
+    #[test]
+    fn other_html_files_may_only_use_the_scripts_of_the_shell() {
+        let scratch = Scratch::new("spa-html-subset");
+        let mut manifest = good(&scratch);
+        let add = |manifest: &mut serde_json::Value, text: &str, script: &[u8]| {
+            fs::write(scratch.path().join("other.html"), text).unwrap();
+            manifest["files"]["other.html"] =
+                serde_json::json!({"size": text.len(), "sha256": digest(text.as_bytes())});
+            manifest["scripts"]["other.html"] =
+                serde_json::json!([format!("'sha256-{}'", digest(script))]);
+        };
+        add(
+            &mut manifest,
+            "<script>window.boot = 1;</script>",
+            b"window.boot = 1;",
+        );
+        write_manifest(&scratch, &manifest);
+        assert_eq!(validate_artifact(scratch.path()).unwrap().files, 4);
+        add(&mut manifest, "<script>other()</script>", b"other()");
+        write_manifest(&scratch, &manifest);
+        assert_eq!(
+            validate_artifact(scratch.path()).unwrap_err(),
+            SpaArtifactError::ScriptNotInShell("other.html".to_owned())
+        );
     }
 
     #[test]

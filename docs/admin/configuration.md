@@ -20,7 +20,7 @@ Check a configuration with `impluvium-server config check`: the command validate
 | `IMPLUVIUM_DB_POOL_MAX` | - | integer from 1 to 500 | no | `10` | Largest number of database connections in the pool. |
 | `IMPLUVIUM_DB_POOL_MIN` | - | integer from 0 to 500 | no | `0` | Number of database connections kept open; at most the maximum. |
 | `IMPLUVIUM_DB_TIMEOUT_SECS` | - | integer from 1 to 300 | no | `30` | Seconds to wait for a free database connection. |
-| `IMPLUVIUM_SPA_DIR` | - | absolute path | no | none | Directory with the built web application. |
+| `IMPLUVIUM_SPA_DIR` | - | absolute path | no | none | Directory with the built web application; required to start the server. |
 | `IMPLUVIUM_LOG` | - | log filter | no | `info` | Log filter: a level, or target=level directives separated by commas. |
 | `IMPLUVIUM_LOG_FORMAT` | - | one of `text`, `json` | no | `text` | Format of log lines. |
 | `IMPLUVIUM_BACKUP_MODE` | - | one of `auto`, `command`, `off` | no | `auto` | How the backup before pending migrations is made. |

@@ -5,7 +5,9 @@
 //!
 //! Default deny: only registered routes exist. Every registered route runs
 //! its policy gate. Unknown paths and unsupported methods are answered by
-//! built-in public handlers with an API error, never by a page. A final
+//! built-in public handlers with an API error, never by a page, unless the
+//! options carry the web application: then the [`spa`](crate::spa) module
+//! answers what no route took. A final
 //! layer turns any response that bypassed a policy into an internal error.
 //! Around the routes sit, from the inside out: the panic guard, the error
 //! renderer, the protective headers and the request identity with logging.
@@ -15,6 +17,7 @@ mod gate;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use axum::extract::Request;
 use axum::http::{StatusCode, header};
 use axum::middleware;
 use axum::response::Response;
@@ -29,6 +32,7 @@ use crate::guard::catch_panics;
 use crate::headers::{HeaderPolicy, ScriptHash, apply};
 use crate::observe::{DiscardLogs, RequestLogSink, observe};
 use crate::registry::{Method, Registry};
+use crate::spa::{self, SpaFiles};
 
 pub(crate) use gate::{GateState, enforce_policy};
 use gate::{mark, require_marker};
@@ -89,6 +93,9 @@ pub struct AppOptions {
     pub log_sink: Arc<dyn RequestLogSink>,
     /// Hashes of the inline scripts of the single-page application shell.
     pub script_hashes: Vec<ScriptHash>,
+    /// The files of the web application. Requests that no route takes are answered from them;
+    /// without them, such requests get the API error. The executable always sets them.
+    pub spa: Option<Arc<SpaFiles>>,
 }
 
 impl Default for AppOptions {
@@ -96,6 +103,7 @@ impl Default for AppOptions {
         Self {
             log_sink: Arc::new(DiscardLogs),
             script_hashes: Vec::new(),
+            spa: None,
         }
     }
 }
@@ -135,7 +143,16 @@ pub fn build_with(
         });
         router = router.route(&path, endpoint);
     }
-    let router = router.fallback(|| async { mark(error_response(ErrorCode::NotFound)) });
+    let router = match &options.spa {
+        Some(files) => {
+            let files = Arc::clone(files);
+            router.fallback(move |request: Request| {
+                let files = Arc::clone(&files);
+                async move { mark(spa::respond(&files, &request)) }
+            })
+        }
+        None => router.fallback(|| async { mark(error_response(ErrorCode::NotFound)) }),
+    };
     ApplicationRouter {
         router: finish(enforce(router.layer(Extension(Arc::new(context)))), options),
     }

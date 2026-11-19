@@ -193,7 +193,7 @@ pub const FIELDS: &[Field] = &[
         kind: Kind::Directory,
         presence: Presence::Optional,
         fallback: Fallback::None,
-        summary: "Directory with the built web application.",
+        summary: "Directory with the built web application; required to start the server.",
     },
     Field {
         key: "log_filter",

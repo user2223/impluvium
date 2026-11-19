@@ -20,6 +20,7 @@ pub mod registry;
 pub mod request_id;
 pub mod router;
 pub mod serve;
+pub mod spa;
 
 pub use server_api_types as api_types;
 pub use server_domain as domain;

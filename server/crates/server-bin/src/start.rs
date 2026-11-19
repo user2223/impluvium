@@ -178,19 +178,17 @@ impl RequestLogSink for TextRequests {
 
 /// What the checks before the database leave behind. Dropping it releases the data directory lock.
 struct Prepared {
-    spa: Option<SpaArtifact>,
+    spa: SpaArtifact,
     _data_dir: DataDirectory,
 }
 
 /// Steps 2 and 3: the web application directory and the data directory.
 fn prepare(config: &Config) -> Result<Prepared, String> {
-    let spa = match &config.spa_dir {
-        Some(dir) => Some(
-            spa::validate_artifact(Path::new(dir))
-                .map_err(|error| format!("IMPLUVIUM_SPA_DIR: {error}"))?,
-        ),
-        None => None,
+    let Some(dir) = &config.spa_dir else {
+        return Err("IMPLUVIUM_SPA_DIR is required to start".to_owned());
     };
+    let spa = spa::validate_artifact(Path::new(dir))
+        .map_err(|error| format!("IMPLUVIUM_SPA_DIR: {error}"))?;
     let data_dir =
         data_dir::open(&config.data_dir).map_err(|error| format!("IMPLUVIUM_DATA_DIR: {error}"))?;
     Ok(Prepared {
@@ -262,14 +260,11 @@ fn execute(source: &Source) -> Exit {
             return Exit::Failed;
         }
     };
-    match &prepared.spa {
-        Some(artifact) => console.info(&format!(
-            "web application checked: {} files, {} inline script hashes",
-            artifact.files,
-            artifact.script_hashes.len()
-        )),
-        None => console.info("IMPLUVIUM_SPA_DIR is not set; no web application is configured"),
-    }
+    console.info(&format!(
+        "web application checked: {} files, {} inline script hashes",
+        prepared.spa.files,
+        prepared.spa.script_hashes.len()
+    ));
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -284,7 +279,7 @@ fn execute(source: &Source) -> Exit {
 }
 
 /// Steps 4 to 8, and the stop.
-async fn serve_product(config: &Config, spa: Option<SpaArtifact>, console: &Console) -> Exit {
+async fn serve_product(config: &Config, spa: SpaArtifact, console: &Console) -> Exit {
     let url = DatabaseUrl::new(config.database_url.expose());
     match read_server_version_num(&url).await {
         Err(error) => {
@@ -360,7 +355,7 @@ fn report_start(started: &Started, console: &Console) {
 /// loss of the lock itself.
 async fn run_owned(
     config: &Config,
-    spa: Option<SpaArtifact>,
+    spa: SpaArtifact,
     console: &Console,
     url: &DatabaseUrl,
     started: Started,
@@ -394,7 +389,7 @@ async fn run_owned(
 
 async fn serve_owned(
     config: &Config,
-    spa: Option<SpaArtifact>,
+    spa: SpaArtifact,
     console: &Console,
     owner: &OwnerGuard,
 ) -> Exit {
@@ -408,9 +403,8 @@ async fn serve_owned(
     let readiness = Arc::new(Readiness::new(owner.subscribe()));
     let app_options = AppOptions {
         log_sink: console.request_sink(),
-        script_hashes: spa
-            .map(|artifact| artifact.script_hashes)
-            .unwrap_or_default(),
+        script_hashes: spa.script_hashes,
+        spa: Some(Arc::new(spa.served)),
     };
     let app = build_with(
         registry::application_with(
@@ -556,6 +550,9 @@ mod tests {
     fn the_checks_before_the_database_refuse_with_clear_messages() {
         let scratch = Scratch::new("start-prepare");
         let data = scratch.path().to_string_lossy().into_owned();
+        let web = Scratch::new("start-web");
+        crate::spa::write_test_artifact(web.path());
+        let web_dir = web.path().to_string_lossy().into_owned();
         let missing_spa = scratch.path().join("no-web").to_string_lossy().into_owned();
         let message = prepare(&config(&[
             ("IMPLUVIUM_DATA_DIR", data.as_str()),
@@ -569,12 +566,19 @@ mod tests {
             .join("no-data")
             .to_string_lossy()
             .into_owned();
-        let message = prepare(&config(&[("IMPLUVIUM_DATA_DIR", missing_data.as_str())]))
-            .err()
-            .expect("a missing data directory is refused");
+        let message = prepare(&config(&[
+            ("IMPLUVIUM_DATA_DIR", missing_data.as_str()),
+            ("IMPLUVIUM_SPA_DIR", web_dir.as_str()),
+        ]))
+        .err()
+        .expect("a missing data directory is refused");
         assert!(message.contains("does not exist"), "{message}");
-        let first = prepare(&config(&[("IMPLUVIUM_DATA_DIR", data.as_str())])).unwrap();
-        let message = prepare(&config(&[("IMPLUVIUM_DATA_DIR", data.as_str())]))
+        let both = [
+            ("IMPLUVIUM_DATA_DIR", data.as_str()),
+            ("IMPLUVIUM_SPA_DIR", web_dir.as_str()),
+        ];
+        let first = prepare(&config(&both)).unwrap();
+        let message = prepare(&config(&both))
             .err()
             .expect("a second server on the same data directory is refused");
         assert!(
@@ -582,6 +586,40 @@ mod tests {
             "{message}"
         );
         drop(first);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_start_without_a_valid_web_application_is_refused() {
+        let scratch = Scratch::new("start-no-web");
+        let data_path = scratch.path().join("data");
+        std::fs::create_dir(&data_path).unwrap();
+        let data = data_path.to_string_lossy().into_owned();
+        let empty = scratch.path().join("web");
+        std::fs::create_dir(&empty).unwrap();
+        let empty = empty.to_string_lossy().into_owned();
+        // The data directory is fine, so only the web application can be the cause.
+        let without = config(&[("IMPLUVIUM_DATA_DIR", data.as_str())]);
+        let message = prepare(&without)
+            .err()
+            .expect("no web application is refused");
+        assert_eq!(message, "IMPLUVIUM_SPA_DIR is required to start");
+        let invalid = config(&[
+            ("IMPLUVIUM_DATA_DIR", data.as_str()),
+            ("IMPLUVIUM_SPA_DIR", empty.as_str()),
+        ]);
+        let message = prepare(&invalid)
+            .err()
+            .expect("an invalid web application is refused");
+        assert!(message.starts_with("IMPLUVIUM_SPA_DIR: "), "{message}");
+        assert!(!data_path.join(".impluvium-lock").exists());
+        // The whole start ends before it touches the database.
+        let base = [
+            ("IMPLUVIUM_EXTERNAL_URL", "https://impluvium.example"),
+            ("IMPLUVIUM_DATA_DIR", data.as_str()),
+            ("DATABASE_URL", "postgres://u:p@db.example.test/x"),
+        ];
+        assert_eq!(execute(&Source::from_pairs(&base)), Exit::Failed);
     }
 
     #[test]
