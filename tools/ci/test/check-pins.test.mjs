@@ -848,3 +848,46 @@ RUN --mount=type=secret,id=token,target=/run/token,required,env=TOKEN true
 RUN --mount=type=tmpfs,target=/tmp,size=1024 true`);
   invoke('check-pins', ['--root', root], 0);
 });
+
+const digestA = 'a'.repeat(64);
+const digestB = 'b'.repeat(64);
+function serviceJob(images, reference = '${{ matrix.database }}', include = '') {
+  const list = images.map(image => `          - ${image}`).join('\n');
+  return `jobs:\n  extra:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n        database:\n${list}\n${include}` +
+    `    services:\n      db:\n        image: ${reference}\n    steps:\n      - run: 'echo "https://images.example.invalid/"'\n`;
+}
+
+test('pins: a service image taken from a matrix list passes when every entry is pinned by digest', t => {
+  const root = repository(t);
+  replace(root, workflow, 'jobs:\n', serviceJob([`docker.io/library/postgres:16@sha256:${digestA}`, `docker.io/library/postgres:17@sha256:${digestB}`]));
+  invoke('check-pins', ['--root', root], 0);
+});
+
+test('pins: a matrix list behind a service image rejects an entry without a digest', t => {
+  const root = repository(t);
+  replace(root, workflow, 'jobs:\n', serviceJob([`docker.io/library/postgres:16@sha256:${digestA}`, 'docker.io/library/postgres:17']));
+  assert.match(invoke('check-pins', ['--root', root], 1).stderr, /image must be literal and pinned by sha256 digest/);
+});
+
+test('pins: a service image that names no matrix list stays unpinned', t => {
+  const root = repository(t);
+  replace(root, workflow, 'jobs:\n', serviceJob([`docker.io/library/postgres:16@sha256:${digestA}`], '${{ matrix.other }}'));
+  assert.match(invoke('check-pins', ['--root', root], 1).stderr, /image must be literal and pinned by sha256 digest/);
+});
+
+const pinned = `docker.io/library/postgres:16@sha256:${digestA}`;
+const includeOf = value => `        include:\n          - database: ${value}\n`;
+
+test('pins: a pinned include entry for the matrix key of a service image passes', t => {
+  const root = repository(t);
+  replace(root, workflow, 'jobs:\n', serviceJob([pinned], undefined, includeOf(`docker.io/library/postgres:17@sha256:${digestB}`)));
+  invoke('check-pins', ['--root', root], 0);
+});
+
+for (const value of ['docker.io/library/postgres:latest', '${{ inputs.image }}', '{tag: latest}']) {
+  test(`pins: an include entry cannot add an unpinned service image: ${value}`, t => {
+    const root = repository(t);
+    replace(root, workflow, 'jobs:\n', serviceJob([pinned], undefined, includeOf(value)));
+    assert.match(invoke('check-pins', ['--root', root], 1).stderr, /image must be literal and pinned by sha256 digest/);
+  });
+}

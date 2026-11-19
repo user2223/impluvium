@@ -7,7 +7,9 @@
     ],
     "server-domain": [],
     "server-db": [
-      { "package": "server-domain", "path": "server/crates/server-domain/Cargo.toml" }
+      { "package": "server-domain", "path": "server/crates/server-domain/Cargo.toml" },
+      { "package": "sqlx" },
+      { "package": "tokio" }
     ],
     "server-http": [
       { "package": "server-domain", "path": "server/crates/server-domain/Cargo.toml" },

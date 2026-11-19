@@ -117,7 +117,9 @@ test('the server layers cannot be reversed or reduced to dev-only composition', 
   const root = fixture(t);
   dependency(root, 'server-domain', 'adapter = { package = "server-http", path = "../server-http" }');
   assert.match(check({ root }).join('\n'), /forbidden server layer/);
-  replace(root, manifest('server-db'), '[dependencies]', '[dev-dependencies]');
+  const domain = 'server-domain = { path = "../server-domain", version = "=0.1.0" }\n';
+  replace(root, manifest('server-db'), domain, '');
+  replace(root, manifest('server-db'), '[dev-dependencies]\n', `[dev-dependencies]\n${domain}`);
   assert.match(check({ root }).join('\n'), /missing product dependency on server-domain/);
 });
 test('missing workspace members, default expansion and positive warning budgets fail', t => {

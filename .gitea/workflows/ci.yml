@@ -422,6 +422,67 @@ jobs:
           node server/.output/server/server/index.mjs --check-static-output
           node tools/web-spa/check-startup.mjs server/.output/server
 
+  # Database tests of the server against real PostgreSQL servers. Only server-db is built here. The server job
+  # stays free of services: it runs every other server test and leaves these ignored tests ignored.
+  server-db:
+    runs-on: impluvium-linux
+    container:
+      image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:2992a8a0448aba1c093255787390b2a090fefbfd76cc25db107f527e9bd65d3a
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres:
+          - docker.io/library/postgres:16-trixie@sha256:3950ad7c3148ca2175ef1b6c36c9efbf78957ae8fbe8b3a5d7c35af50500382f
+          - docker.io/library/postgres:17-trixie@sha256:b60e90042aa6b8dbecd58e224b3e36114dbf8ad754465264c2476ad58a86e45c
+          - docker.io/library/postgres:18-trixie@sha256:e754b839f447639b7004895f4d8a4bfcb4e9dbe3a1bc035f27f646562a16fd61
+    services:
+      postgres:
+        image: ${{ matrix.postgres }}
+        env:
+          # A disposable value for a database that exists only for this job and is reachable only from it.
+          # It is not a secret: this workflow has none. A service needs its password when it starts.
+          POSTGRES_PASSWORD: disposable-ci-password
+        options: "--health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 12"
+    env:
+      IMPLUVIUM_TEST_DATABASE_URL: postgres://postgres:disposable-ci-password@postgres:5432/postgres
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Rust toolchain (stable, rust-toolchain.toml)
+        run: |
+          curl -sSfo "$RUNNER_TEMP/rustup-init" \
+            "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init"
+          echo "${RUSTUP_SHA256}  $RUNNER_TEMP/rustup-init" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/rustup-init"
+          "$RUNNER_TEMP/rustup-init" -y --profile minimal --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustup toolchain install
+          rustup show active-toolchain
+      - name: Wait for PostgreSQL
+        run: |
+          for attempt in $(seq 1 60); do
+            if timeout 2 bash -c 'exec 3<>/dev/tcp/postgres/5432'; then
+              echo "PostgreSQL accepts connections (attempt $attempt)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL did not accept connections in time"
+          exit 1
+      - name: Database tests (every test must run and pass)
+        run: |
+          set +e
+          cargo test --locked -p server-db --test server_db_postgres -- --ignored --test-threads=1 \
+            > "$RUNNER_TEMP/server-db-tests.txt" 2>&1
+          test_status=$?
+          set -e
+          cat "$RUNNER_TEMP/server-db-tests.txt"
+          test "$test_status" -eq 0
+          # Exactly this many tests exist; a smaller number means tests were skipped or lost.
+          passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed; 0 ignored;.*/\1/p' \
+            "$RUNNER_TEMP/server-db-tests.txt")
+          test "$passed" = "11"
+
   desktop-ui:
     runs-on: impluvium-linux
     container:

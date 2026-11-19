@@ -100360,6 +100360,35 @@
         [
           "std"
         ]
+      ],
+      [
+        "dependency",
+        "sqlx",
+        "sqlx",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "macros",
+          "migrate",
+          "postgres",
+          "runtime-tokio"
+        ]
+      ],
+      [
+        "dependency",
+        "tokio",
+        "tokio",
+        "dev",
+        null,
+        false,
+        false,
+        [
+          "macros",
+          "rt",
+          "time"
+        ]
       ]
     ],
     "requirements": [
@@ -101114,6 +101143,14 @@
       [
         "server/crates/server-db/Cargo.toml",
         115
+      ],
+      [
+        "server/crates/server-db/Cargo.toml",
+        130
+      ],
+      [
+        "server/crates/server-db/Cargo.toml",
+        131
       ],
       [
         "server/crates/server-http/Cargo.toml",

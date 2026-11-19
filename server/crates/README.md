@@ -8,13 +8,14 @@ Select its packages explicitly; the workspace default members stay unchanged.
 
 - `server-api-types`: public web contracts and wire adapters.
 - `server-domain`: framework-independent policies and application ports.
-- `server-db`: database adapters depending on the domain.
+- `server-db`: the PostgreSQL pool, the embedded migrations in `server/migrations` and database adapters, depending on the domain.
 - `server-http`: HTTP adapters depending on the domain and public API types.
 - `server-bin`: the `impluvium-server` executable, depending on the HTTP layer and the domain, and on the protocol
   core of the engine for key derivation.
 
 The entry modules establish the dependency graph. They do not yet serve HTTP,
-connect to a database or implement application contracts. The executable exits
+connect to a database or implement application contracts; `server-db` provides the pool
+and the first migration, which nothing calls yet. The executable exits
 unsuccessfully until guarded startup is implemented. Two commands exist already:
 `impluvium-server config check` validates the environment without opening a
 listener or a database connection, and `impluvium-server config reference`
@@ -51,3 +52,17 @@ formatting, Clippy with warnings denied, and tests with its own baseline in
 `tools/ci/server-tests.json`. Zero tests describe these empty modules; the test
 counter still requires an observed suite for every package. New integration
 test targets must use crate-specific names so reports remain unambiguous.
+
+`server-db` owns the one connection pool (`Database`), built from explicit `PoolOptions` and a `DatabaseUrl` that
+never prints itself, and the migrations, which are plain SQL files compiled into the binary. A migration that has
+been applied is never edited: `migrate` refuses a database whose recorded checksums differ or that knows
+migrations this build lacks. The first migration holds only the infrastructure schema (instance identity, the
+binding to the public content key, ticket key generations, initialisation state). The pool connects without TLS:
+a database on an untrusted network needs a later decision about TLS support. Statements use bound values and
+runtime `sqlx::query`; the compile-time checked query macros are not used.
+
+Tests that need PostgreSQL live in `server/crates/server-db/tests/server_db_postgres.rs`. All of them are
+ignored in a normal `cargo test` run. Run them against a disposable server with
+`IMPLUVIUM_TEST_DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/postgres cargo test -p server-db --test
+server_db_postgres -- --ignored --test-threads=1`; every test creates and drops its own database, and a missing
+variable fails the run. CI runs them in the job `server-db` against PostgreSQL 16, 17 and 18.

@@ -299,7 +299,22 @@ function checkWorkflow(state, workflowFile) {
       } else register('action', node.value.split('@')[0], node.value, workflowFile, node.line, true);
     }
     if ((last === 'container' && typeof node.value === 'string') || (last === 'image' && keys.includes('jobs'))) {
-      validateImage(node.value, workflowFile, node.line);
+      // A service image may name one list of its job's matrix; then every image of that list is checked instead.
+      const listed = last === 'image' && keys.length === 5 && keys[0] === 'jobs' && keys[2] === 'services'
+        ? /^\$\{\{\s*matrix\.([A-Za-z_]\w*)\s*\}\}$/.exec(node.value ?? '') : null;
+      const matrix = listed ? jobs[keys[1]]?.value?.strategy?.value?.matrix?.value : undefined;
+      const values = matrix?.[listed[1]]?.value;
+      if (listed && Array.isArray(values) && values.length > 0) {
+        for (const item of values) validateImage(item.value, workflowFile, item.line);
+        // include entries add combinations: each one that sets the key must be a pinned literal too.
+        const extra = matrix.include?.value;
+        if (extra !== undefined && !Array.isArray(extra)) validateImage(extra, workflowFile, matrix.include.line);
+        for (const entry of Array.isArray(extra) ? extra : []) {
+          const set = entry.value;
+          if (!set || typeof set !== 'object' || Array.isArray(set)) validateImage(set, workflowFile, entry.line);
+          else if (Object.hasOwn(set, listed[1])) validateImage(set[listed[1]].value, workflowFile, set[listed[1]].line);
+        }
+      } else validateImage(node.value, workflowFile, node.line);
     }
     if (keys.at(-2) === 'env') {
       if (/^(?:NODE_IMAGE|RUST_IMAGE|RUST_NIGHTLY|RUSTUP_TOOLCHAIN|NODE_VERSION|PNPM_VERSION|RUST_VERSION)$/.test(last)) issues.push(problem(workflowFile, node.line, `${last} duplicates a canonical image/version file`));
