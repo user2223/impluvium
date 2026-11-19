@@ -74,6 +74,29 @@ function downloadIsLocked(root, spec) {
   return false;
 }
 
+// For the arguments of the xtask program: true when they run `sqlx prepare` and no --locked follows a second --
+// (the arguments after it reach the Cargo build that prepare starts). Other uses of the word prepare do not count.
+function prepareWithoutLocked(args) {
+  const at = args.findIndex((word, index) => word === 'sqlx' && args[index + 1] === 'prepare');
+  if (at < 0) return false;
+  const rest = args.slice(at + 2), separator = rest.indexOf('--');
+  return separator < 0 || !rest.slice(separator + 1).includes('--locked');
+}
+
+// The alias that `cargo xtask` expands to must live in the root .cargo/config.toml and run its package with --locked.
+// Returns 'locked' or the reason it is not.
+function xtaskAlias(root) {
+  // An extensionless config takes precedence over config.toml and could replace the alias.
+  if (existsSync(path.join(root, '.cargo/config'))) return '.cargo/config (without extension) takes precedence over config.toml; remove it';
+  const file = path.join(root, '.cargo/config.toml');
+  if (!existsSync(file)) return 'alias xtask is not defined in .cargo/config.toml';
+  const alias = toml(file).data.alias?.xtask;
+  const words = typeof alias === 'string' ? alias.split(/\s+/).filter(Boolean) : Array.isArray(alias) ? alias : undefined;
+  if (!words || words[0] !== 'run') return 'alias xtask must be a cargo run command';
+  const own = words.slice(0, words.includes('--') ? words.indexOf('--') : undefined);
+  return own.includes('--locked') ? 'locked' : 'alias xtask must run with --locked before its -- separator';
+}
+
 function shellChecks(source, file, firstLine, issues, fedora, toolVersions, toolChecksums, channels, root, sourceLines) {
   const parsed = commands(source, file, firstLine, sourceLines);
   const verified = new Set();
@@ -175,7 +198,23 @@ function shellChecks(source, file, firstLine, issues, fedora, toolVersions, tool
       if (subcommand?.startsWith('-') && !nonResolvingCargo.has(subcommand)) {
         unsupported(tokens[actionIndex], 'Cargo global options before the subcommand; place options after the action');
       }
-      if (!nonResolvingCargo.has(subcommand) && !cargoWords.some(word => ['--locked', '--frozen'].includes(word))) {
+      const runsXtask = subcommand === 'run' && cargoWords.some((word, index) =>
+        (['-p', '--package'].includes(word) && cargoWords[index + 1] === 'server-xtask') || word === '--package=server-xtask');
+      if (runsXtask) {
+        const separator = words.indexOf('--');
+        if (separator >= 0 && prepareWithoutLocked(words.slice(separator + 1))) {
+          issues.push(problem(file, tokens[0].line, 'cargo run of server-xtask: sqlx prepare requires --locked forwarded to Cargo after --'));
+        }
+      }
+      if (subcommand === 'xtask') {
+        // `cargo xtask` is an alias; its --locked comes from the alias, which must be checked in and locked. The Cargo
+        // build that `sqlx prepare` starts takes its arguments after the second --, so --locked must be forwarded there.
+        const alias = xtaskAlias(root);
+        if (alias !== 'locked') issues.push(problem(file, tokens[0].line, `cargo xtask: ${alias}`));
+        if (prepareWithoutLocked(words.slice(actionIndex + 1))) {
+          issues.push(problem(file, tokens[0].line, 'cargo xtask sqlx prepare requires --locked forwarded to Cargo after --'));
+        }
+      } else if (!nonResolvingCargo.has(subcommand) && !cargoWords.some(word => ['--locked', '--frozen'].includes(word))) {
         issues.push(problem(file, tokens[0].line, `cargo ${subcommand ?? '(default)'} requires --locked or --frozen before any -- separator`));
       }
     }
@@ -317,6 +356,7 @@ function checkWorkflow(state, workflowFile) {
       } else validateImage(node.value, workflowFile, node.line);
     }
     if (keys.at(-2) === 'env') {
+      if (/^CARGO_ALIAS_/i.test(last)) issues.push(problem(workflowFile, node.line, `${last} would redefine a Cargo alias; remove it`));
       if (/^(?:NODE_IMAGE|RUST_IMAGE|RUST_NIGHTLY|RUSTUP_TOOLCHAIN|NODE_VERSION|PNPM_VERSION|RUST_VERSION)$/.test(last)) issues.push(problem(workflowFile, node.line, `${last} duplicates a canonical image/version file`));
       const topLevel = keys.length === 2 && keys[0] === 'env';
       if (!topLevel && toolPin.test(last) && Object.hasOwn(centralEnv, last)) {

@@ -1,0 +1,57 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT key_id AS \"key_id!\", public_key AS \"public_key!\", algorithm AS \"algorithm!\", (extract(epoch FROM created_at) * 1000000)::bigint AS \"created_at_micros!\" FROM content_key_binding WHERE retired_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key_id!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "content_key_binding",
+            "name": "key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "public_key!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "content_key_binding",
+            "name": "public_key"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "algorithm!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "content_key_binding",
+            "name": "algorithm"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at_micros!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "048eb72e01be35410773cc9db9701811549ae3f6c68e4d2dc95fb8d68b20cd4d"
+}

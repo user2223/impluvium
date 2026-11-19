@@ -6,12 +6,12 @@ import { toml } from '../toml.mjs';
 const root = new URL('../../../', import.meta.url);
 
 // The server image builds one package, but Cargo loads the manifest of every
-// workspace member. Members under engine/ and server/crates/ need their
+// workspace member. Members under engine/, server/crates/ and tools/ need their
 // manifests and target roots, even though the image builds only torrential.
 test('the image build context contains every engine and server workspace member', () => {
   const members = toml(new URL('Cargo.toml', root).pathname).data.workspace.members;
   const allowed = new Set(readFileSync(new URL('.dockerignore', root), 'utf8').split('\n'));
-  const selected = members.filter(member => member.startsWith('engine/') || member.startsWith('server/crates/'));
+  const selected = members.filter(member => member.startsWith('engine/') || member.startsWith('server/crates/') || member.startsWith('tools/'));
   assert.ok(selected.length >= 9);
   for (const member of selected) {
     assert.ok(allowed.has(`!${member}/Cargo.toml`), `.dockerignore lacks !${member}/Cargo.toml`);

@@ -18,7 +18,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use server_db::{
-    ConnectFailure, Database, DatabaseUrl, DbError, MIGRATOR, MigrateFailure, PoolOptions,
+    ConnectFailure, Database, DatabaseUrl, DbError, InitialisationState, MIGRATOR, MigrateFailure,
+    PoolOptions,
 };
 use sqlx::{AssertSqlSafe, Connection, PgConnection};
 
@@ -551,4 +552,88 @@ async fn a_wrong_password_is_reported_without_leaking_it() {
         assert!(!text.contains(host), "the host leaked: {text}");
     }
     assert!(!format!("{url:?} {url}").contains(WRONG));
+}
+
+fn now_micros() -> i64 {
+    i64::try_from(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("a clock after 1970")
+            .as_micros(),
+    )
+    .expect("a time that fits")
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires PostgreSQL (IMPLUVIUM_TEST_DATABASE_URL)"]
+async fn the_instance_identity_is_read() {
+    let test = TestDb::migrated().await;
+    assert_eq!(test.db.instance_identity().await.unwrap(), None);
+    test.run("INSERT INTO instance_identity (layout_version) VALUES (7)")
+        .await;
+    let identity = test.db.instance_identity().await.unwrap().expect("a row");
+    assert_eq!(identity.layout_version, 7);
+    assert_eq!(identity.instance_id.len(), 36, "{}", identity.instance_id);
+    // The server clock and the test clock agree to within a minute.
+    assert!((identity.created_at_micros - now_micros()).abs() < 60_000_000);
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires PostgreSQL (IMPLUVIUM_TEST_DATABASE_URL)"]
+async fn only_the_active_content_key_binding_is_read() {
+    let test = TestDb::migrated().await;
+    assert_eq!(test.db.active_content_key_binding().await.unwrap(), None);
+    test.run(
+        "INSERT INTO content_key_binding (key_id, public_key, algorithm) \
+         VALUES (decode('0001020304050607', 'hex'), decode(repeat('ab', 32), 'hex'), 'ed25519')",
+    )
+    .await;
+    let binding = test
+        .db
+        .active_content_key_binding()
+        .await
+        .unwrap()
+        .expect("an active binding");
+    assert_eq!(binding.key_id, [0, 1, 2, 3, 4, 5, 6, 7]);
+    assert_eq!(binding.public_key, [0xab; 32]);
+    assert_eq!(binding.algorithm, "ed25519");
+    test.run("UPDATE content_key_binding SET retired_at = now()")
+        .await;
+    assert_eq!(test.db.active_content_key_binding().await.unwrap(), None);
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires PostgreSQL (IMPLUVIUM_TEST_DATABASE_URL)"]
+async fn ticket_key_generations_are_listed_lowest_first() {
+    let test = TestDb::migrated().await;
+    assert!(test.db.ticket_key_generations().await.unwrap().is_empty());
+    test.run(
+        "INSERT INTO ticket_key_generation (generation, key_id, switch_at) VALUES \
+         (2, decode('0807060504030201', 'hex'), '2031-01-01T00:00:00Z'), \
+         (1, decode('0001020304050607', 'hex'), '2030-01-01T00:00:00Z')",
+    )
+    .await;
+    let generations = test.db.ticket_key_generations().await.unwrap();
+    let numbers: Vec<i64> = generations.iter().map(|g| g.generation).collect();
+    assert_eq!(numbers, [1, 2]);
+    assert_eq!(generations[0].key_id, [0, 1, 2, 3, 4, 5, 6, 7]);
+    // 2030-01-01T00:00:00Z
+    assert_eq!(generations[0].switch_at_micros, 1_893_456_000_000_000);
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires PostgreSQL (IMPLUVIUM_TEST_DATABASE_URL)"]
+async fn the_initialisation_state_is_read() {
+    let test = TestDb::migrated().await;
+    assert_eq!(test.db.initialisation().await.unwrap(), None);
+    test.run("INSERT INTO instance_initialisation (state) VALUES ('started')")
+        .await;
+    let started = test.db.initialisation().await.unwrap().expect("a row");
+    assert_eq!(started.state, InitialisationState::Started);
+    assert_eq!(started.completed_at_micros, None);
+    test.run("UPDATE instance_initialisation SET state = 'completed', completed_at = now()")
+        .await;
+    let completed = test.db.initialisation().await.unwrap().expect("a row");
+    assert_eq!(completed.state, InitialisationState::Completed);
+    assert!(completed.completed_at_micros.unwrap() >= completed.started_at_micros);
 }

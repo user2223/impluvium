@@ -891,3 +891,65 @@ for (const value of ['docker.io/library/postgres:latest', '${{ inputs.image }}',
     assert.match(invoke('check-pins', ['--root', root], 1).stderr, /image must be literal and pinned by sha256 digest/);
   });
 }
+
+const xtaskAliasFile = '[alias]\nxtask = "run --locked --package server-xtask --"\n';
+const xtaskStep = command => `jobs:\n  extra:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ${command}\n`;
+function xtaskRepository(t, { alias = xtaskAliasFile, command }) {
+  const root = repository(t);
+  if (alias !== null) {
+    mkdirSync(path.join(root, '.cargo'), { recursive: true });
+    writeFileSync(path.join(root, '.cargo/config.toml'), alias);
+  }
+  replace(root, workflow, 'jobs:\n', xtaskStep(command));
+  return root;
+}
+
+test('pins: cargo xtask passes with a locked alias and --locked forwarded after the separator', t => {
+  for (const command of ['cargo xtask sqlx --version', 'cargo xtask sqlx migrate run --source server/migrations',
+    'cargo xtask sqlx prepare --workspace --check -- --all-targets --locked -p server-db']) {
+    invoke('check-pins', ['--root', xtaskRepository(t, { command })], 0);
+  }
+});
+
+test('pins: cargo xtask rejects an alias without --locked, a missing alias and a lock flag after its separator', t => {
+  const command = 'cargo xtask sqlx migrate run';
+  for (const alias of ['[alias]\nxtask = "run --package server-xtask --"\n', '[alias]\nxtask = "run --package server-xtask -- --locked"\n',
+    '[alias]\nxtask = "build --locked"\n', '[alias]\nother = "run --locked"\n']) {
+    assert.match(invoke('check-pins', ['--root', xtaskRepository(t, { alias, command })], 1).stderr, /cargo xtask: alias xtask/);
+  }
+  assert.match(invoke('check-pins', ['--root', xtaskRepository(t, { alias: null, command })], 1).stderr, /alias xtask is not defined/);
+});
+
+test('pins: cargo xtask sqlx prepare must forward --locked to the Cargo build after the separator', t => {
+  for (const command of ['cargo xtask sqlx prepare --workspace -- --all-targets',
+    'cargo xtask sqlx prepare --workspace --locked', 'cargo xtask sqlx prepare --workspace --check']) {
+    assert.match(invoke('check-pins', ['--root', xtaskRepository(t, { command })], 1).stderr, /prepare requires --locked forwarded/);
+  }
+});
+
+test('pins: cargo run of the xtask package must also forward --locked after the second separator', t => {
+  const ok = 'cargo run --locked --package server-xtask -- sqlx prepare --workspace -- --all-targets --locked';
+  invoke('check-pins', ['--root', xtaskRepository(t, { command: ok })], 0);
+  for (const command of ['cargo run --locked -p server-xtask -- sqlx prepare --workspace -- --all-targets',
+    'cargo run --locked --package server-xtask -- sqlx prepare --workspace',
+    'cargo run --locked --package=server-xtask -- sqlx prepare --workspace --locked']) {
+    assert.match(invoke('check-pins', ['--root', xtaskRepository(t, { command })], 1).stderr, /prepare requires --locked forwarded/);
+  }
+});
+
+test('pins: the word prepare outside the sqlx subcommand is not treated as sqlx prepare', t => {
+  invoke('check-pins', ['--root', xtaskRepository(t, { command: 'cargo xtask sqlx migrate run --source prepare' })], 0);
+});
+
+test('pins: Cargo alias variables and an extensionless .cargo/config are rejected', t => {
+  const command = 'cargo xtask sqlx --version';
+  for (const place of ['jobs:\n  extra:\n    runs-on: ubuntu-latest\n    env:\n      CARGO_ALIAS_XTASK: build\n    steps:\n      - run: ' + command + '\n',
+    'jobs:\n  extra:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ' + command + '\n        env:\n          CARGO_ALIAS_XTASK: build\n']) {
+    const root = xtaskRepository(t, { command });
+    replace(root, workflow, xtaskStep(command), place);
+    assert.match(invoke('check-pins', ['--root', root], 1).stderr, /CARGO_ALIAS_XTASK would redefine a Cargo alias/);
+  }
+  const root = xtaskRepository(t, { command });
+  writeFileSync(path.join(root, '.cargo/config'), '[alias]\nxtask = "build"\n');
+  assert.match(invoke('check-pins', ['--root', root], 1).stderr, /without extension/);
+});

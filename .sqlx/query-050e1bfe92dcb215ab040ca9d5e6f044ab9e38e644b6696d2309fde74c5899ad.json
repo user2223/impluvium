@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT state AS \"state!\", (extract(epoch FROM started_at) * 1000000)::bigint AS \"started_at_micros!\", (extract(epoch FROM completed_at) * 1000000)::bigint AS \"completed_at_micros\" FROM instance_initialisation",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "state!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instance_initialisation",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "started_at_micros!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "completed_at_micros",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "050e1bfe92dcb215ab040ca9d5e6f044ab9e38e644b6696d2309fde74c5899ad"
+}

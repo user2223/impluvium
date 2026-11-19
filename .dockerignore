@@ -18,6 +18,8 @@
 !server/crates/server-http/src/
 !server/crates/server-bin/Cargo.toml
 !server/crates/server-bin/src/
+!tools/server-xtask/Cargo.toml
+!tools/server-xtask/src/
 !libraries/base/
 !tools/web-spa/
 

@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "server-xtask"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+description = "Runs the pinned sqlx-cli for the server database schema and its query metadata"
+
+[dependencies]
+# sqlx-cli is built from this lock file (`cargo xtask`, always --locked) and is never installed
+# separately. Only the PostgreSQL driver is enabled: no TLS feature, so no ring and no native TLS.
+sqlx-cli = { version = "=0.9.0", default-features = false, features = ["postgres"] }
+# The `any` driver registry is what sqlx-cli's own entry point installs before it runs.
+sqlx = { version = "=0.9.0", default-features = false, features = ["any", "postgres", "runtime-tokio"] }
+clap = { version = "=4.6.7", features = ["derive"] }
+tokio = { version = "=1.54.1", default-features = false, features = ["rt-multi-thread", "macros"] }

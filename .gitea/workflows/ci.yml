@@ -306,6 +306,11 @@ jobs:
     runs-on: impluvium-linux
     container:
       image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:2992a8a0448aba1c093255787390b2a090fefbfd76cc25db107f527e9bd65d3a
+    env:
+      # The checked queries of server-db are built from the metadata in the repository (.sqlx), never from a
+      # database. This job has no database; with the variable set, a missing or stale file fails the build
+      # instead of the build looking for a DATABASE_URL.
+      SQLX_OFFLINE: "true"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Rust toolchain (stable, rust-toolchain.toml)
@@ -445,6 +450,8 @@ jobs:
         options: "--health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 12"
     env:
       IMPLUVIUM_TEST_DATABASE_URL: postgres://postgres:disposable-ci-password@postgres:5432/postgres
+      # Checked queries use the metadata in the repository; only the steps that regenerate it use a database.
+      SQLX_OFFLINE: "true"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Rust toolchain (stable, rust-toolchain.toml)
@@ -469,6 +476,52 @@ jobs:
           done
           echo "PostgreSQL did not accept connections in time"
           exit 1
+      # The metadata steps build against the database, not against .sqlx, so they run first: drift that breaks
+      # the offline build below still gets its regenerated files printed.
+      - name: Query metadata tool (version and lock file)
+        if: contains(matrix.postgres, ':18-')
+        run: |
+          cargo xtask sqlx --version
+          sha256sum Cargo.lock
+      - name: Query metadata is up to date (checked queries against a migrated database)
+        if: contains(matrix.postgres, ':18-')
+        env:
+          SQLX_OFFLINE: "false"
+        run: |
+          export DATABASE_URL="${IMPLUVIUM_TEST_DATABASE_URL%/postgres}/impluvium_prepare"
+          cargo xtask sqlx database create
+          cargo xtask sqlx migrate run --source server/migrations
+          set +e
+          cargo xtask sqlx prepare --workspace --check -- --all-targets --locked -p server-db
+          check_status=$?
+          set -e
+          if [ "$check_status" -ne 0 ]; then
+            echo "The query metadata in .sqlx is out of date. Regenerated files follow; copy them into .sqlx."
+            cargo xtask sqlx prepare --workspace -- --all-targets --locked -p server-db || true
+            for file in .sqlx/query-*.json; do
+              echo "=== $file"
+              cat "$file"
+            done
+            exit 1
+          fi
+      - name: Query metadata check fails when a file is missing
+        if: contains(matrix.postgres, ':18-')
+        env:
+          SQLX_OFFLINE: "false"
+        run: |
+          export DATABASE_URL="${IMPLUVIUM_TEST_DATABASE_URL%/postgres}/impluvium_prepare"
+          file=$(ls .sqlx/query-*.json | head -n 1)
+          cp "$file" "$RUNNER_TEMP/removed-query.json"
+          rm "$file"
+          set +e
+          cargo xtask sqlx prepare --workspace --check -- --all-targets --locked -p server-db \
+            > "$RUNNER_TEMP/negative-control.txt" 2>&1
+          control_status=$?
+          set -e
+          cp "$RUNNER_TEMP/removed-query.json" "$file"
+          cat "$RUNNER_TEMP/negative-control.txt"
+          test "$control_status" -ne 0
+          grep -q "missing one or more queries" "$RUNNER_TEMP/negative-control.txt"
       - name: Database tests (every test must run and pass)
         run: |
           set +e
@@ -481,7 +534,7 @@ jobs:
           # Exactly this many tests exist; a smaller number means tests were skipped or lost.
           passed=$(sed -n 's/^test result: ok\. \([0-9][0-9]*\) passed; 0 failed; 0 ignored;.*/\1/p' \
             "$RUNNER_TEMP/server-db-tests.txt")
-          test "$passed" = "11"
+          test "$passed" = "15"
 
   desktop-ui:
     runs-on: impluvium-linux

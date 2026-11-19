@@ -11,9 +11,10 @@ description = "Database adapters and migrations for the impluvium server"
 
 [dependencies]
 server-domain = { path = "../server-domain", version = "=0.1.0" }
-# sqlx is reached only through this crate. The pool connects without TLS: no
-# TLS feature is enabled, so a database reached over an untrusted network needs
-# a later, explicit decision about TLS support.
+# sqlx is reached only through this crate among the product crates (the development
+# tool server-xtask also uses it). The pool connects without TLS: no TLS feature is
+# enabled, so a database reached over an untrusted network needs a later, explicit
+# decision about TLS support.
 sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros"] }
 
 [dev-dependencies]

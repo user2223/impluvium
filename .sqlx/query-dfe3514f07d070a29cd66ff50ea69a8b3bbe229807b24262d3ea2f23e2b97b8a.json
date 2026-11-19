@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT generation AS \"generation!\", key_id AS \"key_id!\", (extract(epoch FROM switch_at) * 1000000)::bigint AS \"switch_at_micros!\" FROM ticket_key_generation ORDER BY generation",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "generation!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "ticket_key_generation",
+            "name": "generation"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "key_id!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "ticket_key_generation",
+            "name": "key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "switch_at_micros!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "dfe3514f07d070a29cd66ff50ea69a8b3bbe229807b24262d3ea2f23e2b97b8a"
+}

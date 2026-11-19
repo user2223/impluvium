@@ -100389,6 +100389,57 @@
           "rt",
           "time"
         ]
+      ],
+      [
+        "dependency",
+        "clap",
+        "clap",
+        "normal",
+        null,
+        false,
+        true,
+        [
+          "derive"
+        ]
+      ],
+      [
+        "dependency",
+        "sqlx-cli",
+        "sqlx-cli",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "postgres"
+        ]
+      ],
+      [
+        "dependency",
+        "sqlx",
+        "sqlx",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "any",
+          "postgres",
+          "runtime-tokio"
+        ]
+      ],
+      [
+        "dependency",
+        "tokio",
+        "tokio",
+        "normal",
+        null,
+        false,
+        false,
+        [
+          "macros",
+          "rt-multi-thread"
+        ]
       ]
     ],
     "requirements": [
@@ -101187,6 +101238,22 @@
       [
         "server/crates/server-http/Cargo.toml",
         123
+      ],
+      [
+        "tools/server-xtask/Cargo.toml",
+        132
+      ],
+      [
+        "tools/server-xtask/Cargo.toml",
+        133
+      ],
+      [
+        "tools/server-xtask/Cargo.toml",
+        134
+      ],
+      [
+        "tools/server-xtask/Cargo.toml",
+        135
       ],
       [
         "torrential/Cargo.toml",

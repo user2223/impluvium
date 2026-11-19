@@ -31,6 +31,8 @@ pub enum DbError {
     InvalidOption(&'static str),
     /// The connection could not be established.
     Connect(ConnectFailure),
+    /// A query failed or returned a value this version does not understand.
+    Query,
     /// Applying the embedded migrations failed or the applied history does not
     /// match them (an applied migration was edited or is unknown to this build).
     Migrate(MigrateFailure),
@@ -66,6 +68,7 @@ impl fmt::Display for DbError {
             Self::Connect(ConnectFailure::Other) => {
                 f.write_str("could not connect to the database")
             }
+            Self::Query => f.write_str("a database query failed"),
             Self::Migrate(MigrateFailure::ChecksumMismatch) => {
                 f.write_str("an applied migration was changed after it was applied")
             }
@@ -107,5 +110,19 @@ impl From<sqlx::migrate::MigrateError> for DbError {
             Source::Dirty(_) => MigrateFailure::Dirty,
             _ => MigrateFailure::Execution,
         })
+    }
+}
+
+impl DbError {
+    /// Maps a driver error of a query. Connection problems that surface while a query runs (a lost
+    /// connection, an exhausted pool) keep their connect classification; everything else is a query failure.
+    pub(crate) fn from_query(error: &sqlx::Error) -> Self {
+        match error {
+            sqlx::Error::PoolTimedOut
+            | sqlx::Error::Io(_)
+            | sqlx::Error::PoolClosed
+            | sqlx::Error::WorkerCrashed => Self::Connect(connect_failure(error)),
+            _ => Self::Query,
+        }
     }
 }

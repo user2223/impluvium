@@ -22,6 +22,7 @@ members = [
   "server/crates/server-db",
   "server/crates/server-http",
   "server/crates/server-bin",
+  "tools/server-xtask",
 ]
 # Plain `cargo` commands from the repository root use the stable toolchain of
 # rust-toolchain.toml and cover the server side, libraries and engine packages.

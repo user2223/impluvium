@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 the impluvium contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[alias]
+# Runs the pinned sqlx-cli (tools/server-xtask) from the lock file: cargo xtask sqlx <arguments>.
+xtask = "run --locked --package server-xtask --"
