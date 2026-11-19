@@ -9,6 +9,8 @@ use axum::extract::DefaultBodyLimit;
 use axum::handler::Handler;
 use axum::middleware;
 use axum::routing::{self, MethodRouter};
+use server_api_types::TS;
+use server_api_types::export::type_name;
 use server_domain::policy::Policy;
 
 use super::{PathTemplate, RegistryError};
@@ -88,6 +90,8 @@ pub enum BodyKind {
     None,
     /// A JSON document.
     Json,
+    /// An `application/x-www-form-urlencoded` form.
+    Form,
 }
 
 impl BodyKind {
@@ -96,6 +100,7 @@ impl BodyKind {
         match self {
             Self::None => "none",
             Self::Json => "json",
+            Self::Form => "form",
         }
     }
 }
@@ -176,6 +181,10 @@ pub struct Contract {
     success_statuses: Vec<u16>,
     csrf: Csrf,
     limits: Limits,
+    request_shape: Option<String>,
+    query_shape: Option<String>,
+    response_shape: Option<String>,
+    session_cookie: bool,
 }
 
 impl Contract {
@@ -192,7 +201,39 @@ impl Contract {
             success_statuses: success_statuses.to_vec(),
             csrf: Csrf::NotApplicable,
             limits,
+            request_shape: None,
+            query_shape: None,
+            response_shape: None,
+            session_cookie: false,
         }
+    }
+
+    /// Names the shape of the request body (a type of `server-api-types`, by its
+    /// TypeScript name).
+    pub fn request_shape<T: TS + ?Sized>(mut self) -> Self {
+        self.request_shape = Some(type_name::<T>());
+        self
+    }
+
+    /// Names the shape of the query string.
+    pub fn query_shape<T: TS + ?Sized>(mut self) -> Self {
+        self.query_shape = Some(type_name::<T>());
+        self
+    }
+
+    /// Names the shape of the JSON body of a successful answer.
+    pub fn response_shape<T: TS + ?Sized>(mut self) -> Self {
+        self.response_shape = Some(type_name::<T>());
+        self
+    }
+
+    /// Declares that a successful answer carries a `Set-Cookie` header for the session
+    /// cookie. The header contract is that of `auth::cookie`: the name is
+    /// `session_cookie_name`, the attributes are `Path=/`, `HttpOnly`, `SameSite=Lax`, a
+    /// `Max-Age`, and `Secure` over https. The value is never part of a contract.
+    pub fn sets_session_cookie(mut self) -> Self {
+        self.session_cookie = true;
+        self
     }
 
     /// Declares a path parameter; every template parameter needs one.
@@ -252,6 +293,26 @@ impl Contract {
     /// Size and time limits.
     pub fn limits(&self) -> Limits {
         self.limits
+    }
+
+    /// The shape of the request body, if the contract names one.
+    pub fn request_shape_name(&self) -> Option<&str> {
+        self.request_shape.as_deref()
+    }
+
+    /// The shape of the query string, if the contract names one.
+    pub fn query_shape_name(&self) -> Option<&str> {
+        self.query_shape.as_deref()
+    }
+
+    /// The shape of the JSON answer, if the contract names one.
+    pub fn response_shape_name(&self) -> Option<&str> {
+        self.response_shape.as_deref()
+    }
+
+    /// Whether a successful answer sets the session cookie.
+    pub fn session_cookie_is_set(&self) -> bool {
+        self.session_cookie
     }
 }
 

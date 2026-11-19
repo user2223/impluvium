@@ -23,6 +23,7 @@ use std::path::Path;
 
 use ts_rs::{Config, TS, TypeVisitor};
 
+use crate::contracts::{EmptyObject, admin_auth, auth, server};
 use crate::enums::runtime_enums;
 use crate::error::ApiError;
 use crate::json::JsonValue;
@@ -67,7 +68,55 @@ shape_roots!(
     PageQuery,
     crate::page::Page<String>,
     CursorPage<String>,
+    EmptyObject,
+    server::ServerInfo,
+    server::ServerSettings,
+    server::GeneralSettings,
+    server::StoreSettings,
+    auth::AuthProvider,
+    auth::AuthInfo,
+    auth::MfaMethod,
+    auth::MfaMethods,
+    auth::TotpRequest,
+    auth::CredentialType,
+    auth::AuthenticatorAttachment,
+    auth::AuthenticatorTransport,
+    auth::AuthenticatorHint,
+    auth::UserVerification,
+    auth::AllowedCredential,
+    auth::AuthenticationExtensions,
+    auth::WebAuthnRequestOptions,
+    auth::WebAuthnAssertion,
+    auth::ClientExtensionResults,
+    auth::CredentialProperties,
+    auth::AssertionResponse,
+    auth::SigninRequest,
+    auth::SigninResult,
+    auth::SigninResponse,
+    auth::OidcCallbackQuery,
+    auth::OidcLogoutForm,
+    auth::OidcLogoutResponse,
+    auth::SignupQuery,
+    auth::SignupInvitation,
+    auth::SignupRequest,
+    auth::SignupAccount,
+    admin_auth::AdminAuthInfo,
+    admin_auth::OidcConfiguration,
+    admin_auth::UsernameClaim,
+    admin_auth::Invitation,
+    admin_auth::InvitationList,
+    admin_auth::InvitationCreate,
+    admin_auth::InvitationDelete,
 );
+
+/// The TypeScript name of a shape, as a route contract refers to it.
+///
+/// # Panics
+///
+/// For a type without a declaration of its own, such as a tuple or a `Tri`.
+pub fn type_name<T: TS + ?Sized>() -> String {
+    T::ident(&Config::new())
+}
 
 /// Writes the declarations of every root to `directory` with ts-rs.
 pub fn export_roots(directory: &Path) -> Result<(), String> {
@@ -344,12 +393,23 @@ mod tests {
         nested: Page<Probe2>,
     }
 
+    /// A struct-level `#[ts(optional_fields)]` makes its `Option` fields optional, but must not strip the
+    /// `| null` of a `Tri` field.
+    #[derive(Serialize, Deserialize, TS)]
+    #[ts(optional_fields)]
+    struct ProbeOptional {
+        #[serde(default, skip_serializing_if = "Tri::is_missing")]
+        #[ts(optional = nullable)]
+        name: Tri<String>,
+        note: Option<String>,
+    }
+
     #[derive(Serialize, Deserialize, TS)]
     struct RawProbe {
         count: u64,
     }
 
-    shape_roots!(ProbeRoots: Probe, Platform, JsonValue, Page<String>);
+    shape_roots!(ProbeRoots: Probe, ProbeOptional, Platform, JsonValue, Page<String>);
     shape_roots!(RawRoots: RawProbe);
 
     fn scratch(label: &str) -> PathBuf {
@@ -426,6 +486,10 @@ mod tests {
             "PageQuery",
             "Page",
             "CursorPage",
+            "EmptyObject",
+            "ServerInfo",
+            "SigninRequest",
+            "InvitationList",
         ] {
             assert!(names.iter().any(|name| name == expected), "{expected}");
         }
@@ -472,6 +536,9 @@ mod tests {
         assert_field(probe, "maybe", false, &["string | null", "DecU64 | null"]);
         assert_field(probe, "mode", true, &["Platform | null"]);
         assert_field(probe, "nested", false, &["Page<Probe2>"]);
+        let optional = &written["ProbeOptional.ts"];
+        assert_field(optional, "name", true, &["string | null"]);
+        assert_field(optional, "note", true, &["string"]);
         for import in ["JsonValue", "Platform", "Page", "Probe2"] {
             let line = format!("import type {{ {import} }} from \"./{import}\";");
             assert!(probe.lines().any(|l| l == line), "{line} is not in {probe}");
@@ -586,8 +653,49 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
         assert!(assemble(written).unwrap_err().contains("Platform"));
     }
 
-    const REQUIRED_ATTRIBUTES: [&str; 2] =
-        ["serde(default", "skip_serializing_if = \"Tri::is_missing\""];
+    const REQUIRED_ATTRIBUTES: [&str; 3] = [
+        "serde(default",
+        "skip_serializing_if = \"Tri::is_missing\"",
+        "ts(optional = nullable)",
+    ];
+
+    /// The code of a line: string and character literals emptied, a trailing `//` comment cut.
+    fn code_of(line: &str) -> String {
+        let chars: Vec<char> = line.chars().collect();
+        let mut code = String::new();
+        let mut at = 0;
+        while at < chars.len() {
+            let c = chars[at];
+            if c == '/' && chars.get(at + 1) == Some(&'/') {
+                break;
+            }
+            if c == '"' {
+                at += 1;
+                while at < chars.len() && chars[at] != '"' {
+                    at += if chars[at] == '\\' { 2 } else { 1 };
+                }
+                at += 1;
+                code.push_str("\"\"");
+                continue;
+            }
+            if c == '\'' {
+                // A character literal (`'('`, `'\''`); anything else is a lifetime.
+                let end = if chars.get(at + 1) == Some(&'\\') {
+                    (at + 3..chars.len().min(at + 12)).find(|&i| chars[i] == '\'')
+                } else {
+                    (chars.get(at + 2) == Some(&'\'')).then_some(at + 2)
+                };
+                if let Some(end) = end {
+                    at = end + 1;
+                    code.push_str("''");
+                    continue;
+                }
+            }
+            code.push(c);
+            at += 1;
+        }
+        code
+    }
 
     fn is_identifier(name: &str) -> bool {
         let name = name.strip_prefix("r#").unwrap_or(name);
@@ -631,20 +739,36 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
         parts
     }
 
-    /// Describes every struct field of type `Tri<...>` whose attributes lack `serde(default` or
-    /// `skip_serializing_if = "Tri::is_missing"`. Fields are found line by line: attributes are the
+    /// Describes every struct field of type `Tri<...>` whose attributes lack `serde(default`,
+    /// `skip_serializing_if = "Tri::is_missing"` or `ts(optional = nullable)`. Fields are found line by line: attributes are the
     /// `#[` and `///` lines directly above the field. A struct variant on one line
     /// (`V { a: Tri<T> },`) must carry the attributes inside the braces. Unnamed fields of tuple
     /// variants and attributes spread over several lines are not recognised.
     fn tri_fields_missing_attributes(source: &str) -> Vec<String> {
         let lines: Vec<&str> = source.lines().collect();
         let mut bad = Vec::new();
+        // Open parentheses of a function signature that is wrapped over several lines.
+        let mut signature_depth = 0_i32;
         for (index, line) in lines.iter().enumerate() {
             let text = line.trim();
             if text.starts_with("//") {
                 continue;
             }
             let text = strip_visibility(text);
+            let code = code_of(text);
+            if signature_depth > 0 || contains_word(&code, "fn") {
+                let was_inside = signature_depth > 0;
+                let opened = code.matches('(').count() as i32;
+                let closed = code.matches(')').count() as i32;
+                signature_depth = (signature_depth + opened - closed).max(0);
+                // A line that ends a statement or opens or closes a block ends the signature.
+                if code.trim_end().ends_with(['{', ';', '}']) {
+                    signature_depth = 0;
+                }
+                if was_inside || signature_depth > 0 {
+                    continue;
+                }
+            }
             let mut found = Vec::new();
             if let Some((head, rest)) = text.split_once(" { ")
                 && is_identifier(head)
@@ -691,10 +815,12 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
 
     #[test]
     fn the_tri_guard_flags_a_field_without_the_attributes() {
-        let attributes = "    #[serde(default, skip_serializing_if = \"Tri::is_missing\")]\n";
+        let serde_only = "    #[serde(default, skip_serializing_if = \"Tri::is_missing\")]\n";
         let optional = "    #[ts(optional = nullable)]\n";
+        let attributes = format!("{serde_only}{optional}");
+        let attributes = attributes.as_str();
         let fine = [
-            format!("{attributes}{optional}    pub a: Tri<String>,\n"),
+            format!("{attributes}    pub a: Tri<String>,\n"),
             format!("{attributes}    a: Tri<String>,\n"),
             format!("{attributes}    pub(crate) a: Tri<String>,\n"),
             format!("{attributes}    pub(super) a: Tri<String>,\n"),
@@ -703,10 +829,14 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
             format!("{attributes}    pub a: crate::Tri<String>,\n"),
             format!("{attributes}    pub a: tri::Tri<String>,\n"),
             format!("{attributes}    pub a: crate::tri::Tri<String>,\n"),
-            format!("{attributes}{optional}    /// Docs.\n    pub a: Tri<String>,\n"),
-            "    V { #[serde(default, skip_serializing_if = \"Tri::is_missing\")] a: Tri<u8>, b: u8 },\n"
+            format!("{attributes}    /// Docs.\n    pub a: Tri<String>,\n"),
+            "    V { #[serde(default, skip_serializing_if = \"Tri::is_missing\")] #[ts(optional = nullable)] a: Tri<u8>, b: u8 },\n"
                 .to_owned(),
             "    pub a: Option<Tri>,\n    pub b: Triple<u8>,\n".to_owned(),
+            "pub fn set(\n    id: u8,\n    nickname: Tri<String>,\n) -> u8 {\n    id\n}\n".to_owned(),
+            "fn set(nickname: Tri<String>) {}\n".to_owned(),
+            // A parenthesis in a character, a string or a comment does not open a signature.
+            "fn f(c: char) { let _ = c == '('; }\nlet s = \"fn (\";\nfn g() {\n    let x = '(';\n}\n    #[serde(default, skip_serializing_if = \"Tri::is_missing\")]\n    #[ts(optional = nullable)]\n    a: Tri<u8>,\n".to_owned(),
         ];
         for source in &fine {
             assert!(tri_fields_missing_attributes(source).is_empty(), "{source}");
@@ -714,6 +844,10 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
         let no_default = "    #[serde(skip_serializing_if = \"Tri::is_missing\")]\n";
         let no_skip = "    #[serde(default)]\n";
         let bad = [
+            format!("{serde_only}    pub a: Tri<String>,\n"),
+            // The guard must come back after a signature whose parenthesis stays open.
+            "fn f(a: u8, // (\n) {\n}\nstruct S {\n    a: Tri<u8>,\n}\n".to_owned(),
+            "fn f() { let _ = '('; }\nstruct S {\n    a: Tri<u8>,\n}\n".to_owned(),
             format!("{no_default}    pub a: Tri<String>,\n"),
             format!("{no_skip}    pub a: Tri<String>,\n"),
             "    pub a: Tri<String>,\n".to_owned(),

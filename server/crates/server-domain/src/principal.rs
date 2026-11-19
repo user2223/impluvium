@@ -316,7 +316,11 @@ mod tests {
     fn roles_and_tokens_are_checked_the_same_way() {
         let policy = needs(&[right("emoji:read")]);
         let by_role = browser(Role::User);
-        let by_token = token(TokenKind::Personal, &[right("emoji:read")], Role::User);
+        let by_token = token(
+            TokenKind::Personal,
+            &[right("emoji:read"), right("settings:read")],
+            Role::User,
+        );
         assert_eq!(by_role.rights(), by_token.rights());
         assert_eq!(decide(&policy, &by_role), decide(&policy, &by_token));
     }

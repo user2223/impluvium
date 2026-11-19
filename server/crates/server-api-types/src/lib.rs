@@ -9,6 +9,7 @@
 //! string enums) are declared with serde and ts-rs together, so the Rust type and its TypeScript
 //! declaration describe the same JSON; [`export`] writes the declarations.
 
+pub mod contracts;
 pub mod dec64;
 pub mod enums;
 pub mod error;
@@ -25,3 +26,5 @@ pub use json::{JsonBound, JsonValue};
 pub use page::{CursorPage, Page, PageQuery, PageQueryError, PageWindow};
 pub use time::{Timestamp, TimestampError};
 pub use tri::Tri;
+/// The trait that route contracts bound their request and response shapes by.
+pub use ts_rs::TS;

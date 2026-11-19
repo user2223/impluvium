@@ -65,7 +65,7 @@ fn contract_json(contract: &Contract) -> Value {
         other => json!({ "mode": other.as_str() }),
     };
     let limits = contract.limits();
-    json!({
+    let mut value = json!({
         "path_params": params_json(contract.path_params()),
         "query_params": params_json(contract.query_params()),
         "request_body": contract.request_body_kind().as_str(),
@@ -76,7 +76,24 @@ fn contract_json(contract: &Contract) -> Value {
             "max_body_bytes": limits.max_body_bytes,
             "timeout_ms": u64::try_from(limits.timeout.as_millis()).unwrap_or(u64::MAX),
         },
-    })
+    });
+    // The named shapes and the cookie are listed only where a contract declares them.
+    if let Some(object) = value.as_object_mut() {
+        let shapes = [
+            ("request_shape", contract.request_shape_name()),
+            ("query_shape", contract.query_shape_name()),
+            ("response_shape", contract.response_shape_name()),
+        ];
+        for (key, name) in shapes {
+            if let Some(name) = name {
+                object.insert(key.to_owned(), json!(name));
+            }
+        }
+        if contract.session_cookie_is_set() {
+            object.insert("sets_session_cookie".to_owned(), json!(true));
+        }
+    }
+    value
 }
 
 #[cfg(test)]
@@ -111,7 +128,26 @@ mod tests {
             [
                 ("GET", "/api/health/live"),
                 ("GET", "/api/health/ready"),
+                ("GET", "/api/v1"),
+                ("GET", "/api/v1/admin/auth"),
+                ("GET", "/api/v1/admin/auth/invitation"),
+                ("POST", "/api/v1/admin/auth/invitation"),
+                ("DELETE", "/api/v1/admin/auth/invitation"),
+                ("GET", "/api/v1/auth"),
+                ("GET", "/api/v1/auth/mfa"),
+                ("POST", "/api/v1/auth/mfa/totp"),
+                ("POST", "/api/v1/auth/mfa/webauthn/finish"),
+                ("POST", "/api/v1/auth/mfa/webauthn/start"),
+                ("GET", "/api/v1/auth/oidc/callback"),
+                ("POST", "/api/v1/auth/oidc/logout"),
+                ("POST", "/api/v1/auth/passkey/finish"),
+                ("POST", "/api/v1/auth/passkey/start"),
+                ("POST", "/api/v1/auth/signin/simple"),
+                ("GET", "/api/v1/auth/signup/simple"),
+                ("POST", "/api/v1/auth/signup/simple"),
                 ("GET", "/api/v1/emoji/{codepoint}"),
+                ("GET", "/api/v1/settings"),
+                ("POST", "/api/v1/setup"),
                 ("GET", "/auth/callback/oidc"),
                 ("GET", "/auth/oidc"),
                 ("GET", "/auth/signout"),
@@ -124,7 +160,22 @@ mod tests {
             .filter(|entry| entry["policy"]["access"] == "protected")
             .map(|entry| entry["path"].as_str().unwrap())
             .collect();
-        assert_eq!(protected, ["/api/v1/emoji/{codepoint}"]);
+        assert_eq!(
+            protected,
+            [
+                "/api/v1/admin/auth",
+                "/api/v1/admin/auth/invitation",
+                "/api/v1/admin/auth/invitation",
+                "/api/v1/admin/auth/invitation",
+                "/api/v1/auth/mfa",
+                "/api/v1/auth/mfa/totp",
+                "/api/v1/auth/mfa/webauthn/finish",
+                "/api/v1/auth/mfa/webauthn/start",
+                "/api/v1/emoji/{codepoint}",
+                "/api/v1/settings",
+                "/api/v1/setup",
+            ]
+        );
         let fallbacks = document["fallbacks"].as_array().unwrap();
         let kinds: Vec<&str> = fallbacks
             .iter()
@@ -185,6 +236,39 @@ mod tests {
                 },
             })
         );
+    }
+
+    #[test]
+    fn named_shapes_and_the_session_cookie_are_listed_only_where_declared() {
+        let contract = Contract::new(
+            ResponseKind::Json,
+            &[200],
+            Limits::new(4096, Duration::from_secs(1)),
+        )
+        .request_body(BodyKind::Json)
+        .csrf(Csrf::Required)
+        .request_shape::<server_http::api_types::contracts::auth::SigninRequest>()
+        .query_shape::<server_http::api_types::contracts::auth::SignupQuery>()
+        .response_shape::<server_http::api_types::contracts::auth::SigninResponse>()
+        .sets_session_cookie();
+        let entry = contract_json(&contract);
+        assert_eq!(entry["request_shape"], "SigninRequest");
+        assert_eq!(entry["query_shape"], "SignupQuery");
+        assert_eq!(entry["response_shape"], "SigninResponse");
+        assert_eq!(entry["sets_session_cookie"], true);
+        let plain = contract_json(&Contract::new(
+            ResponseKind::Json,
+            &[200],
+            Limits::new(0, Duration::from_secs(1)),
+        ));
+        for key in [
+            "request_shape",
+            "query_shape",
+            "response_shape",
+            "sets_session_cookie",
+        ] {
+            assert!(plain.get(key).is_none(), "{key}");
+        }
     }
 
     #[test]

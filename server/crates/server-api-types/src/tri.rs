@@ -19,7 +19,7 @@
 //! [`Tri`] implements `ts_rs::TS` like `Option<T>` (`T | null`, with the
 //! imports of `T`), so no type string is needed. A unit test of the export
 //! module fails when a field of this type, in any server crate, lacks the two
-//! serde attributes.
+//! serde attributes or `#[ts(optional = nullable)]`.
 //!
 //! There is no general rule that strips `null` from bodies: every field that
 //! needs the three states says so by using this type.
@@ -101,9 +101,11 @@ impl<T: Serialize> Serialize for Tri<T> {
 /// (`name?:`) is up to the field attribute `#[ts(optional = nullable)]`.
 impl<T: TS> TS for Tri<T> {
     type WithoutGenerics = Self;
-    type OptionInnerType = T;
+    // Not an `Option` for ts-rs: a struct-level `#[ts(optional)]` must never strip the
+    // `| null` and turn the field into `a?: T`.
+    type OptionInnerType = Self;
 
-    const IS_OPTION: bool = true;
+    const IS_OPTION: bool = false;
 
     fn ident(_: &Config) -> String {
         panic!("Tri<T> has no declaration of its own")
@@ -119,6 +121,13 @@ impl<T: TS> TS for Tri<T> {
 
     fn inline_flattened(_: &Config) -> String {
         panic!("Tri<T> cannot be flattened")
+    }
+
+    fn visit_dependencies(visitor: &mut impl TypeVisitor)
+    where
+        Self: 'static,
+    {
+        T::visit_dependencies(visitor);
     }
 
     fn visit_generics(visitor: &mut impl TypeVisitor)
@@ -142,9 +151,10 @@ impl<T: TS> TS for Tri<T> {
 mod tests {
     use super::*;
 
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, PartialEq, Serialize, Deserialize, TS)]
     struct Patch {
         #[serde(default, skip_serializing_if = "Tri::is_missing")]
+        #[ts(optional = nullable)]
         nickname: Tri<String>,
     }
 

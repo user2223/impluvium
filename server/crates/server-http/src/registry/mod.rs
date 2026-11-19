@@ -21,6 +21,7 @@ pub use route::{
     BodyKind, Contract, Csrf, Limits, Method, ParamSpec, ParamType, ResponseKind, Route,
 };
 
+use crate::api_v1;
 use crate::auth_paths;
 use crate::emoji::{self, EmojiFiles};
 use crate::health::{self, NoDependencies, ReadinessPort};
@@ -184,7 +185,8 @@ impl Registry {
 }
 
 /// The registry of the running server. Area modules register their routes
-/// here: the health probes, the routes under `/auth` and the emoji pictures.
+/// here: the health probes, the routes under `/auth`, the contracts of the server, sign-in and
+/// administration routes, and the emoji pictures.
 /// This variant has no dependencies to wait for, so the readiness probe always
 /// answers ready, and it holds no emoji pictures.
 pub fn application() -> Registry {
@@ -198,6 +200,7 @@ pub fn application_with(readiness: Arc<dyn ReadinessPort>, emoji: Arc<EmojiFiles
     let routes = health::routes(readiness)
         .into_iter()
         .chain(auth_paths::routes())
+        .chain(api_v1::routes())
         .chain(emoji::routes(emoji));
     for route in routes {
         registry

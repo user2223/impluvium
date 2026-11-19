@@ -68,8 +68,8 @@ impl RightSet {
 /// role never stands for "everything".
 pub fn role_rights(role: Role) -> RightSet {
     match role {
-        Role::User => RightSet::from_names(&["emoji:read"]),
-        Role::Admin => RightSet::from_names(&["emoji:read", "admin:manage"]),
+        Role::User => RightSet::from_names(&["emoji:read", "settings:read"]),
+        Role::Admin => RightSet::from_names(&["emoji:read", "settings:read", "admin:manage"]),
     }
 }
 
@@ -77,7 +77,7 @@ pub fn role_rights(role: Role) -> RightSet {
 /// and game pages, but nothing about administration, accounts, tokens or
 /// second factors.
 pub fn store_session_rights() -> RightSet {
-    RightSet::from_names(&["emoji:read"])
+    RightSet::from_names(&["emoji:read", "settings:read"])
 }
 
 #[cfg(test)]
@@ -111,6 +111,7 @@ mod tests {
         let user = role_rights(Role::User);
         let admin = role_rights(Role::Admin);
         assert!(user.contains(right("emoji:read")));
+        assert!(user.contains(right("settings:read")));
         assert!(!user.contains(right("admin:manage")));
         assert!(admin.contains(right("admin:manage")));
         assert!(role_rights(Role::User).intersection(&admin) == user);
@@ -120,6 +121,7 @@ mod tests {
     fn store_sessions_never_reach_administration() {
         let store = store_session_rights();
         assert!(store.contains(right("emoji:read")));
+        assert!(store.contains(right("settings:read")));
         assert!(!store.contains(right("admin:manage")));
     }
 }
