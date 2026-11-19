@@ -692,11 +692,75 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
         assert!(assemble(written).unwrap_err().contains("Platform"));
     }
 
-    const REQUIRED_ATTRIBUTES: [&str; 3] = [
-        "serde(default",
-        "skip_serializing_if = \"Tri::is_missing\"",
-        "ts(optional = nullable)",
-    ];
+    const REQUIRED_ATTRIBUTES: [&str; 2] =
+        ["serde(default", "skip_serializing_if = \"Tri::is_missing\""];
+
+    /// Whether a `#[ts(...)]` attribute names `optional = nullable`, alone or among other
+    /// options such as `rename = "x"`. Only a plain `#[ts(` counts: `cfg_attr(.., ts(..))` and
+    /// names that merely end in `ts(` do not, and neither does text inside a string.
+    fn has_optional_nullable(attributes: &str) -> bool {
+        let compact: String = attributes.chars().filter(|c| !c.is_whitespace()).collect();
+        compact.match_indices("#[ts(").any(|(at, marker)| {
+            let rest = &compact[at + marker.len()..];
+            // The options end at the closing parenthesis outside of strings.
+            let (mut depth, mut in_string, mut escaped) = (0_i32, false, false);
+            let mut end = rest.len();
+            for (index, c) in rest.char_indices() {
+                if in_string {
+                    match (escaped, c) {
+                        (true, _) => escaped = false,
+                        (false, '\\') => escaped = true,
+                        (false, '"') => in_string = false,
+                        _ => {}
+                    }
+                    continue;
+                }
+                match c {
+                    '"' => in_string = true,
+                    '(' | '[' | '<' => depth += 1,
+                    ')' | ']' | '>' if depth == 0 => {
+                        end = index;
+                        break;
+                    }
+                    ')' | ']' | '>' => depth -= 1,
+                    _ => {}
+                }
+            }
+            split_top_level(&rest[..end])
+                .into_iter()
+                .any(|option| option == "optional=nullable")
+        })
+    }
+
+    /// The line without a trailing `//` comment outside of strings.
+    fn without_comment(line: &str) -> &str {
+        let (mut in_string, mut escaped) = (false, false);
+        let mut previous_slash = None;
+        for (at, c) in line.char_indices() {
+            if in_string {
+                match (escaped, c) {
+                    (true, _) => escaped = false,
+                    (false, '\\') => escaped = true,
+                    (false, '"') => in_string = false,
+                    _ => {}
+                }
+                continue;
+            }
+            match c {
+                '"' => in_string = true,
+                '/' => {
+                    if let Some(first) = previous_slash {
+                        return &line[..first];
+                    }
+                    previous_slash = Some(at);
+                    continue;
+                }
+                _ => {}
+            }
+            previous_slash = None;
+        }
+        line
+    }
 
     /// The code of a line: string and character literals emptied, a trailing `//` comment cut.
     fn code_of(line: &str) -> String {
@@ -760,11 +824,22 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
         }
     }
 
-    /// Splits at commas outside of `<>`, `()` and `[]`.
+    /// Splits at commas outside of `<>`, `()`, `[]` and double-quoted strings.
     fn split_top_level(text: &str) -> Vec<&str> {
         let (mut depth, mut start, mut parts) = (0_i32, 0, Vec::new());
+        let (mut in_string, mut escaped) = (false, false);
         for (at, c) in text.char_indices() {
+            if in_string {
+                match (escaped, c) {
+                    (true, _) => escaped = false,
+                    (false, '\\') => escaped = true,
+                    (false, '"') => in_string = false,
+                    _ => {}
+                }
+                continue;
+            }
             match c {
+                '"' => in_string = true,
                 '<' | '(' | '[' => depth += 1,
                 '>' | ')' | ']' => depth -= 1,
                 ',' if depth == 0 => {
@@ -835,8 +910,12 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
             {
                 let mut attributes = String::new();
                 for above in lines[..index].iter().rev().map(|l| l.trim()) {
-                    if above.starts_with("#[") || above.starts_with("///") {
-                        attributes.push_str(above);
+                    if above.starts_with("//") {
+                        // Doc lines and comments are not attributes; they do not end the run.
+                        continue;
+                    }
+                    if above.starts_with("#[") {
+                        attributes.push_str(without_comment(above));
                     } else {
                         break;
                     }
@@ -844,7 +923,9 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
                 found.push(attributes);
             }
             for attributes in found {
-                if !REQUIRED_ATTRIBUTES.iter().all(|a| attributes.contains(a)) {
+                if !has_optional_nullable(&attributes)
+                    || !REQUIRED_ATTRIBUTES.iter().all(|a| attributes.contains(a))
+                {
                     bad.push(format!("line {}: {text}", index + 1));
                 }
             }
@@ -872,6 +953,17 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
             "    V { #[serde(default, skip_serializing_if = \"Tri::is_missing\")] #[ts(optional = nullable)] a: Tri<u8>, b: u8 },\n"
                 .to_owned(),
             "    pub a: Option<Tri>,\n    pub b: Triple<u8>,\n".to_owned(),
+            // Doc lines and comments between the attributes and the field are skipped.
+            format!("{attributes}    // note\n    /// Docs.\n    pub a: Tri<String>,\n"),
+            format!("{serde_only}    #[ts(optional = nullable)] // note\n    pub a: Tri<String>,\n"),
+            format!("{serde_only}    #[ts(rename = \"a, b\", optional = nullable)]\n    pub a: Tri<String>,\n"),
+            // `optional = nullable` among other options of one `ts` attribute.
+            format!(
+                "{serde_only}    #[ts(rename = \"x\", optional = nullable)]\n    pub a: Tri<String>,\n"
+            ),
+            format!(
+                "{serde_only}    #[ts(optional = nullable, rename = \"x\")]\n    pub a: Tri<String>,\n"
+            ),
             "pub fn set(\n    id: u8,\n    nickname: Tri<String>,\n) -> u8 {\n    id\n}\n".to_owned(),
             "fn set(nickname: Tri<String>) {}\n".to_owned(),
             // A parenthesis in a character, a string or a comment does not open a signature.
@@ -893,6 +985,21 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
             format!("{attributes}\n    pub a: Tri<String>,\n"),
             format!("{no_skip}    pub(super) r#type: Tri<String>,\n"),
             format!("{no_skip}    pub a: crate::tri::Tri<String>,\n"),
+            // Doc lines, comments, other attributes and strings do not name the option.
+            format!("{serde_only}    /// #[ts(optional = nullable)]\n    pub a: Tri<String>,\n"),
+            format!("{serde_only}    // #[ts(optional = nullable)]\n    pub a: Tri<String>,\n"),
+            format!("{serde_only}    #[xts(optional = nullable)]\n    pub a: Tri<String>,\n"),
+            format!(
+                "{serde_only}    #[cfg_attr(feature = \"x\", ts(optional = nullable))]\n    pub a: Tri<String>,\n"
+            ),
+            format!(
+                "{serde_only}    #[ts(rename = \"a, optional = nullable, b\")]\n    pub a: Tri<String>,\n"
+            ),
+            format!("{serde_only}    #[ts(rename = \"x\")] // optional = nullable\n    pub a: Tri<String>,\n"),
+            "    /// serde(default, skip_serializing_if = \"Tri::is_missing\")\n    #[ts(optional = nullable)]\n    pub a: Tri<String>,\n".to_owned(),
+            // A `ts` attribute without `optional = nullable`, or with another `optional` mode.
+            format!("{serde_only}    #[ts(rename = \"x\")]\n    pub a: Tri<String>,\n"),
+            format!("{serde_only}    #[ts(rename = \"x\", optional)]\n    pub a: Tri<String>,\n"),
             "    V { a: Tri<u8> },\n".to_owned(),
             "    V { #[serde(default)] a: Tri<u8> },\n".to_owned(),
         ];

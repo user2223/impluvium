@@ -7,6 +7,9 @@
 //! holds it. The first-run setup also calls the method overview and the creation of an invitation
 //! with the setup token; a policy cannot say "this right or the setup right" yet, so the setup
 //! token is not accepted here.
+//!
+//! The list of invitations and the creation of one carry invitation ids and links, so both are
+//! marked `no_store`.
 
 use server_api_types::contracts::EmptyObject;
 use server_api_types::contracts::admin_auth::{
@@ -45,7 +48,9 @@ pub(super) fn routes() -> Vec<Route> {
         Method::Get,
         INVITATION_PATH,
         admin(),
-        Contract::new(ResponseKind::Json, &[200], limits(0)).response_shape::<InvitationList>(),
+        Contract::new(ResponseKind::Json, &[200], limits(0))
+            .response_shape::<InvitationList>()
+            .no_store(),
         not_implemented,
     )
     .expect("the invitation list route is valid");
@@ -57,7 +62,8 @@ pub(super) fn routes() -> Vec<Route> {
             .request_body(BodyKind::Json)
             .request_shape::<InvitationCreate>()
             .response_shape::<Invitation>()
-            .csrf(Csrf::Required),
+            .csrf(Csrf::Required)
+            .no_store(),
         not_implemented,
     )
     .expect("the invitation creation route is valid");

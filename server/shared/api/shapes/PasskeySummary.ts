@@ -11,7 +11,8 @@ import type { Timestamp } from "./Timestamp";
  */
 export type PasskeySummary = { 
 /**
- * When the passkey was added.
+ * When the passkey was added, as a timestamp string; the handlers of today answer
+ * milliseconds, so the handler converts. A deliberate change of the wire form.
  */
 created: Timestamp, 
 /**

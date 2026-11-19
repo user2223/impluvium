@@ -7,6 +7,8 @@
 //! needs `admin:manage`, as the other administration routes do: how a token gets a part of the
 //! administration is decided together with the token rights, and until then a token can only
 //! hold all of it or none.
+//!
+//! `DELETE /api/v1/admin/users/{id}` refuses an unknown id and never removes a fallback account.
 
 use server_api_types::contracts::admin_users::{AdminUserList, UserDeleted};
 use server_api_types::contracts::user::UserAccount;

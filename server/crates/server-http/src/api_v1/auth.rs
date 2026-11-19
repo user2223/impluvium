@@ -142,7 +142,8 @@ pub(super) fn routes() -> Vec<Route> {
         Contract::new(ResponseKind::Json, &[200], limits(0))
             .query_param("id", ParamType::String)
             .query_shape::<SignupQuery>()
-            .response_shape::<SignupInvitation>(),
+            .response_shape::<SignupInvitation>()
+            .no_store(),
         not_implemented,
     ));
     add(Route::new(

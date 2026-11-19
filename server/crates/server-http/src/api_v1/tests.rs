@@ -169,6 +169,13 @@ fn send(router: &Router, method: &str, target: &str, headers: &[(&str, String)])
         })
 }
 
+fn cache_control(reply: &Reply) -> Option<&str> {
+    reply
+        .headers
+        .get("cache-control")
+        .map(|value| value.to_str().unwrap())
+}
+
 fn cookie(value: &str) -> (&'static str, String) {
     ("cookie", format!("{SESSION}={value}"))
 }
@@ -1098,13 +1105,9 @@ fn the_current_user_and_the_granted_rights_are_public_for_every_credential() {
 }
 
 #[test]
-fn administration_of_tokens_and_accounts_needs_the_admin_right() {
+fn administration_of_accounts_needs_the_admin_right() {
     let router = router();
     let routes = [
-        ("GET", "/api/v1/admin/token"),
-        ("POST", "/api/v1/admin/token"),
-        ("DELETE", "/api/v1/admin/token/{id}"),
-        ("GET", "/api/v1/admin/token/acls"),
         ("GET", "/api/v1/admin/users"),
         ("GET", "/api/v1/admin/users/{id}"),
         ("DELETE", "/api/v1/admin/users/{id}"),
@@ -1119,6 +1122,96 @@ fn administration_of_tokens_and_accounts_needs_the_admin_right() {
         ("anonymous", None, true, 401),
     ];
     assert_matrix(&router, &routes, &callers);
+}
+
+#[test]
+fn administration_of_tokens_needs_the_admin_right_in_a_browser_session() {
+    let router = router();
+    let routes = [
+        ("GET", "/api/v1/admin/token"),
+        ("POST", "/api/v1/admin/token"),
+        ("DELETE", "/api/v1/admin/token/{id}"),
+        ("GET", "/api/v1/admin/token/acls"),
+    ];
+    let callers = [
+        ("admin", Some("admin"), true, 501),
+        // A token that holds the right cannot manage tokens.
+        ("admin token", Some("tok-admin"), false, 403),
+        ("user", Some("user"), true, 403),
+        ("store window", Some("store"), true, 403),
+        ("pending admin", Some("admin-pending"), true, 403),
+        ("token without the right", Some("tok-settings"), false, 403),
+        ("anonymous", None, true, 401),
+    ];
+    assert_matrix(&router, &routes, &callers);
+}
+
+#[test]
+fn routes_with_secrets_or_the_account_of_the_caller_are_never_cached() {
+    let flagged: BTreeSet<(&str, String)> = built()
+        .inventory()
+        .into_iter()
+        .filter(|info| info.contract.is_no_store())
+        .map(|info| (info.method, info.path))
+        .collect();
+    let expected: BTreeSet<(&str, String)> = [
+        ("GET", "/api/v1/user"),
+        ("GET", "/api/v1/token"),
+        ("POST", "/api/v1/user/mfa/totp/start"),
+        ("POST", "/api/v1/user/token"),
+        ("POST", "/api/v1/admin/token"),
+        ("GET", "/api/v1/admin/auth/invitation"),
+        ("POST", "/api/v1/admin/auth/invitation"),
+        // The invitation id of the registration page is a secret.
+        ("GET", "/api/v1/auth/signup/simple"),
+        // The routes that set the session cookie are forced by it.
+        ("GET", "/api/v1/auth/oidc/callback"),
+        ("POST", "/api/v1/auth/passkey/start"),
+        ("POST", "/api/v1/auth/passkey/finish"),
+        ("POST", "/api/v1/auth/signin/simple"),
+    ]
+    .into_iter()
+    .map(|(method, path)| (method, path.to_owned()))
+    .collect();
+    assert_eq!(flagged, expected);
+    // Only the answers of the missing handler and of the gate are seen here, and the error
+    // renderer stamps `no-store` on both; the success answers are tested in the router tests.
+    let router = router();
+    for (method, path) in &expected {
+        let allowed = call(&router, method, path, Some(cookie("admin")));
+        assert_eq!(
+            allowed.status,
+            StatusCode::NOT_IMPLEMENTED,
+            "{method} {path}"
+        );
+        assert_eq!(cache_control(&allowed), Some("no-store"), "{method} {path}");
+        if *method == "POST" {
+            // Without the origin the gate rejects the request; the header is still there.
+            let rejected = send(&router, method, path, &[cookie("admin")]);
+            assert_eq!(rejected.status, StatusCode::FORBIDDEN, "{method} {path}");
+            assert_eq!(
+                cache_control(&rejected),
+                Some("no-store"),
+                "{method} {path}"
+            );
+        }
+        let is_public = ROUTES
+            .iter()
+            .any(|(m, p, public)| m == method && *p == path && *public);
+        if !is_public {
+            let anonymous = call(&router, method, path, None);
+            assert_eq!(
+                anonymous.status,
+                StatusCode::UNAUTHORIZED,
+                "{method} {path}"
+            );
+            assert_eq!(
+                cache_control(&anonymous),
+                Some("no-store"),
+                "{method} {path}"
+            );
+        }
+    }
 }
 
 #[test]

@@ -79,6 +79,92 @@ fn route(method: Method, path: &str, policy: Policy, contract: Contract) -> Rout
     }
 }
 
+async fn answers_without_cache_control() -> &'static str {
+    "ok"
+}
+
+type WithHeader = ([(header::HeaderName, &'static str); 1], &'static str);
+
+async fn answers_with_its_own_cache_control() -> WithHeader {
+    ([(header::CACHE_CONTROL, "max-age=60")], "ok")
+}
+
+fn cache_values(reply: &Reply) -> Vec<String> {
+    reply
+        .headers
+        .get_all(header::CACHE_CONTROL)
+        .iter()
+        .map(|value| value.to_str().unwrap().to_owned())
+        .collect()
+}
+
+fn cache_app(routes: Vec<Route>) -> Router {
+    let mut registry = Registry::new();
+    for route in routes {
+        registry.register(route).unwrap();
+    }
+    app(registry)
+}
+
+fn get_route<H, T>(path: &str, contract: Contract, handler: H) -> Route
+where
+    H: axum::handler::Handler<T, ()>,
+    T: 'static,
+{
+    Route::new(Method::Get, path, public(), contract, handler).unwrap()
+}
+
+#[test]
+fn successful_api_answers_are_not_cached_unless_the_handler_says_otherwise() {
+    let router = cache_app(vec![
+        get_route(
+            "/api/v1/plain",
+            read_contract(),
+            answers_without_cache_control,
+        ),
+        get_route(
+            "/other/plain",
+            read_contract(),
+            answers_without_cache_control,
+        ),
+        get_route(
+            "/api/v1/own",
+            read_contract(),
+            answers_with_its_own_cache_control,
+        ),
+        get_route(
+            "/other/own",
+            read_contract(),
+            answers_with_its_own_cache_control,
+        ),
+        get_route(
+            "/api/v1/forced",
+            read_contract().no_store(),
+            answers_with_its_own_cache_control,
+        ),
+        get_route(
+            "/other/forced",
+            read_contract().no_store(),
+            answers_without_cache_control,
+        ),
+    ]);
+    let cases = [
+        ("/api/v1/plain", vec!["no-store"]),
+        ("/other/plain", vec![]),
+        // The handler's own header is kept without the flag.
+        ("/api/v1/own", vec!["max-age=60"]),
+        ("/other/own", vec!["max-age=60"]),
+        // With the flag exactly one `no-store` remains.
+        ("/api/v1/forced", vec!["no-store"]),
+        ("/other/forced", vec!["no-store"]),
+    ];
+    for (path, expected) in cases {
+        let reply = send(router.clone(), "GET", path, "");
+        assert_eq!(reply.status, StatusCode::OK, "{path}");
+        assert_eq!(cache_values(&reply), expected, "{path}");
+    }
+}
+
 fn sample() -> Registry {
     let mut registry = Registry::new();
     registry

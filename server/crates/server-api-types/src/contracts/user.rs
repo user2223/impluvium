@@ -12,8 +12,7 @@ use ts_rs::TS;
 use super::EmptyObject;
 use super::auth::{
     AllowedCredential, AuthProvider, AuthenticationExtensions, AuthenticatorAttachment,
-    AuthenticatorHint, AuthenticatorTransport, ClientExtensionResults, CredentialType, MfaMethod,
-    UserVerification,
+    AuthenticatorHint, ClientExtensionResults, CredentialType, MfaMethod, UserVerification,
 };
 use crate::enums::Platform;
 use crate::time::Timestamp;
@@ -131,7 +130,8 @@ pub struct ClientList(pub Vec<ClientInfo>);
 /// A passkey of the account. The key itself never leaves the server.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PasskeySummary {
-    /// When the passkey was added.
+    /// When the passkey was added, as a timestamp string; the handlers of today answer
+    /// milliseconds, so the handler converts. A deliberate change of the wire form.
     pub created: Timestamp,
     /// The credential id, base64url.
     pub id: String,
@@ -399,10 +399,13 @@ pub struct AttestationResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub public_key_algorithm: Option<i32>,
-    /// The ways the authenticator can be reached; absent when unknown.
+    /// The ways the authenticator can be reached, as the browser names them; absent when
+    /// unknown. Plain strings on purpose: browsers add transports over time, and a value this
+    /// server does not know must not make the registration fail. The handler keeps the ones it
+    /// knows and drops the rest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub transports: Option<Vec<AuthenticatorTransport>>,
+    pub transports: Option<Vec<String>>,
 }
 
 /// `GET /api/v1/user/superlevel`: whether the sign-in is recent enough to change second factors.

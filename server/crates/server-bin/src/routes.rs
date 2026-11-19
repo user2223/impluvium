@@ -77,7 +77,8 @@ fn contract_json(contract: &Contract) -> Value {
             "timeout_ms": u64::try_from(limits.timeout.as_millis()).unwrap_or(u64::MAX),
         },
     });
-    // The named shapes and the cookie are listed only where a contract declares them.
+    // The named shapes, the cookie and the cache rule are listed only where a contract
+    // declares them.
     if let Some(object) = value.as_object_mut() {
         let shapes = [
             ("request_shape", contract.request_shape_name()),
@@ -91,6 +92,9 @@ fn contract_json(contract: &Contract) -> Value {
         }
         if contract.session_cookie_is_set() {
             object.insert("sets_session_cookie".to_owned(), json!(true));
+        }
+        if contract.is_no_store() {
+            object.insert("no_store".to_owned(), json!(true));
         }
     }
     value
@@ -285,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn named_shapes_and_the_session_cookie_are_listed_only_where_declared() {
+    fn named_shapes_the_session_cookie_and_the_cache_rule_are_listed_only_where_declared() {
         let contract = Contract::new(
             ResponseKind::Json,
             &[200],
@@ -296,12 +300,14 @@ mod tests {
         .request_shape::<server_http::api_types::contracts::auth::SigninRequest>()
         .query_shape::<server_http::api_types::contracts::auth::SignupQuery>()
         .response_shape::<server_http::api_types::contracts::auth::SigninResponse>()
-        .sets_session_cookie();
+        .sets_session_cookie()
+        .no_store();
         let entry = contract_json(&contract);
         assert_eq!(entry["request_shape"], "SigninRequest");
         assert_eq!(entry["query_shape"], "SignupQuery");
         assert_eq!(entry["response_shape"], "SigninResponse");
         assert_eq!(entry["sets_session_cookie"], true);
+        assert_eq!(entry["no_store"], true);
         let plain = contract_json(&Contract::new(
             ResponseKind::Json,
             &[200],
@@ -312,6 +318,7 @@ mod tests {
             "query_shape",
             "response_shape",
             "sets_session_cookie",
+            "no_store",
         ] {
             assert!(plain.get(key).is_none(), "{key}");
         }

@@ -621,6 +621,17 @@ fn passkey_registration_round_trips_and_ignores_unknown_fields() {
         },
     }));
     assert_eq!(full.response.public_key_algorithm, Some(-7));
+    let unknown: WebAuthnRegistration = round_trip(json!({
+        "clientExtensionResults": {}, "id": "k1", "rawId": "k1", "type": "public-key",
+        "response": {
+            "attestationObject": "a", "clientDataJSON": "b",
+            "transports": ["usb", "some-future-transport"],
+        },
+    }));
+    assert_eq!(
+        unknown.response.transports,
+        Some(vec!["usb".to_owned(), "some-future-transport".to_owned()])
+    );
     let extra: WebAuthnRegistration = serde_json::from_value(json!({
         "clientExtensionResults": {}, "id": "k", "rawId": "k", "type": "public-key",
         "response": { "attestationObject": "a", "clientDataJSON": "b", "other": 1 }, "extra": true,

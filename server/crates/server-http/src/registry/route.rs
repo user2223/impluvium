@@ -5,9 +5,11 @@
 
 use std::time::Duration;
 
-use axum::extract::DefaultBodyLimit;
+use axum::extract::{DefaultBodyLimit, Request, State};
 use axum::handler::Handler;
-use axum::middleware;
+use axum::http::{HeaderValue, header};
+use axum::middleware::{self, Next};
+use axum::response::Response;
 use axum::routing::{self, MethodRouter};
 use server_api_types::TS;
 use server_api_types::export::type_name;
@@ -185,6 +187,7 @@ pub struct Contract {
     query_shape: Option<String>,
     response_shape: Option<String>,
     session_cookie: bool,
+    no_store: bool,
 }
 
 impl Contract {
@@ -205,6 +208,7 @@ impl Contract {
             query_shape: None,
             response_shape: None,
             session_cookie: false,
+            no_store: false,
         }
     }
 
@@ -231,8 +235,20 @@ impl Contract {
     /// cookie. The header contract is that of `auth::cookie`: the name is
     /// `session_cookie_name`, the attributes are `Path=/`, `HttpOnly`, `SameSite=Lax`, a
     /// `Max-Age`, and `Secure` over https. The value is never part of a contract.
+    /// Such an answer is never cached, so this also implies [`Contract::no_store`].
     pub fn sets_session_cookie(mut self) -> Self {
         self.session_cookie = true;
+        self.no_store = true;
+        self
+    }
+
+    /// Declares that no answer of the route may be cached: the router sets
+    /// `Cache-Control: no-store` on the response of the route and replaces any `Cache-Control`
+    /// the handler set. Used where a successful answer carries a secret or the account of the
+    /// caller. Routes under `/api/` get `no-store` without this unless their handler sets its own
+    /// `Cache-Control`.
+    pub fn no_store(mut self) -> Self {
+        self.no_store = true;
         self
     }
 
@@ -308,6 +324,11 @@ impl Contract {
     /// The shape of the JSON answer, if the contract names one.
     pub fn response_shape_name(&self) -> Option<&str> {
         self.response_shape.as_deref()
+    }
+
+    /// Whether every answer of the route carries `Cache-Control: no-store`.
+    pub fn is_no_store(&self) -> bool {
+        self.no_store
     }
 
     /// Whether a successful answer sets the session cookie.
@@ -397,7 +418,17 @@ impl Route {
         // The body limit is the outer layer: it must be in place before the
         // handler reads the body.
         let gated: MethodRouter = base.layer(gate);
-        let endpoint: MethodRouter = gated.layer(DefaultBodyLimit::max(limit));
+        let limited: MethodRouter = gated.layer(DefaultBodyLimit::max(limit));
+        // The outermost layer. It covers the 2xx and 3xx answers of the handler and the
+        // preformatted errors it returns; the errors of the gate and of the renderer already
+        // carry `no-store` from the error renderer. Answers under `/api/` get `no-store` unless
+        // they set their own `Cache-Control`; a route that is marked `no_store` always gets it.
+        let cache = CachePolicy {
+            forced: contract.no_store,
+            api: path.as_str().starts_with("/api/"),
+        };
+        let endpoint: MethodRouter =
+            limited.layer(middleware::from_fn_with_state(cache, set_cache_control));
         Ok(Self {
             method,
             path,
@@ -406,6 +437,30 @@ impl Route {
             endpoint,
         })
     }
+}
+
+/// How the cache header of a route is set.
+#[derive(Clone, Copy)]
+struct CachePolicy {
+    /// The route is marked `no_store`: the header is set whatever the handler said.
+    forced: bool,
+    /// The route is under `/api/`: the header is set unless the handler set one.
+    api: bool,
+}
+
+/// Sets `Cache-Control: no-store` as the cache policy of the route says.
+async fn set_cache_control(
+    State(cache): State<CachePolicy>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let mut response = next.run(request).await;
+    let headers = response.headers_mut();
+    // Forced routes replace any handler value; other API routes only fill a missing one.
+    if cache.forced || (cache.api && !headers.contains_key(header::CACHE_CONTROL)) {
+        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    }
+    response
 }
 
 fn validate(method: Method, path: &PathTemplate, contract: &Contract) -> Result<(), RegistryError> {
