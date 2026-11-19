@@ -21,7 +21,7 @@ const ADMIN_RIGHT: &str = "admin:manage";
 const PATH: &str = "/api/v1/admin/auth";
 const INVITATION_PATH: &str = "/api/v1/admin/auth/invitation";
 
-fn admin() -> Policy {
+pub(super) fn admin() -> Policy {
     let right = Right::new(ADMIN_RIGHT).expect("the right name is valid");
     Policy::protected(
         Requirement::authenticated()

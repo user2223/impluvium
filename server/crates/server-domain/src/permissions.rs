@@ -68,16 +68,29 @@ impl RightSet {
 /// role never stands for "everything".
 pub fn role_rights(role: Role) -> RightSet {
     match role {
-        Role::User => RightSet::from_names(&["emoji:read", "settings:read"]),
-        Role::Admin => RightSet::from_names(&["emoji:read", "settings:read", "admin:manage"]),
+        Role::User => RightSet::from_names(&[
+            "emoji:read",
+            "settings:read",
+            "profile:read",
+            "clients:read",
+            "clients:revoke",
+        ]),
+        Role::Admin => RightSet::from_names(&[
+            "emoji:read",
+            "settings:read",
+            "profile:read",
+            "clients:read",
+            "clients:revoke",
+            "admin:manage",
+        ]),
     }
 }
 
 /// The only rights a store session can ever hold: the store, the library
-/// and game pages, but nothing about administration, accounts, tokens or
-/// second factors.
+/// and game pages and the public profile of an account, but nothing about
+/// administration, devices, tokens or second factors.
 pub fn store_session_rights() -> RightSet {
-    RightSet::from_names(&["emoji:read", "settings:read"])
+    RightSet::from_names(&["emoji:read", "settings:read", "profile:read"])
 }
 
 #[cfg(test)]
@@ -112,6 +125,9 @@ mod tests {
         let admin = role_rights(Role::Admin);
         assert!(user.contains(right("emoji:read")));
         assert!(user.contains(right("settings:read")));
+        assert!(user.contains(right("profile:read")));
+        assert!(user.contains(right("clients:read")));
+        assert!(user.contains(right("clients:revoke")));
         assert!(!user.contains(right("admin:manage")));
         assert!(admin.contains(right("admin:manage")));
         assert!(role_rights(Role::User).intersection(&admin) == user);
@@ -122,6 +138,10 @@ mod tests {
         let store = store_session_rights();
         assert!(store.contains(right("emoji:read")));
         assert!(store.contains(right("settings:read")));
+        assert!(store.contains(right("profile:read")));
         assert!(!store.contains(right("admin:manage")));
+        // Devices belong to the account pages, which the store window does not show.
+        assert!(!store.contains(right("clients:read")));
+        assert!(!store.contains(right("clients:revoke")));
     }
 }

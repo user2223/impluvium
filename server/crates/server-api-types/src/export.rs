@@ -23,7 +23,7 @@ use std::path::Path;
 
 use ts_rs::{Config, TS, TypeVisitor};
 
-use crate::contracts::{EmptyObject, admin_auth, auth, server};
+use crate::contracts::{EmptyObject, admin_auth, admin_users, auth, server, token, user};
 use crate::enums::runtime_enums;
 use crate::error::ApiError;
 use crate::json::JsonValue;
@@ -107,6 +107,45 @@ shape_roots!(
     admin_auth::InvitationList,
     admin_auth::InvitationCreate,
     admin_auth::InvitationDelete,
+    admin_users::LinkedAuthMethod,
+    admin_users::AdminUser,
+    admin_users::AdminUserList,
+    admin_users::UserDeleted,
+    token::TokenMode,
+    token::ApiToken,
+    token::ApiTokenList,
+    token::NewApiToken,
+    token::TokenCreate,
+    token::AclDescriptions,
+    token::GrantedAcls,
+    user::UserAccount,
+    user::CurrentUser,
+    user::UserProfile,
+    user::LinkedAuth,
+    user::LinkedAuths,
+    user::UserAuth,
+    user::ClientCapability,
+    user::ClientInfo,
+    user::ClientList,
+    user::PasskeySummary,
+    user::MfaCredentials,
+    user::MfaEntry,
+    user::MfaEntries,
+    user::MfaStatus,
+    user::TotpSetup,
+    user::PasskeyName,
+    user::PasskeyDelete,
+    user::AttestationConveyance,
+    user::AttestationFormat,
+    user::ResidentKey,
+    user::AuthenticatorSelection,
+    user::PublicKeyParameters,
+    user::RelyingParty,
+    user::PasskeyUser,
+    user::WebAuthnCreationOptions,
+    user::WebAuthnRegistration,
+    user::AttestationResponse,
+    user::SuperlevelStatus,
 );
 
 /// The TypeScript name of a shape, as a route contract refers to it.

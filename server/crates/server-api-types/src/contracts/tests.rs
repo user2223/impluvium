@@ -10,12 +10,21 @@ use super::admin_auth::{
     AdminAuthInfo, Invitation, InvitationCreate, InvitationDelete, InvitationList,
     OidcConfiguration, UsernameClaim,
 };
+use super::admin_users::{AdminUser, AdminUserList, UserDeleted};
 use super::auth::{
     AuthInfo, AuthProvider, MfaMethod, MfaMethods, OidcCallbackQuery, OidcLogoutForm,
     OidcLogoutResponse, SigninRequest, SigninResponse, SignupAccount, SignupInvitation,
     SignupQuery, SignupRequest, TotpRequest, WebAuthnAssertion, WebAuthnRequestOptions,
 };
 use super::server::{GeneralSettings, ServerInfo, ServerSettings, StoreSettings};
+use super::token::{
+    AclDescriptions, ApiTokenList, GrantedAcls, NewApiToken, TokenCreate, TokenMode,
+};
+use super::user::{
+    ClientCapability, ClientList, CurrentUser, MfaCredentials, MfaStatus, PasskeyDelete,
+    PasskeyName, SuperlevelStatus, TotpSetup, UserAccount, UserAuth, UserProfile,
+    WebAuthnCreationOptions, WebAuthnRegistration,
+};
 
 /// Reads the body, checks the typed value writes back to exactly the same JSON, and returns it.
 fn round_trip<T: Serialize + DeserializeOwned>(body: Value) -> T {
@@ -373,4 +382,373 @@ fn debug_hides_the_invitation_id() {
         },
         &["inv-s3cret"],
     );
+}
+
+const STAMP: &str = "2030-01-02T03:04:05.006Z";
+
+fn account() -> Value {
+    json!({
+        "admin": false, "displayName": "Alice", "email": "a@example.test", "enabled": true,
+        "id": "u1", "profilePictureObjectId": "o1", "username": "alice",
+    })
+}
+
+#[test]
+fn the_current_user_is_an_account_or_null() {
+    let none: CurrentUser = round_trip(json!(null));
+    assert_eq!(none.0, None);
+    let some: CurrentUser = round_trip(account());
+    assert_eq!(
+        some.0.as_ref().map(|user| user.username.as_str()),
+        Some("alice")
+    );
+    assert!(serde_json::from_value::<CurrentUser>(json!({})).is_err());
+    assert!(serde_json::from_value::<CurrentUser>(json!("alice")).is_err());
+}
+
+#[test]
+fn accounts_and_profiles_round_trip_with_camel_case_names() {
+    let user: UserAccount = round_trip(account());
+    assert!(user.enabled && !user.admin);
+    let profile: UserProfile = round_trip(json!({
+        "displayName": "Alice", "id": "u1", "profilePictureObjectId": "o1", "username": "alice",
+    }));
+    assert_eq!(profile.display_name, "Alice");
+    // A profile does not carry the email address.
+    assert!(
+        serde_json::from_value::<UserAccount>(json!({
+            "displayName": "Alice", "id": "u1", "profilePictureObjectId": "o1", "username": "alice",
+        }))
+        .is_err()
+    );
+    let listed: AdminUserList = round_trip(json!([
+        {
+            "admin": true, "authMecs": [{ "mec": "Simple" }, { "mec": "OpenID" }],
+            "displayName": "Alice", "email": "a@example.test", "enabled": true, "id": "u1",
+            "profilePictureObjectId": "o1", "username": "alice",
+        },
+    ]));
+    let first: &AdminUser = &listed.0[0];
+    assert_eq!(first.auth_mecs.len(), 2);
+    let _: AdminUserList = round_trip(json!([]));
+    assert!(
+        serde_json::from_value::<AdminUserList>(json!([{
+            "admin": true, "authMecs": [{ "mec": "Other" }], "displayName": "A", "email": "e",
+            "enabled": true, "id": "u", "profilePictureObjectId": "o", "username": "a",
+        }]))
+        .is_err()
+    );
+    let deleted: UserDeleted = round_trip(json!({ "success": true }));
+    assert!(deleted.success);
+}
+
+#[test]
+fn linked_sign_in_methods_have_the_method_names_as_keys() {
+    let none: UserAuth = round_trip(json!({ "available": ["Simple", "OpenID"], "mecs": {} }));
+    assert!(none.mecs.simple.is_none() && none.mecs.open_id.is_none());
+    let both: UserAuth = round_trip(json!({
+        "available": ["Simple", "OpenID"],
+        "mecs": {
+            "Simple": { "enabled": true, "mec": "Simple", "userId": "u1", "version": 1 },
+            "OpenID": { "enabled": false, "mec": "OpenID", "userId": "u1", "version": 1 },
+        },
+    }));
+    assert!(both.mecs.simple.unwrap().enabled);
+    assert!(!both.mecs.open_id.unwrap().enabled);
+    // The stored credentials are never part of the answer; a field with them is read and dropped.
+    let extra: UserAuth = serde_json::from_value(json!({
+        "available": [],
+        "mecs": { "Simple": { "enabled": true, "mec": "Simple", "userId": "u", "version": 1, "credentials": {} } },
+    }))
+    .unwrap();
+    assert!(
+        serde_json::to_value(&extra).unwrap()["mecs"]["Simple"]
+            .get("credentials")
+            .is_none()
+    );
+    assert!(
+        serde_json::from_value::<UserAuth>(json!({
+            "available": [], "mecs": { "Other": {} },
+        }))
+        .unwrap()
+        .mecs
+        .simple
+        .is_none()
+    );
+}
+
+#[test]
+fn clients_are_a_bare_array_with_canonical_timestamps() {
+    let list: ClientList = round_trip(json!([
+        {
+            "capabilities": ["PeerAPI", "UserStatus", "CloudSaves", "TrackPlaytime"],
+            "id": "c1", "lastConnected": STAMP, "name": "Desktop", "platform": "macOS", "userId": "u1",
+        },
+        {
+            "capabilities": [], "id": "c2", "lastConnected": STAMP, "name": "Deck",
+            "platform": "Linux", "userId": "u1",
+        },
+    ]));
+    assert_eq!(list.0[0].capabilities[0], ClientCapability::PeerAPI);
+    assert!(
+        serde_json::from_value::<ClientList>(json!([{
+            "capabilities": [], "id": "c", "lastConnected": "2030-01-02T03:04:05+00:00",
+            "name": "n", "platform": "Linux", "userId": "u",
+        }]))
+        .is_err()
+    );
+    assert!(
+        serde_json::from_value::<ClientList>(json!([{
+            "capabilities": ["Other"], "id": "c", "lastConnected": STAMP,
+            "name": "n", "platform": "Linux", "userId": "u",
+        }]))
+        .is_err()
+    );
+}
+
+#[test]
+fn second_factors_list_no_secret_and_the_credentials_follow_the_kind() {
+    let none: MfaStatus = round_trip(json!({ "available": ["WebAuthn", "TOTP"], "mecs": {} }));
+    assert!(none.mecs.totp.is_none() && none.mecs.web_authn.is_none());
+    let both: MfaStatus = round_trip(json!({
+        "available": ["WebAuthn", "TOTP"],
+        "mecs": {
+            "TOTP": { "credentials": {}, "enabled": false, "mec": "TOTP", "userId": "u1", "version": 1 },
+            "WebAuthn": {
+                "credentials": [
+                    { "created": STAMP, "id": "k1", "name": "Laptop" },
+                    { "created": STAMP, "id": "k2", "name": "Phone" },
+                ],
+                "enabled": true, "mec": "WebAuthn", "userId": "u1", "version": 1,
+            },
+        },
+    }));
+    assert!(matches!(
+        both.mecs.totp.unwrap().credentials,
+        MfaCredentials::Totp(_)
+    ));
+    match both.mecs.web_authn.unwrap().credentials {
+        MfaCredentials::Passkeys(keys) => assert_eq!(keys.len(), 2),
+        other => panic!("{other:?}"),
+    }
+    let empty: MfaStatus = round_trip(json!({
+        "available": [],
+        "mecs": { "WebAuthn": {
+            "credentials": [], "enabled": true, "mec": "WebAuthn", "userId": "u", "version": 1,
+        } },
+    }));
+    assert!(matches!(
+        empty.mecs.web_authn.unwrap().credentials,
+        MfaCredentials::Passkeys(keys) if keys.is_empty()
+    ));
+    // A stored public key is not a listed passkey field and is dropped.
+    let listed: MfaStatus = serde_json::from_value(json!({
+        "available": [],
+        "mecs": { "WebAuthn": {
+            "credentials": [{ "created": STAMP, "id": "k", "name": "n", "publicKey": "secret" }],
+            "enabled": true, "mec": "WebAuthn", "userId": "u", "version": 1,
+        } },
+    }))
+    .unwrap();
+    assert!(!serde_json::to_string(&listed).unwrap().contains("secret"));
+}
+
+#[test]
+fn the_totp_setup_has_the_secret_and_the_address() {
+    let setup: TotpSetup = round_trip(json!({
+        "secret": "JBSWY3DPEHPK3PXP",
+        "url": "otpauth://totp/impluvium:u1?secret=JBSWY3DPEHPK3PXP&issuer=impluvium",
+    }));
+    assert_eq!(setup.secret, "JBSWY3DPEHPK3PXP");
+    assert!(serde_json::from_value::<TotpSetup>(json!({ "secret": "x" })).is_err());
+}
+
+#[test]
+fn passkey_creation_options_round_trip_minimal_and_full() {
+    let name: PasskeyName = round_trip(json!({ "name": "Laptop" }));
+    assert_eq!(name.name, "Laptop");
+    assert!(serde_json::from_value::<PasskeyName>(json!({})).is_err());
+    let delete: PasskeyDelete = round_trip(json!({ "id": "k1" }));
+    assert_eq!(delete.id, "k1");
+    let minimal: WebAuthnCreationOptions = round_trip(json!({
+        "challenge": "abc",
+        "pubKeyCredParams": [{ "alg": -7, "type": "public-key" }, { "alg": -257, "type": "public-key" }],
+        "rp": { "name": "impluvium" },
+        "user": { "displayName": "Alice", "id": "dTE", "name": "alice" },
+    }));
+    assert_eq!(minimal.pub_key_cred_params[0].alg, -7);
+    assert!(minimal.rp.id.is_none() && minimal.attestation.is_none());
+    let full: WebAuthnCreationOptions = round_trip(json!({
+        "attestation": "none",
+        "attestationFormats": ["fido-u2f", "android-safetynet", "android-key", "tpm", "apple", "packed", "none"],
+        "authenticatorSelection": {
+            "authenticatorAttachment": "platform", "requireResidentKey": true,
+            "residentKey": "required", "userVerification": "preferred",
+        },
+        "challenge": "abc",
+        "excludeCredentials": [{ "id": "k1", "type": "public-key", "transports": ["usb"] }],
+        "extensions": { "credProps": true },
+        "hints": ["security-key"],
+        "pubKeyCredParams": [{ "alg": -7, "type": "public-key" }],
+        "rp": { "id": "games.example.test", "name": "impluvium" },
+        "timeout": 60000,
+        "user": { "displayName": "Alice", "id": "dTE", "name": "alice" },
+    }));
+    assert_eq!(full.timeout, Some(60000));
+    assert!(
+        serde_json::from_value::<WebAuthnCreationOptions>(json!({
+            "attestation": "always", "challenge": "a", "pubKeyCredParams": [],
+            "rp": { "name": "n" }, "user": { "displayName": "d", "id": "i", "name": "n" },
+        }))
+        .is_err()
+    );
+}
+
+#[test]
+fn passkey_registration_round_trips_and_ignores_unknown_fields() {
+    let minimal: WebAuthnRegistration = round_trip(json!({
+        "clientExtensionResults": {}, "id": "k1", "rawId": "k1", "type": "public-key",
+        "response": { "attestationObject": "a", "clientDataJSON": "b" },
+    }));
+    assert!(minimal.response.transports.is_none() && minimal.response.public_key.is_none());
+    let full: WebAuthnRegistration = round_trip(json!({
+        "authenticatorAttachment": "cross-platform",
+        "clientExtensionResults": { "credProps": { "rk": true } },
+        "id": "k1", "rawId": "k1", "type": "public-key",
+        "response": {
+            "attestationObject": "a", "authenticatorData": "d", "clientDataJSON": "b",
+            "publicKey": "p", "publicKeyAlgorithm": -7, "transports": ["usb", "hybrid"],
+        },
+    }));
+    assert_eq!(full.response.public_key_algorithm, Some(-7));
+    let extra: WebAuthnRegistration = serde_json::from_value(json!({
+        "clientExtensionResults": {}, "id": "k", "rawId": "k", "type": "public-key",
+        "response": { "attestationObject": "a", "clientDataJSON": "b", "other": 1 }, "extra": true,
+    }))
+    .unwrap();
+    assert!(!serde_json::to_string(&extra).unwrap().contains("extra"));
+    assert!(
+        serde_json::from_value::<WebAuthnRegistration>(json!({
+            "clientExtensionResults": {}, "id": "k", "rawId": "k", "type": "public-key",
+            "response": { "clientDataJSON": "b" },
+        }))
+        .is_err()
+    );
+}
+
+#[test]
+fn the_superlevel_check_is_a_bare_boolean() {
+    let on: SuperlevelStatus = round_trip(json!(true));
+    let off: SuperlevelStatus = round_trip(json!(false));
+    assert!(on.0 && !off.0);
+    assert!(serde_json::from_value::<SuperlevelStatus>(json!("true")).is_err());
+}
+
+#[test]
+fn tokens_are_listed_without_their_value_and_with_canonical_timestamps() {
+    let list: ApiTokenList = round_trip(json!([
+        {
+            "acls": ["read", "clients:read"], "clientId": null, "expiresAt": null,
+            "id": "t1", "mode": "User", "name": "Backup", "userId": "u1",
+        },
+        {
+            "acls": ["user:read"], "clientId": null, "expiresAt": STAMP,
+            "id": "t2", "mode": "System", "name": "Monitoring", "userId": null,
+        },
+        {
+            "acls": [], "clientId": "c1", "expiresAt": null,
+            "id": "t3", "mode": "Client", "name": "Desktop", "userId": "u1",
+        },
+    ]));
+    assert_eq!(list.0[1].mode, TokenMode::System);
+    assert!(list.0[0].expires_at.is_none() && list.0[1].expires_at.is_some());
+    // The value is not a field of the list; one that arrives is dropped.
+    let with_value: ApiTokenList = serde_json::from_value(json!([{
+        "acls": [], "clientId": null, "expiresAt": null, "id": "t", "mode": "User",
+        "name": "n", "userId": "u", "token": "tok-s3cret",
+    }]))
+    .unwrap();
+    assert!(
+        !serde_json::to_string(&with_value)
+            .unwrap()
+            .contains("tok-s3cret")
+    );
+    assert!(
+        serde_json::from_value::<ApiTokenList>(json!([{
+            "acls": [], "clientId": null, "expiresAt": "2030-01-02", "id": "t", "mode": "User",
+            "name": "n", "userId": "u",
+        }]))
+        .is_err()
+    );
+    assert!(
+        serde_json::from_value::<ApiTokenList>(json!([{
+            "acls": [], "clientId": null, "expiresAt": null, "id": "t", "mode": "Admin",
+            "name": "n", "userId": "u",
+        }]))
+        .is_err()
+    );
+}
+
+#[test]
+fn a_new_token_carries_its_value_and_the_request_an_optional_expiry() {
+    let created: NewApiToken = round_trip(json!({
+        "acls": ["read"], "clientId": null, "expiresAt": STAMP, "id": "t1", "mode": "User",
+        "name": "Backup", "token": "tok-value", "userId": "u1",
+    }));
+    assert_eq!(created.token, "tok-value");
+    assert!(
+        serde_json::from_value::<NewApiToken>(json!({
+            "acls": [], "clientId": null, "expiresAt": null, "id": "t", "mode": "User",
+            "name": "n", "userId": "u",
+        }))
+        .is_err()
+    );
+    let minimal: TokenCreate = round_trip(json!({ "acls": ["read"], "name": "Backup" }));
+    assert!(minimal.expiry.is_none());
+    let dated: TokenCreate = round_trip(json!({
+        "acls": ["read", "clients:read"], "expiry": "2030-01-02T04:04:05.006+01:00", "name": "n",
+    }));
+    assert_eq!(dated.acls.len(), 2);
+    // `null` reads as absent and is written back as absent.
+    let null: TokenCreate =
+        serde_json::from_value(json!({ "acls": ["read"], "expiry": null, "name": "n" })).unwrap();
+    assert!(null.expiry.is_none());
+    assert_eq!(
+        serde_json::to_value(&null).unwrap(),
+        json!({ "acls": ["read"], "name": "n" })
+    );
+    assert!(serde_json::from_value::<TokenCreate>(json!({ "name": "n" })).is_err());
+}
+
+#[test]
+fn rights_are_a_map_of_descriptions_and_the_granted_rights_an_array_or_null() {
+    let described: AclDescriptions = round_trip(json!({
+        "clients:read": "Read the clients connected to this account",
+        "read": "Fetch user information",
+    }));
+    assert_eq!(described.0.len(), 2);
+    let _: AclDescriptions = round_trip(json!({}));
+    assert!(serde_json::from_value::<AclDescriptions>(json!({ "read": 1 })).is_err());
+    let none: GrantedAcls = round_trip(json!(null));
+    assert_eq!(none.0, None);
+    let some: GrantedAcls = round_trip(json!(["user:read", "system:setup"]));
+    assert_eq!(some.0.unwrap().len(), 2);
+    assert!(serde_json::from_value::<GrantedAcls>(json!({})).is_err());
+}
+
+#[test]
+fn debug_hides_the_token_value_and_the_totp_secret() {
+    let created: NewApiToken = serde_json::from_value(json!({
+        "acls": ["read"], "clientId": null, "expiresAt": null, "id": "t1", "mode": "User",
+        "name": "Backup", "token": "tok-s3cret", "userId": "u1",
+    }))
+    .unwrap();
+    assert_redacted(&created, &["tok-s3cret"]);
+    assert!(format!("{created:?}").contains("Backup"));
+    let marker = "zzmarker";
+    let setup = TotpSetup {
+        secret: marker.into(),
+        url: format!("otpauth://totp/x?secret={marker}"),
+    };
+    assert_redacted(&setup, &[marker]);
 }

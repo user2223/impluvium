@@ -25,8 +25,11 @@ macro_rules! redacted_debug {
 }
 
 pub mod admin_auth;
+pub mod admin_users;
 pub mod auth;
 pub mod server;
+pub mod token;
+pub mod user;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

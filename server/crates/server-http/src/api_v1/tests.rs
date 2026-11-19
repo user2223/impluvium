@@ -84,6 +84,29 @@ fn table() -> Table {
         "tok-admin",
         token(&["admin:manage"], role_rights(Role::Admin)),
     );
+    entries.insert(
+        "tok-profile",
+        token(&["profile:read"], role_rights(Role::User)),
+    );
+    entries.insert(
+        "tok-clients",
+        token(&["clients:read"], role_rights(Role::User)),
+    );
+    entries.insert(
+        "tok-revoke",
+        token(&["clients:revoke"], role_rights(Role::User)),
+    );
+    // A browser session whose sign-in is older than the ten minutes a second factor may be
+    // changed in.
+    entries.insert(
+        "old",
+        Principal::Session(Session::new(
+            Role::User,
+            SessionStage::Authenticated,
+            SessionClass::Browser,
+            601,
+        )),
+    );
     Table(entries)
 }
 
@@ -117,10 +140,14 @@ impl Reply {
     }
 }
 
+/// An id for the `{id}` of a path template.
+const ID: &str = "3f2b8c1e-0000-4000-8000-000000000000";
+
 fn send(router: &Router, method: &str, target: &str, headers: &[(&str, String)]) -> Reply {
+    let target = target.replace("{id}", ID);
     let mut builder = Request::builder()
         .method(method)
-        .uri(target)
+        .uri(target.as_str())
         .extension(PeerAddress(SocketAddr::from(([192, 0, 2, 1], 4000))));
     for (name, value) in headers {
         builder = builder.header(*name, value);
@@ -164,7 +191,7 @@ fn call(router: &Router, method: &str, path: &str, credential: Option<(&str, Str
 }
 
 /// Method, path of every route here, with whether it is public.
-const ROUTES: [(&str, &str, bool); 19] = [
+const ROUTES: [(&str, &str, bool); 43] = [
     ("GET", "/api/v1", true),
     ("GET", "/api/v1/settings", false),
     ("POST", "/api/v1/setup", false),
@@ -184,6 +211,30 @@ const ROUTES: [(&str, &str, bool); 19] = [
     ("GET", "/api/v1/admin/auth/invitation", false),
     ("POST", "/api/v1/admin/auth/invitation", false),
     ("DELETE", "/api/v1/admin/auth/invitation", false),
+    ("GET", "/api/v1/user", true),
+    ("GET", "/api/v1/user/{id}", false),
+    ("GET", "/api/v1/user/auth", false),
+    ("GET", "/api/v1/user/client", false),
+    ("DELETE", "/api/v1/user/client/{id}", false),
+    ("GET", "/api/v1/user/mfa", false),
+    ("POST", "/api/v1/user/mfa/totp/start", false),
+    ("POST", "/api/v1/user/mfa/totp/finish", false),
+    ("POST", "/api/v1/user/mfa/webauthn/start", false),
+    ("POST", "/api/v1/user/mfa/webauthn/finish", false),
+    ("DELETE", "/api/v1/user/mfa/webauthn", false),
+    ("GET", "/api/v1/user/superlevel", false),
+    ("GET", "/api/v1/user/token", false),
+    ("POST", "/api/v1/user/token", false),
+    ("DELETE", "/api/v1/user/token/{id}", false),
+    ("GET", "/api/v1/user/token/acls", false),
+    ("GET", "/api/v1/token", true),
+    ("GET", "/api/v1/admin/token", false),
+    ("POST", "/api/v1/admin/token", false),
+    ("DELETE", "/api/v1/admin/token/{id}", false),
+    ("GET", "/api/v1/admin/token/acls", false),
+    ("GET", "/api/v1/admin/users", false),
+    ("GET", "/api/v1/admin/users/{id}", false),
+    ("DELETE", "/api/v1/admin/users/{id}", false),
 ];
 
 /// Method, path, response kind, success status, request body, request shape, query shape,
@@ -200,7 +251,7 @@ type Expected = (
 );
 
 #[test]
-fn the_nineteen_routes_are_registered_with_their_contracts() {
+fn the_server_and_sign_in_routes_are_registered_with_their_contracts() {
     let expected: [Expected; 19] = [
         (
             "GET",
@@ -394,7 +445,7 @@ fn the_nineteen_routes_are_registered_with_their_contracts() {
         ),
     ];
     let inventory = built().inventory();
-    assert_eq!(inventory.len(), 19);
+    assert_eq!(inventory.len(), ROUTES.len());
     for (method, path, response, status, body, request, query, answer) in expected {
         let info = inventory
             .iter()
@@ -622,5 +673,482 @@ fn the_application_registry_keeps_the_entry_routes_next_to_the_new_ones() {
     ] {
         assert!(paths.contains(path), "{path}");
     }
-    assert_eq!(inventory.len(), 6 + 19);
+    assert_eq!(inventory.len(), 6 + ROUTES.len());
+}
+
+/// Method, path, response kind, success status, request body, request shape, response shape,
+/// path parameters (name and type).
+type AccountExpected = (
+    &'static str,
+    &'static str,
+    &'static str,
+    u16,
+    &'static str,
+    Option<&'static str>,
+    Option<&'static str>,
+    &'static [(&'static str, &'static str)],
+);
+
+#[test]
+fn the_account_token_and_user_administration_routes_are_registered_with_their_contracts() {
+    let id_string: &[(&str, &str)] = &[("id", "string")];
+    let id_uuid: &[(&str, &str)] = &[("id", "uuid")];
+    let expected: [AccountExpected; 24] = [
+        (
+            "GET",
+            "/api/v1/user",
+            "json",
+            200,
+            "none",
+            None,
+            Some("CurrentUser"),
+            &[],
+        ),
+        (
+            "GET",
+            "/api/v1/user/{id}",
+            "json",
+            200,
+            "none",
+            None,
+            Some("UserProfile"),
+            id_string,
+        ),
+        (
+            "GET",
+            "/api/v1/user/auth",
+            "json",
+            200,
+            "none",
+            None,
+            Some("UserAuth"),
+            &[],
+        ),
+        (
+            "GET",
+            "/api/v1/user/client",
+            "json",
+            200,
+            "none",
+            None,
+            Some("ClientList"),
+            &[],
+        ),
+        (
+            "DELETE",
+            "/api/v1/user/client/{id}",
+            "empty",
+            204,
+            "none",
+            None,
+            None,
+            id_string,
+        ),
+        (
+            "GET",
+            "/api/v1/user/mfa",
+            "json",
+            200,
+            "none",
+            None,
+            Some("MfaStatus"),
+            &[],
+        ),
+        (
+            "POST",
+            "/api/v1/user/mfa/totp/start",
+            "json",
+            200,
+            "none",
+            None,
+            Some("TotpSetup"),
+            &[],
+        ),
+        (
+            "POST",
+            "/api/v1/user/mfa/totp/finish",
+            "empty",
+            204,
+            "json",
+            Some("TotpRequest"),
+            None,
+            &[],
+        ),
+        (
+            "POST",
+            "/api/v1/user/mfa/webauthn/start",
+            "json",
+            200,
+            "json",
+            Some("PasskeyName"),
+            Some("WebAuthnCreationOptions"),
+            &[],
+        ),
+        (
+            "POST",
+            "/api/v1/user/mfa/webauthn/finish",
+            "empty",
+            204,
+            "json",
+            Some("WebAuthnRegistration"),
+            None,
+            &[],
+        ),
+        (
+            "DELETE",
+            "/api/v1/user/mfa/webauthn",
+            "empty",
+            204,
+            "json",
+            Some("PasskeyDelete"),
+            None,
+            &[],
+        ),
+        (
+            "GET",
+            "/api/v1/user/superlevel",
+            "json",
+            200,
+            "none",
+            None,
+            Some("SuperlevelStatus"),
+            &[],
+        ),
+        (
+            "GET",
+            "/api/v1/user/token",
+            "json",
+            200,
+            "none",
+            None,
+            Some("ApiTokenList"),
+            &[],
+        ),
+        (
+            "POST",
+            "/api/v1/user/token",
+            "json",
+            200,
+            "json",
+            Some("TokenCreate"),
+            Some("NewApiToken"),
+            &[],
+        ),
+        (
+            "DELETE",
+            "/api/v1/user/token/{id}",
+            "empty",
+            204,
+            "none",
+            None,
+            None,
+            id_uuid,
+        ),
+        (
+            "GET",
+            "/api/v1/user/token/acls",
+            "json",
+            200,
+            "none",
+            None,
+            Some("AclDescriptions"),
+            &[],
+        ),
+        (
+            "GET",
+            "/api/v1/token",
+            "json",
+            200,
+            "none",
+            None,
+            Some("GrantedAcls"),
+            &[],
+        ),
+        (
+            "GET",
+            "/api/v1/admin/token",
+            "json",
+            200,
+            "none",
+            None,
+            Some("ApiTokenList"),
+            &[],
+        ),
+        (
+            "POST",
+            "/api/v1/admin/token",
+            "json",
+            200,
+            "json",
+            Some("TokenCreate"),
+            Some("NewApiToken"),
+            &[],
+        ),
+        (
+            "DELETE",
+            "/api/v1/admin/token/{id}",
+            "empty",
+            204,
+            "none",
+            None,
+            None,
+            id_uuid,
+        ),
+        (
+            "GET",
+            "/api/v1/admin/token/acls",
+            "json",
+            200,
+            "none",
+            None,
+            Some("AclDescriptions"),
+            &[],
+        ),
+        (
+            "GET",
+            "/api/v1/admin/users",
+            "json",
+            200,
+            "none",
+            None,
+            Some("AdminUserList"),
+            &[],
+        ),
+        (
+            "GET",
+            "/api/v1/admin/users/{id}",
+            "json",
+            200,
+            "none",
+            None,
+            Some("UserAccount"),
+            id_string,
+        ),
+        (
+            "DELETE",
+            "/api/v1/admin/users/{id}",
+            "json",
+            200,
+            "none",
+            None,
+            Some("UserDeleted"),
+            id_string,
+        ),
+    ];
+    let inventory = built().inventory();
+    for (method, path, response, status, body, request, answer, params) in expected {
+        let info = inventory
+            .iter()
+            .find(|info| info.method == method && info.path == path)
+            .unwrap_or_else(|| panic!("{method} {path} is not registered"));
+        let contract = &info.contract;
+        assert_eq!(contract.response().as_str(), response, "{method} {path}");
+        assert_eq!(contract.success_statuses(), [status], "{method} {path}");
+        assert_eq!(
+            contract.request_body_kind().as_str(),
+            body,
+            "{method} {path}"
+        );
+        assert_eq!(contract.request_shape_name(), request, "{method} {path}");
+        assert_eq!(contract.query_shape_name(), None, "{method} {path}");
+        assert_eq!(contract.response_shape_name(), answer, "{method} {path}");
+        assert!(!contract.session_cookie_is_set(), "{method} {path}");
+        let declared: Vec<(&str, &str)> = contract
+            .path_params()
+            .iter()
+            .map(|param| (param.name, param.kind.as_str()))
+            .collect();
+        assert_eq!(declared, params, "{method} {path}");
+        let public = ROUTES
+            .iter()
+            .find(|(m, p, _)| *m == method && *p == path)
+            .unwrap()
+            .2;
+        assert_eq!(
+            info.policy.public_reason().is_some(),
+            public,
+            "{method} {path}"
+        );
+    }
+}
+
+/// The status of each caller on each route: a credential and what the route answers.
+fn assert_matrix(
+    router: &Router,
+    routes: &[(&str, &str)],
+    callers: &[(&str, Option<&str>, bool, u16)],
+) {
+    for (method, path) in routes {
+        for (who, credential, is_cookie, status) in callers {
+            let credential = credential.map(|name| {
+                if *is_cookie {
+                    cookie(name)
+                } else {
+                    bearer(name)
+                }
+            });
+            let reply = call(router, method, path, credential);
+            assert_eq!(reply.status.as_u16(), *status, "{method} {path} {who}");
+        }
+    }
+}
+
+#[test]
+fn overview_and_token_routes_of_the_account_are_for_a_finished_browser_session_only() {
+    let router = router();
+    let routes = [
+        ("GET", "/api/v1/user/auth"),
+        ("GET", "/api/v1/user/mfa"),
+        ("GET", "/api/v1/user/superlevel"),
+        ("GET", "/api/v1/user/token"),
+        ("POST", "/api/v1/user/token"),
+        ("DELETE", "/api/v1/user/token/{id}"),
+        ("GET", "/api/v1/user/token/acls"),
+    ];
+    let callers = [
+        ("user", Some("user"), true, 501),
+        ("admin", Some("admin"), true, 501),
+        ("old sign-in", Some("old"), true, 501),
+        ("pending", Some("pending"), true, 403),
+        ("store window", Some("store"), true, 403),
+        ("admin token", Some("tok-admin"), false, 403),
+        ("token with a right", Some("tok-profile"), false, 403),
+        ("anonymous", None, true, 401),
+    ];
+    assert_matrix(&router, &routes, &callers);
+}
+
+#[test]
+fn changing_a_second_factor_needs_a_recent_sign_in() {
+    let router = router();
+    let routes = [
+        ("POST", "/api/v1/user/mfa/totp/start"),
+        ("POST", "/api/v1/user/mfa/totp/finish"),
+        ("POST", "/api/v1/user/mfa/webauthn/start"),
+        ("POST", "/api/v1/user/mfa/webauthn/finish"),
+        ("DELETE", "/api/v1/user/mfa/webauthn"),
+    ];
+    let callers = [
+        ("recent user", Some("user"), true, 501),
+        ("recent admin", Some("admin"), true, 501),
+        ("old sign-in", Some("old"), true, 403),
+        ("pending", Some("pending"), true, 403),
+        ("store window", Some("store"), true, 403),
+        ("admin token", Some("tok-admin"), false, 403),
+        ("anonymous", None, true, 401),
+    ];
+    assert_matrix(&router, &routes, &callers);
+}
+
+#[test]
+fn profiles_devices_and_the_store_window_follow_their_rights() {
+    let router = router();
+    // A profile is part of the store window; devices are not.
+    let profile = [("GET", "/api/v1/user/{id}")];
+    let callers = [
+        ("user", Some("user"), true, 501),
+        ("store window", Some("store"), true, 501),
+        ("token with the right", Some("tok-profile"), false, 501),
+        ("token without the right", Some("tok-emoji"), false, 403),
+        ("pending", Some("pending"), true, 403),
+        ("anonymous", None, true, 401),
+    ];
+    assert_matrix(&router, &profile, &callers);
+    let list = [("GET", "/api/v1/user/client")];
+    let callers = [
+        ("user", Some("user"), true, 501),
+        ("admin", Some("admin"), true, 501),
+        ("store window", Some("store"), true, 403),
+        ("token with the right", Some("tok-clients"), false, 501),
+        ("token with the other right", Some("tok-revoke"), false, 403),
+        ("pending", Some("pending"), true, 403),
+        ("anonymous", None, true, 401),
+    ];
+    assert_matrix(&router, &list, &callers);
+    let revoke = [("DELETE", "/api/v1/user/client/{id}")];
+    let callers = [
+        ("user", Some("user"), true, 501),
+        ("store window", Some("store"), true, 403),
+        ("token with the right", Some("tok-revoke"), false, 501),
+        (
+            "token with the other right",
+            Some("tok-clients"),
+            false,
+            403,
+        ),
+        ("anonymous", None, true, 401),
+    ];
+    assert_matrix(&router, &revoke, &callers);
+}
+
+#[test]
+fn the_current_user_and_the_granted_rights_are_public_for_every_credential() {
+    let router = router();
+    for path in ["/api/v1/user", "/api/v1/token"] {
+        for credential in [
+            None,
+            Some(cookie("user")),
+            Some(cookie("pending")),
+            Some(bearer("tok-emoji")),
+        ] {
+            let reply = call(&router, "GET", path, credential);
+            assert_eq!(reply.status, StatusCode::NOT_IMPLEMENTED, "{path}");
+        }
+    }
+}
+
+#[test]
+fn administration_of_tokens_and_accounts_needs_the_admin_right() {
+    let router = router();
+    let routes = [
+        ("GET", "/api/v1/admin/token"),
+        ("POST", "/api/v1/admin/token"),
+        ("DELETE", "/api/v1/admin/token/{id}"),
+        ("GET", "/api/v1/admin/token/acls"),
+        ("GET", "/api/v1/admin/users"),
+        ("GET", "/api/v1/admin/users/{id}"),
+        ("DELETE", "/api/v1/admin/users/{id}"),
+    ];
+    let callers = [
+        ("admin", Some("admin"), true, 501),
+        ("admin token", Some("tok-admin"), false, 501),
+        ("user", Some("user"), true, 403),
+        ("store window", Some("store"), true, 403),
+        ("pending admin", Some("admin-pending"), true, 403),
+        ("token without the right", Some("tok-settings"), false, 403),
+        ("anonymous", None, true, 401),
+    ];
+    assert_matrix(&router, &routes, &callers);
+}
+
+#[test]
+fn literal_account_paths_win_over_the_id_of_a_profile() {
+    let router = router();
+    // The store window may read a profile but not the overview that shares the position.
+    for (path, status) in [
+        ("/api/v1/user/mfa", 403),
+        ("/api/v1/user/auth", 403),
+        ("/api/v1/user/client", 403),
+        ("/api/v1/user/superlevel", 403),
+        ("/api/v1/user/token", 403),
+        ("/api/v1/user/someone", 501),
+    ] {
+        let reply = call(&router, "GET", path, Some(cookie("store")));
+        assert_eq!(reply.status.as_u16(), status, "{path}");
+    }
+}
+
+#[test]
+fn the_superlevel_check_answers_get_only() {
+    let router = router();
+    for method in ["POST", "PUT", "PATCH", "DELETE"] {
+        let reply = call(
+            &router,
+            method,
+            "/api/v1/user/superlevel",
+            Some(cookie("user")),
+        );
+        assert_eq!(reply.status, StatusCode::METHOD_NOT_ALLOWED, "{method}");
+        assert_eq!(reply.code(), "method_not_allowed");
+    }
 }
