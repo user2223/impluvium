@@ -17,6 +17,8 @@
 //! deleting a collection returns { success: true }. A missing removal returns 404 for a
 //! non-default entry, while removing a missing default entry still returns {}. Never remove
 //! a fallback record. The default library is created lazily for the caller when needed.
+//! Administrators are exempt from age restrictions. For restricted accounts a game must
+//! have at least one age rating and no banned organization/rating pair to be visible.
 
 use server_api_types::contracts::EmptyObject;
 use server_api_types::contracts::collection::{

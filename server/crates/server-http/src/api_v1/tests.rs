@@ -25,6 +25,8 @@ use crate::router::{AppOptions, build_with};
 const SESSION: &str = "__Host-impluvium_session";
 const ORIGIN: &str = "https://app.example.test";
 
+#[path = "admin_catalog_tests.rs"]
+mod admin_catalog_tests;
 #[path = "catalog_tests.rs"]
 mod catalog_tests;
 
@@ -122,6 +124,29 @@ fn table() -> Table {
             601,
         )),
     );
+    let admin_rights = role_rights(Role::Admin);
+    let names: Vec<&'static str> = admin_rights
+        .iter()
+        .map(|right| right.as_str())
+        .filter(|name| *name != "admin:manage")
+        .collect();
+    entries.insert("tok-catalog-admin", token(&names, admin_rights.clone()));
+    entries.insert(
+        "tok-catalog-personal",
+        Principal::Token(Token::new(
+            TokenKind::Personal,
+            &admin_rights,
+            &admin_rights,
+        )),
+    );
+    entries.insert(
+        "device-catalog-admin",
+        Principal::Device(server_domain::principal::Device::new(
+            &admin_rights,
+            &admin_rights,
+        )),
+    );
+    entries.insert("tok-game-read", token(&["game:read"], admin_rights));
     Table(entries)
 }
 
@@ -209,11 +234,22 @@ fn call(router: &Router, method: &str, path: &str, credential: Option<(&str, Str
     if method != "GET" {
         headers.push(origin());
     }
+    if method == "POST"
+        && (path.ends_with("/metadata")
+            || path.ends_with("/banner")
+            || path.ends_with("/icon")
+            || path == "/api/v1/admin/game/image")
+    {
+        headers.push((
+            "content-type",
+            "multipart/form-data; boundary=fixture".to_owned(),
+        ));
+    }
     send(router, method, path, &headers)
 }
 
 /// Method, path of every route here, with whether it is public.
-const ROUTES: [(&str, &str, bool); 66] = [
+const ROUTES: [(&str, &str, bool); 96] = [
     ("GET", "/api/v1", true),
     ("GET", "/api/v1/settings", false),
     ("POST", "/api/v1/setup", false),
@@ -273,13 +309,43 @@ const ROUTES: [(&str, &str, bool); 66] = [
     ("POST", "/api/v1/collection/{id}/entry", false),
     ("DELETE", "/api/v1/collection/{id}/entry", false),
     ("GET", "/api/v1/object/{id}", true),
-    ("POST", "/api/v1/object/{id}", true),
-    ("DELETE", "/api/v1/object/{id}", true),
+    ("POST", "/api/v1/object/{id}", false),
+    ("DELETE", "/api/v1/object/{id}", false),
     ("GET", "/api/v1/screenshots", false),
     ("GET", "/api/v1/screenshots/{id}", false),
     ("DELETE", "/api/v1/screenshots/{id}", false),
     ("GET", "/api/v1/screenshots/game/{id}", false),
     ("POST", "/api/v1/screenshots/game/{id}", false),
+    ("GET", "/api/v1/admin/game/{id}", false),
+    ("PATCH", "/api/v1/admin/game/{id}", false),
+    ("DELETE", "/api/v1/admin/game/{id}", false),
+    ("PATCH", "/api/v1/admin/game/{id}/age-ratings", false),
+    ("POST", "/api/v1/admin/game/{id}/metadata", false),
+    ("PATCH", "/api/v1/admin/game/{id}/tags", false),
+    ("GET", "/api/v1/admin/game/{id}/versions", false),
+    ("PATCH", "/api/v1/admin/game/{id}/versions", false),
+    ("DELETE", "/api/v1/admin/game/{id}/versions", false),
+    ("POST", "/api/v1/admin/game/image", false),
+    ("DELETE", "/api/v1/admin/game/image", false),
+    ("GET", "/api/v1/admin/company", false),
+    ("POST", "/api/v1/admin/company", false),
+    ("GET", "/api/v1/admin/company/{id}", false),
+    ("PATCH", "/api/v1/admin/company/{id}", false),
+    ("DELETE", "/api/v1/admin/company/{id}", false),
+    ("POST", "/api/v1/admin/company/{id}/banner", false),
+    ("POST", "/api/v1/admin/company/{id}/icon", false),
+    ("POST", "/api/v1/admin/company/{id}/game", false),
+    ("PATCH", "/api/v1/admin/company/{id}/game", false),
+    ("DELETE", "/api/v1/admin/company/{id}/game", false),
+    ("GET", "/api/v1/admin/tags", false),
+    ("POST", "/api/v1/admin/tags", false),
+    ("DELETE", "/api/v1/admin/tags/{id}", false),
+    ("GET", "/api/v1/admin/library", false),
+    ("GET", "/api/v1/admin/library/libraries", false),
+    ("GET", "/api/v1/admin/library/sources", false),
+    ("POST", "/api/v1/admin/library/sources", false),
+    ("PATCH", "/api/v1/admin/library/sources", false),
+    ("DELETE", "/api/v1/admin/library/sources", false),
 ];
 
 /// Method, path, response kind, success status, request body, request shape, query shape,
@@ -641,6 +707,7 @@ fn settings_need_their_right_and_setup_needs_the_setup_token() {
     for (who, credential, status) in [
         ("setup token", bearer("setup"), 501),
         ("admin token", bearer("tok-admin"), 403),
+        ("admin personal token", bearer("tok-catalog-personal"), 403),
         ("admin session", cookie("admin"), 403),
         ("user session", cookie("user"), 403),
     ] {
@@ -1227,6 +1294,33 @@ fn routes_with_secrets_or_the_account_of_the_caller_are_never_cached() {
         ("POST", "/api/v1/auth/passkey/start"),
         ("POST", "/api/v1/auth/passkey/finish"),
         ("POST", "/api/v1/auth/signin/simple"),
+        ("GET", "/api/v1/admin/game/{id}"),
+        ("PATCH", "/api/v1/admin/game/{id}"),
+        ("DELETE", "/api/v1/admin/game/{id}"),
+        ("PATCH", "/api/v1/admin/game/{id}/age-ratings"),
+        ("POST", "/api/v1/admin/game/{id}/metadata"),
+        ("PATCH", "/api/v1/admin/game/{id}/tags"),
+        ("GET", "/api/v1/admin/game/{id}/versions"),
+        ("PATCH", "/api/v1/admin/game/{id}/versions"),
+        ("DELETE", "/api/v1/admin/game/{id}/versions"),
+        ("POST", "/api/v1/admin/game/image"),
+        ("DELETE", "/api/v1/admin/game/image"),
+        ("GET", "/api/v1/admin/company"),
+        ("POST", "/api/v1/admin/company"),
+        ("GET", "/api/v1/admin/company/{id}"),
+        ("PATCH", "/api/v1/admin/company/{id}"),
+        ("DELETE", "/api/v1/admin/company/{id}"),
+        ("POST", "/api/v1/admin/company/{id}/banner"),
+        ("POST", "/api/v1/admin/company/{id}/icon"),
+        ("POST", "/api/v1/admin/company/{id}/game"),
+        ("PATCH", "/api/v1/admin/company/{id}/game"),
+        ("DELETE", "/api/v1/admin/company/{id}/game"),
+        ("GET", "/api/v1/admin/library"),
+        ("GET", "/api/v1/admin/library/libraries"),
+        ("GET", "/api/v1/admin/library/sources"),
+        ("POST", "/api/v1/admin/library/sources"),
+        ("PATCH", "/api/v1/admin/library/sources"),
+        ("DELETE", "/api/v1/admin/library/sources"),
     ]
     .into_iter()
     .map(|(method, path)| (method, path.to_owned()))

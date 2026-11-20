@@ -3,7 +3,7 @@
 
 //! The routes of the server information, the settings, the first-run setup, sign-in and the
 //! administration of sign-in methods, the signed-in account, tokens and the administration of
-//! accounts, the public catalog, collections, objects and screenshots.
+//! accounts, catalog and library administration, the public catalog, collections, objects and screenshots.
 //!
 //! These routes carry their contracts (who may call, which body, which answer) but no behaviour
 //! yet: every handler answers with the API error for a missing implementation and changes
@@ -15,6 +15,10 @@
 //! the module of the route says so.
 
 mod admin_auth;
+mod admin_company;
+mod admin_game;
+mod admin_library;
+mod admin_tags;
 mod admin_users;
 mod auth;
 mod catalog;
@@ -35,10 +39,13 @@ use server_domain::policy::{Policy, Requirement, Right, SessionKind};
 use crate::error::HttpError;
 use crate::registry::{Limits, Route};
 
-/// Largest JSON body of the routes here, in bytes; passkey answers are the biggest.
+/// Default JSON body limit, in bytes.
 const JSON_BODY_LIMIT: u64 = 64 * 1024;
 
-/// Largest raw object or screenshot upload, in bytes.
+/// Game scalar patches include the complete Markdown description, in bytes.
+const GAME_PATCH_BODY_LIMIT: u64 = 1024 * 1024;
+
+/// Largest raw upload or admin multipart image form, including framing, in bytes.
 const UPLOAD_BODY_LIMIT: u64 = 32 * 1024 * 1024;
 
 /// Checks the named right. The later handler must also require an account behind the principal;
@@ -49,6 +56,22 @@ fn account_right(name: &'static str) -> Policy {
             .require_rights(&[Right::new(name).expect("the right is valid")])
             .expect("the list of rights is not empty"),
     )
+}
+
+/// Nitro system ACLs require an admin browser session or a system token with a named ACL.
+/// System tokens receive only their mapped scoped rights, with legacy setup mapped to
+/// setup:run. Never grant an implicit admin:manage to system tokens or grant it to personal
+/// tokens: older administration routes still accept that broad right.
+fn admin_system(right: &'static str, setup: bool) -> Policy {
+    let named = Right::new(right).expect("the right is valid");
+    let requirement = Requirement::authenticated().require_session(SessionKind::Administration);
+    let requirement = if setup {
+        requirement
+            .require_any_rights(&[named, Right::new("setup:run").expect("the right is valid")])
+    } else {
+        requirement.require_rights(&[named])
+    };
+    Policy::protected(requirement.expect("the list of rights is not empty"))
 }
 
 fn limits(max_body_bytes: u64) -> Limits {
@@ -84,6 +107,10 @@ pub fn routes() -> Vec<Route> {
         .chain(user::routes())
         .chain(token::routes())
         .chain(admin_users::routes())
+        .chain(admin_game::routes())
+        .chain(admin_company::routes())
+        .chain(admin_tags::routes())
+        .chain(admin_library::routes())
         .chain(store::routes())
         .chain(catalog::routes())
         .chain(collection::routes())

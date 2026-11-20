@@ -12,19 +12,20 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::principal::{Principal, SessionClass, SessionStage};
+use crate::principal::{Principal, SessionClass, SessionStage, TokenKind};
 
-/// A named right such as `emoji:read`: lowercase `scope:action`.
+/// A named right such as `emoji:read` or `game:version:update`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Right(&'static str);
 
 impl Right {
-    /// Validates the name: two non-empty words of lowercase letters, digits
-    /// and underscores (starting with a letter) joined by one colon.
+    /// Validates two or more nonempty lowercase words joined by colons.
+    /// Each word starts with a letter and continues with letters, digits or underscores.
     pub fn new(name: &'static str) -> Result<Self, PolicyError> {
-        match name.split_once(':') {
-            Some((scope, action)) if is_word(scope) && is_word(action) => Ok(Self(name)),
-            _ => Err(PolicyError::InvalidRight(name)),
+        if name.contains(':') && name.split(':').all(is_word) {
+            Ok(Self(name))
+        } else {
+            Err(PolicyError::InvalidRight(name))
         }
     }
 
@@ -49,6 +50,8 @@ pub enum SessionKind {
     Interactive,
     /// An API token only.
     Token,
+    /// A browser session or system token; excludes personal tokens, devices and store sessions.
+    Administration,
 }
 
 impl SessionKind {
@@ -58,6 +61,7 @@ impl SessionKind {
             Self::Any => "any",
             Self::Interactive => "interactive",
             Self::Token => "token",
+            Self::Administration => "administration",
         }
     }
 }
@@ -88,21 +92,24 @@ impl MfaLevel {
     }
 }
 
-/// What an authenticated caller must satisfy.
+/// What an authenticated caller must satisfy: every required right, at least one alternative
+/// when alternatives are listed, and the credential, multi-factor and freshness restrictions.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Requirement {
     rights: Vec<Right>,
+    any_rights: Vec<Right>,
     session: SessionKind,
     mfa: MfaLevel,
     fresh_login_secs: Option<u32>,
 }
 
 impl Requirement {
-    /// Any authenticated caller. This demands no right at all; a requirement
-    /// that demands rights has to list them through [`Requirement::require_rights`].
+    /// Any authenticated caller. List mandatory rights through [`Requirement::require_rights`]
+    /// or alternatives through [`Requirement::require_any_rights`].
     pub fn authenticated() -> Self {
         Self {
             rights: Vec::new(),
+            any_rights: Vec::new(),
             session: SessionKind::Any,
             mfa: MfaLevel::NotRequired,
             fresh_login_secs: None,
@@ -119,6 +126,23 @@ impl Requirement {
         self.rights.sort();
         self.rights.dedup();
         Ok(self)
+    }
+
+    /// Appends alternatives to one shared list, of which at least one is required.
+    /// Repeated calls extend that same OR list. An empty list is rejected.
+    pub fn require_any_rights(mut self, rights: &[Right]) -> Result<Self, PolicyError> {
+        if rights.is_empty() {
+            return Err(PolicyError::EmptyRights);
+        }
+        self.any_rights.extend_from_slice(rights);
+        self.any_rights.sort();
+        self.any_rights.dedup();
+        Ok(self)
+    }
+
+    /// Alternative rights, of which at least one is required when the list is nonempty.
+    pub fn any_rights(&self) -> &[Right] {
+        &self.any_rights
     }
 
     /// Restricts the kind of session.
@@ -165,8 +189,9 @@ impl Requirement {
     /// Whether the principal satisfies every part of the requirement.
     ///
     /// Anonymous callers never do. A store session passes only a requirement
-    /// that names at least one right, and never an interactive-only one. A token or device without any effective
-    /// right does not either, even if the requirement names no right. Tokens
+    /// that names at least one mandatory or alternative right, and never an interactive-only
+    /// one. A token or device without any effective right does not either, even if the
+    /// requirement names no right. Tokens
     /// and devices satisfy the second-factor level `NotRequired` only, never
     /// `Completed`, `Pending` or a login-freshness requirement.
     pub fn is_satisfied_by(&self, principal: &Principal) -> bool {
@@ -177,11 +202,11 @@ impl Requirement {
                 let finished = session.stage() == SessionStage::Authenticated;
                 let browser = session.class() == SessionClass::Browser;
                 // A store session only passes where specific rights are asked.
-                let store_ok = browser || !self.rights.is_empty();
+                let store_ok = browser || !self.rights.is_empty() || !self.any_rights.is_empty();
                 (
                     match self.session {
                         SessionKind::Any => store_ok,
-                        SessionKind::Interactive => browser,
+                        SessionKind::Interactive | SessionKind::Administration => browser,
                         SessionKind::Token => false,
                     },
                     match self.mfa {
@@ -196,8 +221,10 @@ impl Requirement {
             }
             Principal::Token(_) | Principal::Device(_) => (
                 match principal {
-                    Principal::Token(_) => {
+                    Principal::Token(token) => {
                         matches!(self.session, SessionKind::Any | SessionKind::Token)
+                            || (self.session == SessionKind::Administration
+                                && token.kind() == TokenKind::Service)
                     }
                     _ => self.session == SessionKind::Any,
                 },
@@ -205,7 +232,12 @@ impl Requirement {
                 self.fresh_login_secs.is_none() && !rights.is_empty(),
             ),
         };
-        kind_ok && mfa_ok && fresh_ok && rights.contains_all(&self.rights)
+        kind_ok
+            && mfa_ok
+            && fresh_ok
+            && rights.contains_all(&self.rights)
+            && (self.any_rights.is_empty()
+                || self.any_rights.iter().any(|right| rights.contains(*right)))
     }
 }
 
@@ -291,7 +323,7 @@ pub enum PolicyError {
     PublicWithoutReason,
     /// A rights requirement with an empty list.
     EmptyRights,
-    /// A right name that is not `scope:action` in lowercase.
+    /// A right name without two or more lowercase colon-separated words.
     InvalidRight(&'static str),
     /// A login freshness of zero seconds.
     ZeroFreshness,
@@ -333,13 +365,14 @@ mod tests {
     #[test]
     fn right_names_are_validated() {
         assert_eq!(Right::new("emoji:read").unwrap().as_str(), "emoji:read");
+        assert!(Right::new("game:version:update").is_ok());
         for bad in [
             "",
             "emoji",
             "emoji:",
             ":read",
             "Emoji:read",
-            "emoji:read:all",
+            "emoji:read:",
             "1a:read",
             "emoji:re ad",
         ] {
@@ -392,5 +425,144 @@ mod tests {
         let protected = Policy::protected(Requirement::authenticated());
         assert_eq!(public.decide_anonymous(), Decision::Allow);
         assert_eq!(protected.decide_anonymous(), Decision::Unauthenticated);
+    }
+}
+
+#[cfg(test)]
+mod administration_tests {
+    use super::*;
+    use crate::permissions::{RightSet, role_rights};
+    use crate::principal::{Device, Role, Session, Token};
+
+    #[test]
+    fn administration_credentials_require_browser_or_system_token() {
+        let owner = role_rights(Role::Admin);
+        let grant = RightSet::from_rights(&[Right::new("game:update").unwrap()]);
+        let policy = Policy::protected(
+            Requirement::authenticated()
+                .require_rights(&[Right::new("game:update").unwrap()])
+                .unwrap()
+                .require_session(SessionKind::Administration),
+        );
+        for (principal, allowed) in [
+            (
+                Principal::Session(Session::new(
+                    Role::Admin,
+                    SessionStage::Authenticated,
+                    SessionClass::Browser,
+                    5,
+                )),
+                true,
+            ),
+            (
+                Principal::Session(Session::new(
+                    Role::Admin,
+                    SessionStage::MfaPending,
+                    SessionClass::Browser,
+                    5,
+                )),
+                false,
+            ),
+            (
+                Principal::Session(Session::new(
+                    Role::Admin,
+                    SessionStage::Authenticated,
+                    SessionClass::Store,
+                    5,
+                )),
+                false,
+            ),
+            (
+                Principal::Token(Token::new(TokenKind::Service, &grant, &owner)),
+                true,
+            ),
+            (
+                Principal::Token(Token::new(TokenKind::Personal, &grant, &owner)),
+                false,
+            ),
+            (Principal::Device(Device::new(&grant, &owner)), false),
+        ] {
+            assert_eq!(
+                policy.decide(&principal),
+                if allowed {
+                    Decision::Allow
+                } else {
+                    Decision::Forbidden
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn alternative_rights_require_one_choice_in_addition_to_all_rights() {
+        let admin = Right::new("admin:manage").unwrap();
+        let source = Right::new("library:sources:read").unwrap();
+        let setup = Right::new("setup:run").unwrap();
+        assert_eq!(
+            Requirement::authenticated().require_any_rights(&[]),
+            Err(PolicyError::EmptyRights)
+        );
+        let requirement = Requirement::authenticated()
+            .require_rights(&[admin])
+            .unwrap()
+            .require_any_rights(&[source, setup, source])
+            .unwrap();
+        assert_eq!(requirement.any_rights(), [source, setup]);
+        let owner = RightSet::from_rights(&[admin, source, setup]);
+        for (rights, allowed) in [
+            (vec![admin, source], true),
+            (vec![admin, setup], true),
+            (vec![admin], false),
+            (vec![source], false),
+            (vec![], false),
+        ] {
+            let principal = Principal::Token(Token::new(
+                TokenKind::Service,
+                &RightSet::from_rights(&rights),
+                &owner,
+            ));
+            assert_eq!(requirement.is_satisfied_by(&principal), allowed);
+        }
+    }
+
+    #[test]
+    fn alternative_only_requirements_append_choices_and_check_store_rights() {
+        let game = Right::new("game:read").unwrap();
+        let store = Right::new("store:read").unwrap();
+        let requirement = Requirement::authenticated()
+            .require_any_rights(&[game])
+            .unwrap()
+            .require_any_rights(&[store, game])
+            .unwrap();
+        assert!(requirement.rights().is_empty());
+        assert_eq!(requirement.any_rights(), [game, store]);
+        let store_session = Principal::Session(Session::new(
+            Role::User,
+            SessionStage::Authenticated,
+            SessionClass::Store,
+            5,
+        ));
+        assert!(requirement.is_satisfied_by(&store_session));
+        assert!(!Requirement::authenticated().is_satisfied_by(&store_session));
+        assert!(
+            !Requirement::authenticated()
+                .require_any_rights(&[game])
+                .unwrap()
+                .is_satisfied_by(&store_session)
+        );
+        assert!(
+            !requirement.is_satisfied_by(&Principal::Session(Session::new(
+                Role::User,
+                SessionStage::MfaPending,
+                SessionClass::Store,
+                5
+            )))
+        );
+        assert!(!requirement.is_satisfied_by(&Principal::Anonymous));
+        assert!(
+            !requirement
+                .require_session(SessionKind::Administration)
+                .is_satisfied_by(&store_session)
+        );
     }
 }

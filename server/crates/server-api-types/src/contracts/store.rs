@@ -49,15 +49,15 @@ pub struct StoreQuery {
 }
 
 impl StoreQuery {
-    /// Parses nonnegative paging values and caps the page at 50. A zero take is allowed.
+    /// Parses ASCII digit paging values and caps the page at 50. A zero take is allowed.
     /// Unlike the old parseInt coercion, trailing junk and negative values are refused.
     ///
     /// # Errors
     ///
     /// A value is not an unsigned 32-bit decimal integer.
     pub fn window(&self) -> Result<(u32, u32), std::num::ParseIntError> {
-        let skip = self.skip.as_deref().unwrap_or("0").parse::<u32>()?;
-        let take = self.take.as_deref().unwrap_or("10").parse::<u32>()?;
+        let skip = super::paging_integer(self.skip.as_deref().unwrap_or("0"))?;
+        let take = super::paging_integer(self.take.as_deref().unwrap_or("10"))?;
         Ok((skip, take.min(50)))
     }
 }

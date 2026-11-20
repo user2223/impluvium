@@ -200,7 +200,7 @@ const CATALOG_ROUTES: [CatalogExpected; 23] = [
     (
         "POST",
         "/api/v1/object/{id}",
-        "",
+        "object:update",
         "json",
         "binary",
         Some("BinaryUpload"),
@@ -211,7 +211,7 @@ const CATALOG_ROUTES: [CatalogExpected; 23] = [
     (
         "DELETE",
         "/api/v1/object/{id}",
-        "",
+        "object:delete",
         "json",
         "none",
         None,
@@ -407,6 +407,14 @@ fn catalog_policy_matrix_preserves_browser_store_and_token_access() {
                 store,
                 store_session_rights().contains(Right::new(right).unwrap()),
             ),
+            (
+                "device",
+                Principal::Device(server_domain::principal::Device::new(
+                    &granted,
+                    &role_rights(Role::User),
+                )),
+                true,
+            ),
             ("personal with right", personal, true),
             // Policy admits a right; the later handler must reject a service token's absent account.
             ("service with right", service, true),
@@ -438,7 +446,7 @@ fn catalog_policy_matrix_preserves_browser_store_and_token_access() {
             (
                 "store",
                 cookie("store"),
-                if right.is_empty() || !right.starts_with("screenshots:") {
+                if right.is_empty() || store_session_rights().contains(Right::new(right).unwrap()) {
                     501
                 } else {
                     403
@@ -564,4 +572,23 @@ fn object_head_uses_the_get_policy_and_has_no_response_body() {
             .count(),
         3
     );
+}
+
+#[test]
+fn object_mutations_reject_anonymous_and_unscoped_callers_at_the_gate() {
+    let router = router();
+    for method in ["POST", "DELETE"] {
+        for (credential, status) in [
+            (None, StatusCode::UNAUTHORIZED),
+            (Some(cookie("pending")), StatusCode::FORBIDDEN),
+            (Some(cookie("store")), StatusCode::FORBIDDEN),
+            (Some(bearer("tok-settings")), StatusCode::FORBIDDEN),
+            (Some(cookie("user")), StatusCode::NOT_IMPLEMENTED),
+        ] {
+            assert_eq!(
+                call(&router, method, "/api/v1/object/{id}", credential).status,
+                status
+            );
+        }
+    }
 }

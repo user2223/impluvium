@@ -818,3 +818,152 @@ fn binary_download_headers_survive_on_get_head_and_not_modified() {
             }
         });
 }
+
+struct UnreadUpload;
+
+impl http_body::Body for UnreadUpload {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        self: std::pin::Pin<&mut Self>,
+        _context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+        panic!("the rejected request body must not be read")
+    }
+}
+
+fn upload_route(kind: BodyKind, policy: Policy) -> Route {
+    Route::new(
+        Method::Post,
+        "/api/v1/form",
+        policy,
+        Contract::new(ResponseKind::Json, &[200], limits())
+            .request_body(kind)
+            .csrf(Csrf::Required),
+        direct_body_length,
+    )
+    .unwrap()
+}
+
+#[test]
+fn declared_oversized_binary_and_multipart_bodies_are_refused_without_reading() {
+    tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap()
+        .block_on(async {
+            for (kind, length) in [
+                (BodyKind::Binary, "9"),
+                (BodyKind::Multipart, "9"),
+                (BodyKind::Binary, "99999999999999999999999999999999"),
+                (BodyKind::Multipart, "99999999999999999999999999999999"),
+            ] {
+                let router = cache_app(vec![upload_route(kind, public())]);
+                let request = Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/form")
+                    .header(header::ORIGIN, TEST_ORIGIN)
+                    .header(header::CONTENT_LENGTH, length)
+                    .header(
+                        header::CONTENT_TYPE,
+                        "multipart/form-data; boundary=fixture",
+                    )
+                    .extension(PeerAddress(test_peer()))
+                    .body(Body::new(UnreadUpload))
+                    .unwrap();
+                let response = router.oneshot(request).await.unwrap();
+                assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+            }
+        });
+}
+
+#[test]
+fn multipart_media_type_boundary_and_streamed_bounds_are_checked() {
+    let router = cache_app(vec![upload_route(BodyKind::Multipart, public())]);
+    tokio::runtime::Builder::new_current_thread().build().unwrap().block_on(async {
+        for (content_type, chunks, status) in [
+            ("multipart/form-data; boundary=fixture", vec!["1234", "5678"], StatusCode::OK),
+            ("MULTIPART/FORM-DATA; charset=utf-8; boundary=\"fixture\"", vec!["1234"], StatusCode::OK),
+            ("multipart/form-data; boundary=fixture", vec!["1234", "56789"], StatusCode::PAYLOAD_TOO_LARGE),
+            ("application/json", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data; boundary=", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data; boundary=\"\"", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data; boundary=one; boundary=two", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data; boundary=\"unterminated", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data; boundary=bad@value", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data; boundary=bad:value", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data; boundary=\"trailing \"", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data; boundary=abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrs", vec![], StatusCode::BAD_REQUEST),
+            ("multipart/form-data; boundary=\"a b\"", vec!["1234"], StatusCode::OK),
+        ] {
+            let chunks = chunks.into_iter().map(|chunk| Ok(Bytes::from_static(chunk.as_bytes()))).collect::<Vec<_>>();
+            let request = Request::builder().method("POST").uri("/api/v1/form")
+                .header(header::ORIGIN, TEST_ORIGIN).header(header::CONTENT_TYPE, content_type)
+                // A lying length must not disable frame counting.
+                .header(header::CONTENT_LENGTH, "1")
+                .extension(PeerAddress(test_peer()))
+                .body(Body::new(UploadFrames(chunks.into_iter()))).unwrap();
+            let response = router.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), status, "{content_type}");
+        }
+        let chunks = vec![Ok(Bytes::from_static(b"1234")), Ok(Bytes::from_static(b"56789"))];
+        let request = Request::builder().method("POST").uri("/api/v1/form")
+            .header(header::ORIGIN, TEST_ORIGIN)
+            .header(header::CONTENT_TYPE, "multipart/form-data; boundary=fixture")
+            .extension(PeerAddress(test_peer()))
+            .body(Body::new(UploadFrames(chunks.into_iter()))).unwrap();
+        assert_eq!(router.clone().oneshot(request).await.unwrap().status(), StatusCode::PAYLOAD_TOO_LARGE);
+        let request = Request::builder().method("POST").uri("/api/v1/form")
+            .header(header::ORIGIN, TEST_ORIGIN).extension(PeerAddress(test_peer()))
+            .body(Body::new(UnreadUpload)).unwrap();
+        assert_eq!(router.oneshot(request).await.unwrap().status(), StatusCode::BAD_REQUEST);
+    });
+}
+
+#[test]
+fn multipart_csrf_and_policy_gates_run_before_length_type_or_frames() {
+    tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap()
+        .block_on(async {
+            for (policy, with_origin, expected) in [
+                (public(), false, StatusCode::FORBIDDEN),
+                (protected(), true, StatusCode::UNAUTHORIZED),
+            ] {
+                let router = cache_app(vec![upload_route(BodyKind::Multipart, policy)]);
+                let mut builder = Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/form")
+                    .header(header::CONTENT_LENGTH, "999")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .extension(PeerAddress(test_peer()));
+                if with_origin {
+                    builder = builder.header(header::ORIGIN, TEST_ORIGIN);
+                }
+                let response = router
+                    .oneshot(builder.body(Body::new(UnreadUpload)).unwrap())
+                    .await
+                    .unwrap();
+                assert_eq!(response.status(), expected);
+            }
+        });
+}
+
+#[test]
+fn multipart_contracts_require_limits_csrf_and_use_stable_inventory_names() {
+    assert_eq!(BodyKind::Multipart.as_str(), "multipart");
+    assert_eq!(ResponseKind::JsonOrEmpty.as_str(), "json-or-empty");
+    for contract in [
+        Contract::new(
+            ResponseKind::Json,
+            &[200],
+            Limits::new(0, Duration::from_secs(1)),
+        )
+        .request_body(BodyKind::Multipart)
+        .csrf(Csrf::Required),
+        Contract::new(ResponseKind::Json, &[200], limits()).request_body(BodyKind::Multipart),
+    ] {
+        assert!(Route::new(Method::Post, "/api/v1/form", public(), contract, ping).is_err());
+    }
+}

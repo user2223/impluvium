@@ -19,7 +19,7 @@ use crate::TS;
 
 const DATE: &str = "2026-01-01T00:00:00.000Z";
 
-fn game() -> Value {
+pub(super) fn game() -> Value {
     json!({
         "id": "game", "metadataSource": "Manual", "metadataId": "source", "created": DATE,
         "type": "Game", "mName": "Game", "mShortDescription": "Short", "mDescription": "Long",
@@ -29,7 +29,7 @@ fn game() -> Value {
     })
 }
 
-fn company() -> Value {
+pub(super) fn company() -> Value {
     json!({
         "id": "company", "metadataSource": "Manual", "metadataId": "source",
         "metadataOriginalQuery": "query", "mName": "Company", "mShortDescription": "Short",
@@ -57,7 +57,16 @@ fn store_filters_keep_absence_and_paging_rules() {
         let query: StoreQuery = serde_json::from_value(json!({ "take": take })).unwrap();
         assert_eq!(query.window(), Ok((0, expected)));
     }
-    for bad in ["-1", "12junk", "", "4294967296"] {
+    for bad in [
+        "-1",
+        "+1",
+        "12junk",
+        "",
+        "4294967296",
+        " 1",
+        "1 ",
+        "\u{ff11}",
+    ] {
         for name in ["skip", "take"] {
             let query: StoreQuery = serde_json::from_value(json!({ (name): bad })).unwrap();
             assert!(query.window().is_err(), "{name} {bad}");

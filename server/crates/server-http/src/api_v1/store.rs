@@ -8,9 +8,12 @@
 //! Query defaults are skip=0, take=10 (at most 50), sort=default, order=desc and
 //! companyActions=published,developed. Default/newest sort by release date, recent by import
 //! date, name by name. Tags, platforms and company actions are comma-separated. Unknown
-//! platforms are ignored. The paging validator refuses negative and malformed integers rather
-//! than using parseInt's partial coercion. Only the list is paged. Age-filtered answers must
+//! platform names are ignored; a filter containing only unknown platforms yields no results.
+//! The paging validator refuses negative and malformed integers rather than using parseInt's
+//! partial coercion. Only the list is paged. Age-filtered answers must
 //! remain no-store.
+//! Administrators are exempt from age restrictions. For restricted accounts a game must
+//! have at least one age rating and no banned organization/rating pair to be visible.
 
 use server_api_types::contracts::catalog::CatalogTags;
 use server_api_types::contracts::store::{FeaturedGames, StoreQuery, StoreResponse};

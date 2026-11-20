@@ -98,6 +98,8 @@ pub enum BodyKind {
     Form,
     /// Raw bytes, bounded before the handler runs, including for streamed requests.
     Binary,
+    /// A bounded multipart form, buffered but not parsed by the registry.
+    Multipart,
 }
 
 impl BodyKind {
@@ -108,6 +110,7 @@ impl BodyKind {
             Self::Json => "json",
             Self::Form => "form",
             Self::Binary => "binary",
+            Self::Multipart => "multipart",
         }
     }
 }
@@ -125,6 +128,8 @@ pub enum ResponseKind {
     Stream,
     /// Raw binary on 200, no body on conditional 304 or HEAD.
     BinaryOrEmpty,
+    /// A JSON document on 200, or no body on 204.
+    JsonOrEmpty,
 }
 
 impl ResponseKind {
@@ -136,6 +141,7 @@ impl ResponseKind {
             Self::Redirect => "redirect",
             Self::Stream => "stream",
             Self::BinaryOrEmpty => "binary-or-empty",
+            Self::JsonOrEmpty => "json-or-empty",
         }
     }
 }
@@ -420,10 +426,16 @@ impl Route {
         };
         let limit = usize::try_from(contract.limits.max_body_bytes).unwrap_or(usize::MAX);
         // DefaultBodyLimit is extractor-based and cannot bound a handler reading Request's
-        // body directly. Raw uploads are buffered with a strict bound inside the policy gate,
+        // body directly. Raw and multipart uploads are buffered inside the policy gate,
         // so CSRF and authorization run before body consumption, even without Content-Length.
-        if contract.request_body == BodyKind::Binary {
-            base = base.layer(middleware::from_fn_with_state(limit, bound_binary_body));
+        if matches!(
+            contract.request_body,
+            BodyKind::Binary | BodyKind::Multipart
+        ) {
+            base = base.layer(middleware::from_fn_with_state(
+                (limit, contract.request_body),
+                bound_upload_body,
+            ));
         }
         let gate = middleware::from_fn_with_state(
             GateState::new(policy.clone(), contract.csrf),
@@ -453,7 +465,35 @@ impl Route {
     }
 }
 
-async fn bound_binary_body(State(limit): State<usize>, request: Request, next: Next) -> Response {
+async fn bound_upload_body(
+    State((limit, kind)): State<(usize, BodyKind)>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if let Some(length) = request.headers().get(header::CONTENT_LENGTH) {
+        let Ok(length) = length.to_str() else {
+            return error_response(ErrorCode::BadRequest);
+        };
+        if length.is_empty() || !length.bytes().all(|byte| byte.is_ascii_digit()) {
+            return error_response(ErrorCode::BadRequest);
+        }
+        if length
+            .parse::<u64>()
+            .ok()
+            .is_none_or(|length| length > u64::try_from(limit).unwrap_or(u64::MAX))
+        {
+            return error_response(ErrorCode::PayloadTooLarge);
+        }
+    }
+    if kind == BodyKind::Multipart
+        && !request
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(valid_multipart_content_type)
+    {
+        return error_response(ErrorCode::BadRequest);
+    }
     let (parts, body) = request.into_parts();
     let mut body = body;
     let mut bytes = Vec::new();
@@ -472,6 +512,51 @@ async fn bound_binary_body(State(limit): State<usize>, request: Request, next: N
     }
     next.run(Request::from_parts(parts, Body::from(bytes)))
         .await
+}
+
+/// Checks only the media type and boundary parameter; parsing parts belongs to the handler.
+fn valid_multipart_content_type(value: &str) -> bool {
+    let mut parts = value.split(';');
+    if !parts
+        .next()
+        .is_some_and(|part| part.trim().eq_ignore_ascii_case("multipart/form-data"))
+    {
+        return false;
+    }
+    let mut boundary = None;
+    for part in parts {
+        let Some((name, value)) = part.trim().split_once('=') else {
+            return false;
+        };
+        if name.trim().eq_ignore_ascii_case("boundary") {
+            if boundary.is_some() {
+                return false;
+            }
+            let value = value.trim();
+            let (value, quoted) = if let Some(quoted) = value.strip_prefix('"') {
+                let Some(value) = quoted.strip_suffix('"') else {
+                    return false;
+                };
+                (value, true)
+            } else {
+                (value, false)
+            };
+            // RFC 2046 bchars; spaces and MIME separators require quotes.
+            if value.is_empty()
+                || value.len() > 70
+                || value.ends_with(' ')
+                || !value.bytes().all(|byte| {
+                    byte.is_ascii_alphanumeric()
+                        || b"'+_-.".contains(&byte)
+                        || (quoted && b" (),/:=?".contains(&byte))
+                })
+            {
+                return false;
+            }
+            boundary = Some(value);
+        }
+    }
+    boundary.is_some()
 }
 
 /// How the cache header of a route is set.

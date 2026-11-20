@@ -10,6 +10,8 @@
 //! manifests, file lists or launch commands. Company and tag lookups answer 404 when missing.
 //! Convert all byte sizes and the review-count sum to decimal strings and dates to Timestamp.
 //! Path ids are opaque nonempty strings validated with CatalogParams, not necessarily UUIDs.
+//! Administrators are exempt from age restrictions. For restricted accounts a game must
+//! have at least one age rating and no banned organization/rating pair to be visible.
 
 use server_api_types::contracts::catalog::{CompanyResponse, GameResponse, TagResponse};
 

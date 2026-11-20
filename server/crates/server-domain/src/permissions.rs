@@ -96,6 +96,24 @@ pub fn role_rights(role: Role) -> RightSet {
             "clients:read",
             "clients:revoke",
             "admin:manage",
+            "game:read",
+            "game:update",
+            "game:delete",
+            "game:version:update",
+            "game:version:delete",
+            "game:image:new",
+            "game:image:delete",
+            "company:read",
+            "company:create",
+            "company:update",
+            "company:delete",
+            "tags:read",
+            "tags:delete",
+            "library:read",
+            "library:sources:read",
+            "library:sources:new",
+            "library:sources:update",
+            "library:sources:delete",
             "store:read",
             "collections:read",
             "collections:new",
@@ -171,6 +189,8 @@ mod tests {
         assert!(user.contains(right("clients:revoke")));
         assert!(!user.contains(right("admin:manage")));
         assert!(admin.contains(right("admin:manage")));
+        assert!(!admin.contains(right("setup:run")));
+        assert!(!user.contains(right("setup:run")));
         assert!(role_rights(Role::User).intersection(&admin) == user);
     }
 

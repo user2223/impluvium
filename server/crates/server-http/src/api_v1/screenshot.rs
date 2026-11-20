@@ -7,10 +7,10 @@
 //! role. Delete also removes its backing object as a system operation; direct object-delete
 //! permission is not required and is not granted by screenshot ownership.
 //!
-//! Validate ScreenshotParams for metadata ids and CatalogParams for game ids. Upload first
-//! verifies the game exists (400 otherwise), then accepts raw bytes, not multipart, bounded
-//! to 32 MiB with cookie CSRF protection. No age restriction or library membership is checked
-//! by the inherited upload handler. Create a private screenshot for the caller, recording the
+//! Validate ScreenshotParams for metadata ids and CatalogParams for game ids. The registry
+//! buffers raw bytes, not multipart, bounded to 32 MiB after policy and cookie CSRF checks.
+//! The later upload handler then verifies the game exists (400 otherwise) before storage.
+//! No age restriction or library membership is checked by the inherited upload handler. Create a private screenshot for the caller, recording the
 //! upload time, with an object carrying only this account's read permission. Never grant a
 //! direct object write/delete permission. Both upload and delete answer 204 with no body.
 //! Lists are bare arrays, without pagination. All answers are caller-specific and no-store.

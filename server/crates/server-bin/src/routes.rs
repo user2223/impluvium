@@ -41,13 +41,25 @@ fn fallback_json(info: &FallbackInfo) -> Value {
 fn policy_json(policy: &Policy) -> Value {
     match (policy.public_reason(), policy.requirement()) {
         (Some(reason), _) => json!({ "access": "public", "reason": reason }),
-        (None, Some(requirement)) => json!({
-            "access": "protected",
-            "rights": requirement.rights().iter().map(|right| right.as_str()).collect::<Vec<_>>(),
-            "session": requirement.session().as_str(),
-            "mfa": requirement.mfa().as_str(),
-            "fresh_login_within_secs": requirement.fresh_login_within_secs(),
-        }),
+        (None, Some(requirement)) => {
+            let mut value = json!({
+                "access": "protected",
+                "rights": requirement.rights().iter().map(|right| right.as_str()).collect::<Vec<_>>(),
+                "session": requirement.session().as_str(),
+                "mfa": requirement.mfa().as_str(),
+                "fresh_login_within_secs": requirement.fresh_login_within_secs(),
+            });
+            if !requirement.any_rights().is_empty() {
+                value["any_rights"] = json!(
+                    requirement
+                        .any_rights()
+                        .iter()
+                        .map(|right| right.as_str())
+                        .collect::<Vec<_>>()
+                );
+            }
+            value
+        }
         (None, None) => json!({ "access": "denied" }),
     }
 }
@@ -137,6 +149,36 @@ mod tests {
                 ("GET", "/api/v1/admin/auth/invitation"),
                 ("POST", "/api/v1/admin/auth/invitation"),
                 ("DELETE", "/api/v1/admin/auth/invitation"),
+                ("GET", "/api/v1/admin/company"),
+                ("POST", "/api/v1/admin/company"),
+                ("GET", "/api/v1/admin/company/{id}"),
+                ("PATCH", "/api/v1/admin/company/{id}"),
+                ("DELETE", "/api/v1/admin/company/{id}"),
+                ("POST", "/api/v1/admin/company/{id}/banner"),
+                ("POST", "/api/v1/admin/company/{id}/game"),
+                ("PATCH", "/api/v1/admin/company/{id}/game"),
+                ("DELETE", "/api/v1/admin/company/{id}/game"),
+                ("POST", "/api/v1/admin/company/{id}/icon"),
+                ("POST", "/api/v1/admin/game/image"),
+                ("DELETE", "/api/v1/admin/game/image"),
+                ("GET", "/api/v1/admin/game/{id}"),
+                ("PATCH", "/api/v1/admin/game/{id}"),
+                ("DELETE", "/api/v1/admin/game/{id}"),
+                ("PATCH", "/api/v1/admin/game/{id}/age-ratings"),
+                ("POST", "/api/v1/admin/game/{id}/metadata"),
+                ("PATCH", "/api/v1/admin/game/{id}/tags"),
+                ("GET", "/api/v1/admin/game/{id}/versions"),
+                ("PATCH", "/api/v1/admin/game/{id}/versions"),
+                ("DELETE", "/api/v1/admin/game/{id}/versions"),
+                ("GET", "/api/v1/admin/library"),
+                ("GET", "/api/v1/admin/library/libraries"),
+                ("GET", "/api/v1/admin/library/sources"),
+                ("POST", "/api/v1/admin/library/sources"),
+                ("PATCH", "/api/v1/admin/library/sources"),
+                ("DELETE", "/api/v1/admin/library/sources"),
+                ("GET", "/api/v1/admin/tags"),
+                ("POST", "/api/v1/admin/tags"),
+                ("DELETE", "/api/v1/admin/tags/{id}"),
                 ("GET", "/api/v1/admin/token"),
                 ("POST", "/api/v1/admin/token"),
                 ("GET", "/api/v1/admin/token/acls"),
@@ -218,6 +260,36 @@ mod tests {
                 "/api/v1/admin/auth/invitation",
                 "/api/v1/admin/auth/invitation",
                 "/api/v1/admin/auth/invitation",
+                "/api/v1/admin/company",
+                "/api/v1/admin/company",
+                "/api/v1/admin/company/{id}",
+                "/api/v1/admin/company/{id}",
+                "/api/v1/admin/company/{id}",
+                "/api/v1/admin/company/{id}/banner",
+                "/api/v1/admin/company/{id}/game",
+                "/api/v1/admin/company/{id}/game",
+                "/api/v1/admin/company/{id}/game",
+                "/api/v1/admin/company/{id}/icon",
+                "/api/v1/admin/game/image",
+                "/api/v1/admin/game/image",
+                "/api/v1/admin/game/{id}",
+                "/api/v1/admin/game/{id}",
+                "/api/v1/admin/game/{id}",
+                "/api/v1/admin/game/{id}/age-ratings",
+                "/api/v1/admin/game/{id}/metadata",
+                "/api/v1/admin/game/{id}/tags",
+                "/api/v1/admin/game/{id}/versions",
+                "/api/v1/admin/game/{id}/versions",
+                "/api/v1/admin/game/{id}/versions",
+                "/api/v1/admin/library",
+                "/api/v1/admin/library/libraries",
+                "/api/v1/admin/library/sources",
+                "/api/v1/admin/library/sources",
+                "/api/v1/admin/library/sources",
+                "/api/v1/admin/library/sources",
+                "/api/v1/admin/tags",
+                "/api/v1/admin/tags",
+                "/api/v1/admin/tags/{id}",
                 "/api/v1/admin/token",
                 "/api/v1/admin/token",
                 "/api/v1/admin/token/acls",
@@ -241,6 +313,8 @@ mod tests {
                 "/api/v1/companies/{id}",
                 "/api/v1/emoji/{codepoint}",
                 "/api/v1/games/{id}",
+                "/api/v1/object/{id}",
+                "/api/v1/object/{id}",
                 "/api/v1/screenshots",
                 "/api/v1/screenshots/game/{id}",
                 "/api/v1/screenshots/game/{id}",
@@ -415,5 +489,51 @@ mod tests {
             );
             assert_eq!(upload["contract"]["no_store"], true);
         }
+    }
+    #[test]
+    fn admin_multipart_inventory_and_alternative_system_rights_are_explicit() {
+        let document = parse(&render(&registry::application()));
+        let routes = document["routes"].as_array().unwrap();
+        for path in [
+            "/api/v1/admin/game/image",
+            "/api/v1/admin/game/{id}/metadata",
+            "/api/v1/admin/company/{id}/banner",
+            "/api/v1/admin/company/{id}/icon",
+        ] {
+            let entry = routes
+                .iter()
+                .find(|entry| entry["method"] == "POST" && entry["path"] == path)
+                .unwrap();
+            assert_eq!(entry["contract"]["request_body"], "multipart");
+            assert_eq!(
+                entry["contract"]["limits"]["max_body_bytes"],
+                32 * 1024 * 1024
+            );
+            assert_eq!(entry["contract"]["csrf"]["mode"], "required");
+            assert_eq!(entry["policy"]["session"], "administration");
+            assert!(entry["contract"]["request_shape"].is_string());
+        }
+        let game = routes
+            .iter()
+            .find(|entry| entry["method"] == "GET" && entry["path"] == "/api/v1/admin/game/{id}")
+            .unwrap();
+        assert_eq!(game["policy"]["rights"], json!(["game:read"]));
+        assert!(game["policy"].get("any_rights").is_none());
+        let patch = routes
+            .iter()
+            .find(|entry| entry["method"] == "PATCH" && entry["path"] == "/api/v1/admin/game/{id}")
+            .unwrap();
+        assert_eq!(patch["contract"]["limits"]["max_body_bytes"], 1024 * 1024);
+        let source = routes
+            .iter()
+            .find(|entry| {
+                entry["method"] == "GET" && entry["path"] == "/api/v1/admin/library/sources"
+            })
+            .unwrap();
+        assert_eq!(source["policy"]["rights"], json!([]));
+        assert_eq!(
+            source["policy"]["any_rights"],
+            json!(["library:sources:read", "setup:run"])
+        );
     }
 }

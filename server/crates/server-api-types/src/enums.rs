@@ -66,6 +66,30 @@ macro_rules! api_enums {
 }
 
 api_enums!(
+    /// Library provider implementations.
+    LibraryBackend {
+        Filesystem,
+        FlatFilesystem,
+    }
+    /// A company relationship to a game.
+    CompanyAction {
+        #[serde(rename = "developed")]
+        Developed,
+        #[serde(rename = "published")]
+        Published,
+    }
+    /// Where an unimported version is stored.
+    UnimportedVersionKind {
+        #[serde(rename = "local")]
+        Local,
+        #[serde(rename = "depot")]
+        Depot,
+    }
+    /// The exact offline status literal.
+    LibraryOffline {
+        #[serde(rename = "offline")]
+        Offline,
+    }
     /// The platform a game is built for.
     Platform {
         Windows,
@@ -173,8 +197,25 @@ pub(crate) mod tests {
     #[test]
     fn runtime_list_matches_the_enum() {
         let listed = runtime_enums();
-        assert_eq!(listed.len(), 6);
-        assert_eq!(listed[0].name, "Platform");
-        assert_eq!(listed[0].values, ["Windows", "Linux", "macOS"]);
+        assert_eq!(
+            listed.iter().map(|entry| entry.name).collect::<Vec<_>>(),
+            [
+                "LibraryBackend",
+                "CompanyAction",
+                "UnimportedVersionKind",
+                "LibraryOffline",
+                "Platform",
+                "MetadataSource",
+                "GameType",
+                "AgeRatingOrganization",
+                "StoreSort",
+                "SortOrder",
+            ]
+        );
+        let platform = listed
+            .iter()
+            .find(|entry| entry.name == "Platform")
+            .unwrap();
+        assert_eq!(platform.values, ["Windows", "Linux", "macOS"]);
     }
 }

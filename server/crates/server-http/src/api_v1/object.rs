@@ -1,15 +1,17 @@
 // SPDX-FileCopyrightText: 2026 the impluvium contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Objects use per-object permissions, so the route policy is deliberately public. The later
-//! handlers must resolve the credential and use an account only when authentication is
-//! complete and the matching object:read/update/delete right is held. Anonymous, pending,
-//! service tokens and credentials without that right use only anonymous object permissions.
-//! Public policy never grants access to the object by itself. Exact permission subjects are
-//! required: do not copy the old startsWith account-prefix matching. Internal grants apply
-//! only to a resolved account, anonymous grants to everyone. Any stored permission permits
-//! reading; write/delete need their respective permission or a higher one. Admin status adds
-//! no bypass. Denied reads are 404; denied/missing writes and deletes return { success: false }.
+//! GET/HEAD remain public with per-object checks, including anonymous read grants. Later
+//! handlers resolve a completed account with object:read or use only anonymous permissions.
+//! POST/DELETE require object:update/object:delete at the policy gate and an account in the
+//! handler. No inherited creation/grant call grants write/delete (all grants are read), so
+//! this does not remove a legitimate anonymous mutation. Policy-denied callers now receive
+//! 401/403 instead of { success: false }. Missing objects or denied stored mutation permissions
+//! still return { success: false }. A service token has no account and is rejected by the
+//! handler. Admin status adds no per-object bypass. Denied reads are 404.
+//! Match permission subjects exactly, never by an account-prefix startsWith comparison.
+//! Internal grants apply only to a resolved account; anonymous grants apply to everyone.
+//! Any stored permission permits reading; write/delete need their permission or a higher one.
 //!
 //! Validate ObjectParams before any storage access; reject unsafe names instead of sanitizing
 //! into a different id. Uploads are raw nonempty bytes, limited to 32 MiB and protected by CSRF
@@ -30,12 +32,12 @@
 //! without fetching a download body, even when the backing source is missing. Hash computation
 //! may still read storage, as it does today. Match Nitro's HEAD
 //! comparison (a present request value equal to the actual hash); GET requires nonempty values.
-//! HEAD sets no cache header, as in Nitro, so the API default supplies no-store. Axum strips
+//! HEAD sends the same Cache-Control as GET, including on 304. Axum strips
 //! response bytes for HEAD, but avoiding the separate download fetch belongs to the handler.
 
 use server_api_types::contracts::object::{BinaryUpload, ObjectDownload, ObjectMutation};
 
-use super::{UPLOAD_BODY_LIMIT, limits, not_implemented, public};
+use super::{UPLOAD_BODY_LIMIT, account_right, limits, not_implemented, public};
 use crate::registry::{BodyKind, Contract, Csrf, Method, ParamType, ResponseKind, Route};
 
 pub(super) fn routes() -> Vec<Route> {
@@ -58,7 +60,7 @@ pub(super) fn routes() -> Vec<Route> {
         Route::new(
             Method::Post,
             "/api/v1/object/{id}",
-            access(),
+            account_right("object:update"),
             Contract::new(ResponseKind::Json, &[200], limits(UPLOAD_BODY_LIMIT))
                 .path_param("id", ParamType::String)
                 .request_body(BodyKind::Binary)
@@ -72,7 +74,7 @@ pub(super) fn routes() -> Vec<Route> {
         Route::new(
             Method::Delete,
             "/api/v1/object/{id}",
-            access(),
+            account_right("object:delete"),
             Contract::new(ResponseKind::Json, &[200], limits(0))
                 .response_shape::<ObjectMutation>()
                 .path_param("id", ParamType::String)
