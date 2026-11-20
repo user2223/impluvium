@@ -27,7 +27,7 @@ use super::user::{
 };
 
 /// Reads the body, checks the typed value writes back to exactly the same JSON, and returns it.
-fn round_trip<T: Serialize + DeserializeOwned>(body: Value) -> T {
+pub(super) fn round_trip<T: Serialize + DeserializeOwned>(body: Value) -> T {
     let value: T = serde_json::from_value(body.clone()).unwrap();
     assert_eq!(serde_json::to_value(&value).unwrap(), body);
     value

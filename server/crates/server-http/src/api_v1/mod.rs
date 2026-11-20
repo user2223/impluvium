@@ -3,7 +3,7 @@
 
 //! The routes of the server information, the settings, the first-run setup, sign-in and the
 //! administration of sign-in methods, the signed-in account, tokens and the administration of
-//! accounts.
+//! accounts, the public catalog, collections, objects and screenshots.
 //!
 //! These routes carry their contracts (who may call, which body, which answer) but no behaviour
 //! yet: every handler answers with the API error for a missing implementation and changes
@@ -17,7 +17,12 @@
 mod admin_auth;
 mod admin_users;
 mod auth;
+mod catalog;
+mod collection;
+mod object;
+mod screenshot;
 mod server;
+mod store;
 mod token;
 mod user;
 
@@ -25,13 +30,26 @@ use std::time::Duration;
 
 use axum::response::{IntoResponse, Response};
 use server_api_types::ErrorCode;
-use server_domain::policy::{Policy, Requirement, SessionKind};
+use server_domain::policy::{Policy, Requirement, Right, SessionKind};
 
 use crate::error::HttpError;
 use crate::registry::{Limits, Route};
 
 /// Largest JSON body of the routes here, in bytes; passkey answers are the biggest.
 const JSON_BODY_LIMIT: u64 = 64 * 1024;
+
+/// Largest raw object or screenshot upload, in bytes.
+const UPLOAD_BODY_LIMIT: u64 = 32 * 1024 * 1024;
+
+/// Checks the named right. The later handler must also require an account behind the principal;
+/// the policy model does not distinguish an account-bearing token from a service token.
+fn account_right(name: &'static str) -> Policy {
+    Policy::protected(
+        Requirement::authenticated()
+            .require_rights(&[Right::new(name).expect("the right is valid")])
+            .expect("the list of rights is not empty"),
+    )
+}
 
 fn limits(max_body_bytes: u64) -> Limits {
     Limits::new(max_body_bytes, Duration::from_secs(10))
@@ -66,6 +84,11 @@ pub fn routes() -> Vec<Route> {
         .chain(user::routes())
         .chain(token::routes())
         .chain(admin_users::routes())
+        .chain(store::routes())
+        .chain(catalog::routes())
+        .chain(collection::routes())
+        .chain(object::routes())
+        .chain(screenshot::routes())
         .collect()
 }
 

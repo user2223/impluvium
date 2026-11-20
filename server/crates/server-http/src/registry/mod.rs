@@ -186,7 +186,7 @@ impl Registry {
 
 /// The registry of the running server. Area modules register their routes
 /// here: the health probes, the routes under `/auth`, the contracts of the server, sign-in and
-/// administration routes, and the emoji pictures.
+/// administration routes, public catalog and library contracts, objects, screenshots and emoji pictures.
 /// This variant has no dependencies to wait for, so the readiness probe always
 /// answers ready, and it holds no emoji pictures.
 pub fn application() -> Registry {

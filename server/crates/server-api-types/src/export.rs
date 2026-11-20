@@ -23,7 +23,10 @@ use std::path::Path;
 
 use ts_rs::{Config, TS, TypeVisitor};
 
-use crate::contracts::{EmptyObject, admin_auth, admin_users, auth, server, token, user};
+use crate::contracts::{
+    EmptyObject, admin_auth, admin_users, auth, catalog, collection, object, screenshot, server,
+    store, token, user,
+};
 use crate::enums::runtime_enums;
 use crate::error::ApiError;
 use crate::json::JsonValue;
@@ -64,6 +67,11 @@ shape_roots!(
     ShapeRoots:
     ApiError,
     crate::enums::Platform,
+    crate::enums::MetadataSource,
+    crate::enums::GameType,
+    crate::enums::AgeRatingOrganization,
+    crate::enums::StoreSort,
+    crate::enums::SortOrder,
     JsonValue,
     PageQuery,
     crate::page::Page<String>,
@@ -146,6 +154,45 @@ shape_roots!(
     user::WebAuthnRegistration,
     user::AttestationResponse,
     user::SuperlevelStatus,
+    catalog::CatalogParams,
+    catalog::CatalogGame,
+    catalog::CatalogCompany,
+    catalog::CatalogTag,
+    catalog::CatalogTags,
+    catalog::GameCompany,
+    catalog::GameAgeRating,
+    catalog::GamePlaytime,
+    catalog::LibraryGame,
+    catalog::GameDetail,
+    catalog::GameVersionSize,
+    catalog::RatingAverage,
+    catalog::RatingCount,
+    catalog::GameRating,
+    catalog::GameResponse,
+    catalog::CompanyResponse,
+    catalog::TagResponse,
+    store::StoreQuery,
+    store::StoreResponse,
+    store::FeaturedCompany,
+    store::FeaturedGame,
+    store::FeaturedGames,
+    collection::CollectionParams,
+    collection::CollectionCreate,
+    collection::CollectionGameId,
+    collection::CollectionEntry,
+    collection::LibraryEntry,
+    collection::Collection,
+    collection::DefaultCollection,
+    collection::CollectionList,
+    collection::CollectionDeleted,
+    object::ObjectParams,
+    object::ObjectReference,
+    object::BinaryUpload,
+    object::ObjectDownload,
+    object::ObjectMutation,
+    screenshot::ScreenshotParams,
+    screenshot::Screenshot,
+    screenshot::ScreenshotList,
 );
 
 /// The TypeScript name of a shape, as a route contract refers to it.
@@ -448,7 +495,19 @@ mod tests {
         count: u64,
     }
 
-    shape_roots!(ProbeRoots: Probe, ProbeOptional, Platform, JsonValue, Page<String>);
+    shape_roots!(
+        ProbeRoots:
+        Probe,
+        ProbeOptional,
+        Platform,
+        JsonValue,
+        Page<String>,
+        crate::enums::MetadataSource,
+        crate::enums::GameType,
+        crate::enums::AgeRatingOrganization,
+        crate::enums::StoreSort,
+        crate::enums::SortOrder,
+    );
     shape_roots!(RawRoots: RawProbe);
 
     fn scratch(label: &str) -> PathBuf {
@@ -609,12 +668,16 @@ mod tests {
     #[test]
     fn runtime_constants_list_the_wire_values() {
         let text = runtime_ts();
-        assert_eq!(
-            text,
-            "import type { Platform } from \"./Platform\";\n\n\
-/** Every value of `Platform`, in the order of the server. */\n\
-export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satisfies readonly Platform[];\n"
-        );
+        assert!(text.contains(
+            "export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satisfies readonly Platform[];"
+        ));
+        for entry in runtime_enums() {
+            assert!(text.contains(&format!(
+                "import type {{ {0} }} from \"./{0}\";",
+                entry.name
+            )));
+            assert!(text.contains(&format!("export const {} =", constant_name(entry.name))));
+        }
     }
 
     fn two_files() -> BTreeMap<String, String> {
@@ -628,6 +691,11 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
             "Platform.ts".to_owned(),
             "export type Platform = \"Linux\";\n".to_owned(),
         );
+        for entry in runtime_enums() {
+            written
+                .entry(format!("{}.ts", entry.name))
+                .or_insert_with(|| format!("export type {} = {};\n", entry.name, entry.ts_union));
+        }
         written
     }
 
@@ -636,7 +704,18 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
         let files = assemble(two_files()).unwrap();
         assert_eq!(
             files.keys().map(String::as_str).collect::<Vec<_>>(),
-            ["A.ts", "B.ts", "Platform.ts", "index.ts", "runtime.ts"]
+            [
+                "A.ts",
+                "AgeRatingOrganization.ts",
+                "B.ts",
+                "GameType.ts",
+                "MetadataSource.ts",
+                "Platform.ts",
+                "SortOrder.ts",
+                "StoreSort.ts",
+                "index.ts",
+                "runtime.ts",
+            ]
         );
         for content in files.values() {
             assert!(content.starts_with("// SPDX-FileCopyrightText"));
@@ -649,8 +728,13 @@ export const platformValues = [\"Windows\", \"Linux\", \"macOS\"] as const satis
             files["index.ts"].lines().skip(5).collect::<Vec<_>>(),
             [
                 "export type { A } from \"./A\";",
+                "export type { AgeRatingOrganization } from \"./AgeRatingOrganization\";",
                 "export type { B } from \"./B\";",
+                "export type { GameType } from \"./GameType\";",
+                "export type { MetadataSource } from \"./MetadataSource\";",
                 "export type { Platform } from \"./Platform\";",
+                "export type { SortOrder } from \"./SortOrder\";",
+                "export type { StoreSort } from \"./StoreSort\";",
                 "export * from \"./runtime\";",
             ]
         );

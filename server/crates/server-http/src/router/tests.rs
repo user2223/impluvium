@@ -572,3 +572,249 @@ fn built_in_fallbacks_are_listed_with_a_public_reason() {
             .all(|info| info.policy.public_reason().is_some())
     );
 }
+
+async fn direct_body_length(request: axum::extract::Request) -> String {
+    // Intentionally bypasses Bytes and DefaultBodyLimit to exercise the raw-body guard.
+    to_bytes(request.into_body(), usize::MAX)
+        .await
+        .unwrap()
+        .len()
+        .to_string()
+}
+
+fn binary_contract() -> Contract {
+    Contract::new(ResponseKind::Json, &[200], limits())
+        .request_body(BodyKind::Binary)
+        .csrf(Csrf::Required)
+}
+
+struct UploadFrames(std::vec::IntoIter<Result<Bytes, std::io::Error>>);
+
+impl http_body::Body for UploadFrames {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        mut self: std::pin::Pin<&mut Self>,
+        _context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+        std::task::Poll::Ready(self.0.next().map(|chunk| chunk.map(http_body::Frame::data)))
+    }
+}
+
+#[test]
+fn binary_contracts_require_a_limit_and_csrf_and_have_stable_inventory_names() {
+    assert_eq!(BodyKind::Binary.as_str(), "binary");
+    assert_eq!(ResponseKind::BinaryOrEmpty.as_str(), "binary-or-empty");
+    for contract in [
+        Contract::new(
+            ResponseKind::Json,
+            &[200],
+            Limits::new(0, Duration::from_secs(1)),
+        )
+        .request_body(BodyKind::Binary)
+        .csrf(Csrf::Required),
+        Contract::new(ResponseKind::Json, &[200], limits()).request_body(BodyKind::Binary),
+    ] {
+        assert!(
+            Route::new(
+                Method::Post,
+                "/api/v1/raw",
+                public(),
+                contract,
+                direct_body_length
+            )
+            .is_err()
+        );
+    }
+    assert!(
+        Route::new(
+            Method::Get,
+            "/api/v1/raw",
+            public(),
+            binary_contract(),
+            ping
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn binary_uploads_are_bounded_before_direct_request_consumers() {
+    let router = cache_app(vec![
+        Route::new(
+            Method::Post,
+            "/api/v1/raw",
+            public(),
+            binary_contract(),
+            direct_body_length,
+        )
+        .unwrap(),
+    ]);
+    for body in ["", "1234", "12345678"] {
+        let reply = send(router.clone(), "POST", "/api/v1/raw", body);
+        assert_eq!(reply.status, StatusCode::OK);
+        assert_eq!(reply.body, body.len().to_string());
+    }
+    // No Content-Length is supplied: the bound also covers streamed/chunked bodies.
+    let large = send(router.clone(), "POST", "/api/v1/raw", "123456789");
+    assert_eq!(large.status, StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(code_of(&large.body), "payload_too_large");
+    assert_eq!(cache_values(&large), ["no-store"]);
+    tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap()
+        .block_on(async move {
+            for (chunks, status, code) in [
+                (
+                    vec![
+                        Ok(Bytes::from_static(b"1234")),
+                        Ok(Bytes::from_static(b"5678")),
+                    ],
+                    StatusCode::OK,
+                    None,
+                ),
+                (
+                    vec![
+                        Ok(Bytes::from_static(b"1234")),
+                        Ok(Bytes::from_static(b"56789")),
+                    ],
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    Some("payload_too_large"),
+                ),
+                (
+                    vec![Err(std::io::Error::other("broken upload"))],
+                    StatusCode::BAD_REQUEST,
+                    Some("bad_request"),
+                ),
+            ] {
+                let body = Body::new(UploadFrames(chunks.into_iter()));
+                let request = Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/raw")
+                    .header(header::ORIGIN, TEST_ORIGIN)
+                    .extension(PeerAddress(test_peer()))
+                    .body(body)
+                    .unwrap();
+                let reply = router.clone().oneshot(request).await.unwrap();
+                assert_eq!(reply.status(), status);
+                let bytes = to_bytes(reply.into_body(), usize::MAX).await.unwrap();
+                let body = std::str::from_utf8(&bytes).unwrap();
+                if let Some(code) = code {
+                    assert_eq!(code_of(body), code);
+                } else {
+                    assert_eq!(body, "8");
+                }
+            }
+        });
+}
+
+#[test]
+fn binary_upload_csrf_runs_before_body_consumption() {
+    let router = cache_app(vec![
+        Route::new(
+            Method::Post,
+            "/api/v1/raw",
+            public(),
+            binary_contract(),
+            direct_body_length,
+        )
+        .unwrap(),
+    ]);
+    tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap()
+        .block_on(async move {
+            let request = Request::builder()
+                .method("POST")
+                .uri("/api/v1/raw")
+                .extension(PeerAddress(test_peer()))
+                .body(Body::from("123456789"))
+                .unwrap();
+            let reply = router.oneshot(request).await.unwrap();
+            // The body exceeds the bound, but CSRF must reject first.
+            assert_eq!(reply.status(), StatusCode::FORBIDDEN);
+            let bytes = to_bytes(reply.into_body(), usize::MAX).await.unwrap();
+            assert_eq!(
+                code_of(std::str::from_utf8(&bytes).unwrap()),
+                "csrf_rejected"
+            );
+        });
+}
+
+async fn binary_download_fixture(request: axum::extract::Request) -> axum::response::Response {
+    let head = request.method() == axum::http::Method::HEAD;
+    let unchanged = request
+        .headers()
+        .get(header::IF_NONE_MATCH)
+        .is_some_and(|value| value == "hash");
+    let mut response = axum::response::Response::new(if head || unchanged {
+        Body::empty()
+    } else {
+        Body::from("image")
+    });
+    if unchanged {
+        *response.status_mut() = StatusCode::NOT_MODIFIED;
+    }
+    response
+        .headers_mut()
+        .insert(header::CONTENT_TYPE, "image/png".parse().unwrap());
+    response
+        .headers_mut()
+        .insert(header::ETAG, "hash".parse().unwrap());
+    if !head {
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            "private, max-age=31536000, s-maxage=31536000, immutable"
+                .parse()
+                .unwrap(),
+        );
+    }
+    response
+}
+
+#[test]
+fn binary_download_headers_survive_on_get_head_and_not_modified() {
+    let router = cache_app(vec![get_route(
+        "/api/v1/binary",
+        Contract::new(ResponseKind::BinaryOrEmpty, &[200, 304], limits()),
+        binary_download_fixture,
+    )]);
+    tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap()
+        .block_on(async move {
+            for (method, conditional, status, body) in [
+                ("GET", false, StatusCode::OK, "image"),
+                ("GET", true, StatusCode::NOT_MODIFIED, ""),
+                ("HEAD", false, StatusCode::OK, ""),
+                ("HEAD", true, StatusCode::NOT_MODIFIED, ""),
+            ] {
+                let mut request = Request::builder()
+                    .method(method)
+                    .uri("/api/v1/binary")
+                    .extension(PeerAddress(test_peer()));
+                if conditional {
+                    request = request.header(header::IF_NONE_MATCH, "hash");
+                }
+                let reply = router
+                    .clone()
+                    .oneshot(request.body(Body::empty()).unwrap())
+                    .await
+                    .unwrap();
+                assert_eq!(reply.status(), status);
+                assert_eq!(reply.headers()[header::CONTENT_TYPE], "image/png");
+                assert_eq!(reply.headers()[header::ETAG], "hash");
+                assert_eq!(
+                    reply.headers()[header::CACHE_CONTROL],
+                    if method == "HEAD" {
+                        "no-store"
+                    } else {
+                        "private, max-age=31536000, s-maxage=31536000, immutable"
+                    }
+                );
+                let bytes = to_bytes(reply.into_body(), usize::MAX).await.unwrap();
+                assert_eq!(bytes.as_ref(), body.as_bytes());
+            }
+        });
+}

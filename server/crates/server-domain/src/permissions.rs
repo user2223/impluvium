@@ -74,6 +74,20 @@ pub fn role_rights(role: Role) -> RightSet {
             "profile:read",
             "clients:read",
             "clients:revoke",
+            "store:read",
+            "collections:read",
+            "collections:new",
+            "collections:delete",
+            "collections:add",
+            "collections:remove",
+            "library:add",
+            "library:remove",
+            "object:read",
+            "object:update",
+            "object:delete",
+            "screenshots:read",
+            "screenshots:new",
+            "screenshots:delete",
         ]),
         Role::Admin => RightSet::from_names(&[
             "emoji:read",
@@ -82,6 +96,20 @@ pub fn role_rights(role: Role) -> RightSet {
             "clients:read",
             "clients:revoke",
             "admin:manage",
+            "store:read",
+            "collections:read",
+            "collections:new",
+            "collections:delete",
+            "collections:add",
+            "collections:remove",
+            "library:add",
+            "library:remove",
+            "object:read",
+            "object:update",
+            "object:delete",
+            "screenshots:read",
+            "screenshots:new",
+            "screenshots:delete",
         ]),
     }
 }
@@ -90,7 +118,20 @@ pub fn role_rights(role: Role) -> RightSet {
 /// and game pages and the public profile of an account, but nothing about
 /// administration, devices, tokens or second factors.
 pub fn store_session_rights() -> RightSet {
-    RightSet::from_names(&["emoji:read", "settings:read", "profile:read"])
+    RightSet::from_names(&[
+        "emoji:read",
+        "settings:read",
+        "profile:read",
+        "store:read",
+        "collections:read",
+        "collections:new",
+        "collections:delete",
+        "collections:add",
+        "collections:remove",
+        "library:add",
+        "library:remove",
+        "object:read",
+    ])
 }
 
 #[cfg(test)]
@@ -143,5 +184,38 @@ mod tests {
         // Devices belong to the account pages, which the store window does not show.
         assert!(!store.contains(right("clients:read")));
         assert!(!store.contains(right("clients:revoke")));
+    }
+
+    #[test]
+    fn catalog_and_library_rights_preserve_the_store_window_controls() {
+        let user = role_rights(Role::User);
+        let admin = role_rights(Role::Admin);
+        let store = store_session_rights();
+        for name in [
+            "store:read",
+            "collections:read",
+            "collections:new",
+            "collections:delete",
+            "collections:add",
+            "collections:remove",
+            "library:add",
+            "library:remove",
+            "object:read",
+        ] {
+            assert!(user.contains(right(name)), "{name}");
+            assert!(admin.contains(right(name)), "{name}");
+            assert!(store.contains(right(name)), "{name}");
+        }
+        for name in [
+            "object:update",
+            "object:delete",
+            "screenshots:read",
+            "screenshots:new",
+            "screenshots:delete",
+        ] {
+            assert!(user.contains(right(name)), "{name}");
+            assert!(admin.contains(right(name)), "{name}");
+            assert!(!store.contains(right(name)), "{name}");
+        }
     }
 }

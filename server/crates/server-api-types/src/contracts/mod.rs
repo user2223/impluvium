@@ -27,7 +27,12 @@ macro_rules! redacted_debug {
 pub mod admin_auth;
 pub mod admin_users;
 pub mod auth;
+pub mod catalog;
+pub mod collection;
+pub mod object;
+pub mod screenshot;
 pub mod server;
+pub mod store;
 pub mod token;
 pub mod user;
 
@@ -39,5 +44,7 @@ use ts_rs::TS;
 #[ts(type = "Record<string, never>")]
 pub struct EmptyObject {}
 
+#[cfg(test)]
+mod catalog_tests;
 #[cfg(test)]
 mod tests;

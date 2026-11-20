@@ -5,17 +5,19 @@
 
 use std::time::Duration;
 
+use axum::body::{Body, HttpBody};
 use axum::extract::{DefaultBodyLimit, Request, State};
 use axum::handler::Handler;
 use axum::http::{HeaderValue, header};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use axum::routing::{self, MethodRouter};
-use server_api_types::TS;
 use server_api_types::export::type_name;
+use server_api_types::{ErrorCode, TS};
 use server_domain::policy::Policy;
 
 use super::{PathTemplate, RegistryError};
+use crate::error::error_response;
 use crate::router::{GateState, enforce_policy};
 
 /// HTTP methods a route may use.
@@ -94,6 +96,8 @@ pub enum BodyKind {
     Json,
     /// An `application/x-www-form-urlencoded` form.
     Form,
+    /// Raw bytes, bounded before the handler runs, including for streamed requests.
+    Binary,
 }
 
 impl BodyKind {
@@ -103,6 +107,7 @@ impl BodyKind {
             Self::None => "none",
             Self::Json => "json",
             Self::Form => "form",
+            Self::Binary => "binary",
         }
     }
 }
@@ -118,6 +123,8 @@ pub enum ResponseKind {
     Redirect,
     /// A streamed body.
     Stream,
+    /// Raw binary on 200, no body on conditional 304 or HEAD.
+    BinaryOrEmpty,
 }
 
 impl ResponseKind {
@@ -128,6 +135,7 @@ impl ResponseKind {
             Self::Empty => "empty",
             Self::Redirect => "redirect",
             Self::Stream => "stream",
+            Self::BinaryOrEmpty => "binary-or-empty",
         }
     }
 }
@@ -225,7 +233,7 @@ impl Contract {
         self
     }
 
-    /// Names the shape of the JSON body of a successful answer.
+    /// Names the shape of a successful answer, including a raw binary body descriptor.
     pub fn response_shape<T: TS + ?Sized>(mut self) -> Self {
         self.response_shape = Some(type_name::<T>());
         self
@@ -321,7 +329,7 @@ impl Contract {
         self.query_shape.as_deref()
     }
 
-    /// The shape of the JSON answer, if the contract names one.
+    /// The shape of the answer, if the contract names one.
     pub fn response_shape_name(&self) -> Option<&str> {
         self.response_shape.as_deref()
     }
@@ -403,7 +411,7 @@ impl Route {
         if matches!(contract.csrf, Csrf::Exempt(_)) && policy.public_reason().is_none() {
             return Err(RegistryError::CsrfMismatch(path.as_str().to_owned()));
         }
-        let base: MethodRouter = match method {
+        let mut base: MethodRouter = match method {
             Method::Get => routing::get(handler),
             Method::Post => routing::post(handler),
             Method::Put => routing::put(handler),
@@ -411,6 +419,12 @@ impl Route {
             Method::Delete => routing::delete(handler),
         };
         let limit = usize::try_from(contract.limits.max_body_bytes).unwrap_or(usize::MAX);
+        // DefaultBodyLimit is extractor-based and cannot bound a handler reading Request's
+        // body directly. Raw uploads are buffered with a strict bound inside the policy gate,
+        // so CSRF and authorization run before body consumption, even without Content-Length.
+        if contract.request_body == BodyKind::Binary {
+            base = base.layer(middleware::from_fn_with_state(limit, bound_binary_body));
+        }
         let gate = middleware::from_fn_with_state(
             GateState::new(policy.clone(), contract.csrf),
             enforce_policy,
@@ -437,6 +451,27 @@ impl Route {
             endpoint,
         })
     }
+}
+
+async fn bound_binary_body(State(limit): State<usize>, request: Request, next: Next) -> Response {
+    let (parts, body) = request.into_parts();
+    let mut body = body;
+    let mut bytes = Vec::new();
+    while let Some(frame) =
+        std::future::poll_fn(|context| std::pin::Pin::new(&mut body).poll_frame(context)).await
+    {
+        let Ok(frame) = frame else {
+            return error_response(ErrorCode::BadRequest);
+        };
+        if let Ok(data) = frame.into_data() {
+            if data.len() > limit.saturating_sub(bytes.len()) {
+                return error_response(ErrorCode::PayloadTooLarge);
+            }
+            bytes.extend_from_slice(&data);
+        }
+    }
+    next.run(Request::from_parts(parts, Body::from(bytes)))
+        .await
 }
 
 /// How the cache header of a route is set.

@@ -25,6 +25,9 @@ use crate::router::{AppOptions, build_with};
 const SESSION: &str = "__Host-impluvium_session";
 const ORIGIN: &str = "https://app.example.test";
 
+#[path = "catalog_tests.rs"]
+mod catalog_tests;
+
 struct Table(HashMap<&'static str, Principal>);
 
 impl CredentialPort for Table {
@@ -80,6 +83,18 @@ fn table() -> Table {
         )),
     );
     entries.insert("setup", token(&["setup:run"], setup));
+    entries.insert(
+        "tok-library-add",
+        token(&["library:add"], role_rights(Role::User)),
+    );
+    entries.insert(
+        "tok-library-remove",
+        token(&["library:remove"], role_rights(Role::User)),
+    );
+    entries.insert(
+        "tok-collection-add",
+        token(&["collections:add"], role_rights(Role::User)),
+    );
     entries.insert(
         "tok-admin",
         token(&["admin:manage"], role_rights(Role::Admin)),
@@ -198,7 +213,7 @@ fn call(router: &Router, method: &str, path: &str, credential: Option<(&str, Str
 }
 
 /// Method, path of every route here, with whether it is public.
-const ROUTES: [(&str, &str, bool); 43] = [
+const ROUTES: [(&str, &str, bool); 66] = [
     ("GET", "/api/v1", true),
     ("GET", "/api/v1/settings", false),
     ("POST", "/api/v1/setup", false),
@@ -242,6 +257,29 @@ const ROUTES: [(&str, &str, bool); 43] = [
     ("GET", "/api/v1/admin/users", false),
     ("GET", "/api/v1/admin/users/{id}", false),
     ("DELETE", "/api/v1/admin/users/{id}", false),
+    ("GET", "/api/v1/store", false),
+    ("GET", "/api/v1/store/featured", false),
+    ("GET", "/api/v1/store/tags", false),
+    ("GET", "/api/v1/games/{id}", false),
+    ("GET", "/api/v1/companies/{id}", false),
+    ("GET", "/api/v1/tags/{id}", false),
+    ("GET", "/api/v1/collection", false),
+    ("POST", "/api/v1/collection", false),
+    ("GET", "/api/v1/collection/default", false),
+    ("POST", "/api/v1/collection/default/entry", false),
+    ("DELETE", "/api/v1/collection/default/entry", false),
+    ("GET", "/api/v1/collection/{id}", false),
+    ("DELETE", "/api/v1/collection/{id}", false),
+    ("POST", "/api/v1/collection/{id}/entry", false),
+    ("DELETE", "/api/v1/collection/{id}/entry", false),
+    ("GET", "/api/v1/object/{id}", true),
+    ("POST", "/api/v1/object/{id}", true),
+    ("DELETE", "/api/v1/object/{id}", true),
+    ("GET", "/api/v1/screenshots", false),
+    ("GET", "/api/v1/screenshots/{id}", false),
+    ("DELETE", "/api/v1/screenshots/{id}", false),
+    ("GET", "/api/v1/screenshots/game/{id}", false),
+    ("POST", "/api/v1/screenshots/game/{id}", false),
 ];
 
 /// Method, path, response kind, success status, request body, request shape, query shape,
@@ -1157,6 +1195,26 @@ fn routes_with_secrets_or_the_account_of_the_caller_are_never_cached() {
     let expected: BTreeSet<(&str, String)> = [
         ("GET", "/api/v1/user"),
         ("GET", "/api/v1/token"),
+        // Age-filtered catalog answers and account-owned library/screenshot answers.
+        ("GET", "/api/v1/store"),
+        ("GET", "/api/v1/store/featured"),
+        ("GET", "/api/v1/games/{id}"),
+        ("GET", "/api/v1/collection"),
+        ("POST", "/api/v1/collection"),
+        ("GET", "/api/v1/collection/default"),
+        ("POST", "/api/v1/collection/default/entry"),
+        ("DELETE", "/api/v1/collection/default/entry"),
+        ("GET", "/api/v1/collection/{id}"),
+        ("DELETE", "/api/v1/collection/{id}"),
+        ("POST", "/api/v1/collection/{id}/entry"),
+        ("DELETE", "/api/v1/collection/{id}/entry"),
+        ("POST", "/api/v1/object/{id}"),
+        ("DELETE", "/api/v1/object/{id}"),
+        ("GET", "/api/v1/screenshots"),
+        ("GET", "/api/v1/screenshots/{id}"),
+        ("DELETE", "/api/v1/screenshots/{id}"),
+        ("GET", "/api/v1/screenshots/game/{id}"),
+        ("POST", "/api/v1/screenshots/game/{id}"),
         ("POST", "/api/v1/user/mfa/totp/start"),
         ("POST", "/api/v1/user/token"),
         ("POST", "/api/v1/admin/token"),

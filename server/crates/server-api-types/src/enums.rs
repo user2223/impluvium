@@ -73,6 +73,58 @@ api_enums!(
         #[serde(rename = "macOS")]
         MacOs,
     }
+    /// The provider of imported metadata.
+    MetadataSource {
+        Manual,
+        GiantBomb,
+        Steam,
+        #[serde(rename = "PCGamingWiki")]
+        PcGamingWiki,
+        #[serde(rename = "IGDB")]
+        Igdb,
+        Metacritic,
+        OpenCritic,
+    }
+    /// The kind of catalog content.
+    GameType {
+        Game,
+        Emulator,
+        Dependency,
+    }
+    /// The organization assigning an age rating.
+    AgeRatingOrganization {
+        #[serde(rename = "ESRB")]
+        Esrb,
+        #[serde(rename = "PEGI")]
+        Pegi,
+        #[serde(rename = "CERO")]
+        Cero,
+        #[serde(rename = "USK")]
+        Usk,
+        #[serde(rename = "GRAC")]
+        Grac,
+        ClassInd,
+        #[serde(rename = "ACB")]
+        Acb,
+    }
+    /// The store's sort keys. Default and newest both sort by release date.
+    StoreSort {
+        #[serde(rename = "default")]
+        Default,
+        #[serde(rename = "newest")]
+        Newest,
+        #[serde(rename = "recent")]
+        Recent,
+        #[serde(rename = "name")]
+        Name,
+    }
+    /// The direction of a store sort.
+    SortOrder {
+        #[serde(rename = "asc")]
+        Asc,
+        #[serde(rename = "desc")]
+        Desc,
+    }
 );
 
 #[cfg(test)]
@@ -121,7 +173,7 @@ pub(crate) mod tests {
     #[test]
     fn runtime_list_matches_the_enum() {
         let listed = runtime_enums();
-        assert_eq!(listed.len(), 1);
+        assert_eq!(listed.len(), 6);
         assert_eq!(listed[0].name, "Platform");
         assert_eq!(listed[0].values, ["Windows", "Linux", "macOS"]);
     }

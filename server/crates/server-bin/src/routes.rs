@@ -156,9 +156,32 @@ mod tests {
                 ("POST", "/api/v1/auth/signin/simple"),
                 ("GET", "/api/v1/auth/signup/simple"),
                 ("POST", "/api/v1/auth/signup/simple"),
+                ("GET", "/api/v1/collection"),
+                ("POST", "/api/v1/collection"),
+                ("GET", "/api/v1/collection/default"),
+                ("POST", "/api/v1/collection/default/entry"),
+                ("DELETE", "/api/v1/collection/default/entry"),
+                ("GET", "/api/v1/collection/{id}"),
+                ("DELETE", "/api/v1/collection/{id}"),
+                ("POST", "/api/v1/collection/{id}/entry"),
+                ("DELETE", "/api/v1/collection/{id}/entry"),
+                ("GET", "/api/v1/companies/{id}"),
                 ("GET", "/api/v1/emoji/{codepoint}"),
+                ("GET", "/api/v1/games/{id}"),
+                ("GET", "/api/v1/object/{id}"),
+                ("POST", "/api/v1/object/{id}"),
+                ("DELETE", "/api/v1/object/{id}"),
+                ("GET", "/api/v1/screenshots"),
+                ("GET", "/api/v1/screenshots/game/{id}"),
+                ("POST", "/api/v1/screenshots/game/{id}"),
+                ("GET", "/api/v1/screenshots/{id}"),
+                ("DELETE", "/api/v1/screenshots/{id}"),
                 ("GET", "/api/v1/settings"),
                 ("POST", "/api/v1/setup"),
+                ("GET", "/api/v1/store"),
+                ("GET", "/api/v1/store/featured"),
+                ("GET", "/api/v1/store/tags"),
+                ("GET", "/api/v1/tags/{id}"),
                 ("GET", "/api/v1/token"),
                 ("GET", "/api/v1/user"),
                 ("GET", "/api/v1/user/auth"),
@@ -206,9 +229,29 @@ mod tests {
                 "/api/v1/auth/mfa/totp",
                 "/api/v1/auth/mfa/webauthn/finish",
                 "/api/v1/auth/mfa/webauthn/start",
+                "/api/v1/collection",
+                "/api/v1/collection",
+                "/api/v1/collection/default",
+                "/api/v1/collection/default/entry",
+                "/api/v1/collection/default/entry",
+                "/api/v1/collection/{id}",
+                "/api/v1/collection/{id}",
+                "/api/v1/collection/{id}/entry",
+                "/api/v1/collection/{id}/entry",
+                "/api/v1/companies/{id}",
                 "/api/v1/emoji/{codepoint}",
+                "/api/v1/games/{id}",
+                "/api/v1/screenshots",
+                "/api/v1/screenshots/game/{id}",
+                "/api/v1/screenshots/game/{id}",
+                "/api/v1/screenshots/{id}",
+                "/api/v1/screenshots/{id}",
                 "/api/v1/settings",
                 "/api/v1/setup",
+                "/api/v1/store",
+                "/api/v1/store/featured",
+                "/api/v1/store/tags",
+                "/api/v1/tags/{id}",
                 "/api/v1/user/auth",
                 "/api/v1/user/client",
                 "/api/v1/user/client/{id}",
@@ -345,5 +388,32 @@ mod tests {
             entry["contract"]["csrf"],
             json!({ "mode": "not_applicable" })
         );
+    }
+    #[test]
+    fn binary_and_upload_inventory_names_keep_their_limits_and_shapes() {
+        let document = parse(&render(&registry::application()));
+        let routes = document["routes"].as_array().unwrap();
+        let get = routes
+            .iter()
+            .find(|entry| entry["method"] == "GET" && entry["path"] == "/api/v1/object/{id}")
+            .unwrap();
+        assert_eq!(get["contract"]["response"], "binary-or-empty");
+        assert_eq!(get["contract"]["response_shape"], "ObjectDownload");
+        assert_eq!(get["contract"]["success_statuses"], json!([200, 304]));
+        assert!(get["contract"].get("no_store").is_none());
+        for path in ["/api/v1/object/{id}", "/api/v1/screenshots/game/{id}"] {
+            let upload = routes
+                .iter()
+                .find(|entry| entry["method"] == "POST" && entry["path"] == path)
+                .unwrap();
+            assert_eq!(upload["contract"]["request_body"], "binary");
+            assert_eq!(upload["contract"]["request_shape"], "BinaryUpload");
+            assert_eq!(upload["contract"]["csrf"]["mode"], "required");
+            assert_eq!(
+                upload["contract"]["limits"]["max_body_bytes"],
+                32 * 1024 * 1024
+            );
+            assert_eq!(upload["contract"]["no_store"], true);
+        }
     }
 }
